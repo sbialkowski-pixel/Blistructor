@@ -76,8 +76,8 @@ namespace Blistructor
             // <Custom code>
             bool prev_blister = true;
             Blistructor blister = new Blistructor(Pills, Blister);
-            //blister.CreateConnectivityData();
-            blister.getCuttingInstructions(iter1, iter2);
+            blister.CreateConnectivityData();
+            //blister.getCuttingInstructions(iter1, iter2);
 
             List<NurbsCurve> pills = new List<NurbsCurve>();
             List<PolylineCurve> polygons = new List<PolylineCurve>();
@@ -90,32 +90,32 @@ namespace Blistructor
 
             if (!blister.toTight && prev_blister)
             {
-                for (int i = 0; i < blister.orderedCells.Count; i++)
-                {
-                    Cell cell = blister.orderedCells[i];
-                    // foreach(Cell cell in blister.orderedCells){
-                    polygons.Add(cell.bestCuttingData.Polygon);
-                    blisters.Add(cell.bestCuttingData.NewBlister);
-                    path.Add(cell.bestCuttingData.Path);
-                    //cell.bestCuttingData.GetInstructions();
-                    if (cell.bestCuttingData.bladeFootPrint.Count > 0)
-                    {
-                        bladeFootPrint.AddRange(cell.bestCuttingData.bladeFootPrint, new GH_Path(i));
-                    }
-                    pills.Add(cell.pill);
-                }
-                A = polygons;
-                B = path;
-                C = blisters;
-                D = pills;
-                F = bladeFootPrint;
+                //for (int i = 0; i < blister.orderedCells.Count; i++)
+                //{
+                //    Cell cell = blister.orderedCells[i];
+                //    // foreach(Cell cell in blister.orderedCells){
+                //    polygons.Add(cell.bestCuttingData.Polygon);
+                //    blisters.Add(cell.bestCuttingData.NewBlister);
+                //    path.Add(cell.bestCuttingData.Path);
+                //    //cell.bestCuttingData.GetInstructions();
+                //    if (cell.bestCuttingData.bladeFootPrint.Count > 0)
+                //    {
+                //        bladeFootPrint.AddRange(cell.bestCuttingData.bladeFootPrint, new GH_Path(i));
+                //    }
+                //    pills.Add(cell.pill);
+                //}
+                //A = polygons;
+                //B = path;
+                //C = blisters;
+                //D = pills;
+                //F = bladeFootPrint;
 
                 // E = blister.cells[cellId].GetTrimmedIsoRays();
                 //E = blister.irVoronoi;
                 //
-                G = blister.cells[cellId].temp;
+                //G = blister.cells[cellId].temp;
                 H = blister.cells[cellId].proxLines;
-                I = blister.cells[cellId].GetPaths();
+                //I = blister.cells[cellId].GetPaths();
                 I = blister.cells[cellId].samplePoints;
                 //AA = blister.cells[cellId].orientationCircle;
             }
@@ -129,6 +129,40 @@ namespace Blistructor
 
         #region Additional
         // <Custom additional code>
+        
+        public class Blistructor2
+        {
+            public List<Blister> blister;
+            public Point3d knifeLastPoint = new Point3d();
+            
+            public Blistructor2(string maskPath, Polyline Blister)
+            {
+                /*
+                Conturer.Conturer cont = new Conturer.Conturer();
+                List<List<int[]>> allPoints = cont.getContours(maskPath, 0.05);
+                DataTree<Point3d> rawContours = new DataTree<Point3d>();
+
+                for (int i = 0; i < allPoints.Count; i++ ){
+                  GH_Path path = new GH_Path(i);
+                  List<int[]> pointList = allPoints[i];
+                  for (int j = 0; j < pointList.Count; j++ ){
+                    Point3d point = new Point3d(pointList[j][0], -pointList[j][1], 0);
+                    rawContours.Add(point, path);
+                  }
+                }
+                initialize(rawContours, Blister);
+          */
+            }
+
+            public Blistructor2(List<Curve> Pills, Polyline Blister)
+            {
+                blister.Add(new Blister(Pills, Blister));
+            }
+
+
+        }
+
+
         public class Blistructor
         {
 
@@ -366,31 +400,31 @@ namespace Blistructor
                 return temp;
             }
 
-
             // Create Connectivity Data
             public void CreateConnectivityData()
             {
-                for (int currentCellId = 0; currentCellId < cells.Count; currentCellId++)
+                foreach (Cell currentCell in cells)
                 {
+                    // If current cell is removed... go to next one.
+                    if (currentCell.removed) continue;
                     List<Point3d> currentMidPoints = new List<Point3d>();
                     List<Curve> currentConnectionLines = new List<Curve>();
                     List<Cell> currenAdjacentCells = new List<Cell>();
-                    for (int proxCellId = 0; proxCellId < cells.Count; proxCellId++)
+                    foreach (Cell proxCell in cells)
                     {
-                        if (proxCellId != currentCellId)
+                        // If proxCell is removed or currCell is same as proxCell, next cell...
+                        if (proxCell.removed || proxCell.id == currentCell.id) continue;
+                        LineCurve line = new LineCurve(currentCell.pillCenter, proxCell.pillCenter);
+                        Point3d midPoint = line.PointAtNormalizedLength(0.5);
+                        double t;
+                        if (currentCell.voronoi.ClosestPoint(midPoint, out t, 1.000))
                         {
-                            LineCurve line = new LineCurve(cells[currentCellId].pillCenter, cells[proxCellId].pillCenter);
-                            Point3d midPoint = line.PointAtNormalizedLength(0.5);
-                            double t;
-                            if (cells[currentCellId].voronoi.ClosestPoint(midPoint, out t, 1.000))
-                            {
-                                currenAdjacentCells.Add(cells[proxCellId]);
-                                currentConnectionLines.Add(line);
-                                currentMidPoints.Add(midPoint);
-                            }
+                            currenAdjacentCells.Add(proxCell);
+                            currentConnectionLines.Add(line);
+                            currentMidPoints.Add(midPoint);
                         }
                     }
-                    cells[currentCellId].AddConnectionData(currenAdjacentCells, currentConnectionLines, currentMidPoints, blister);
+                    currentCell.AddConnectionData(currenAdjacentCells, currentConnectionLines, currentMidPoints, blister);
                 }
             }
 
@@ -412,12 +446,208 @@ namespace Blistructor
             }
         }
 
-        public class BlisterPart
+        public class Blister
         {
+            public bool ToTight = false;
+            private PolylineCurve outline;
+            private PolylineCurve bBox;
+            private Point3d minPoint;
+            private LineCurve guideLine;
+            private List<Cell> cells;
+            private List<Cell> orderedCells;
+            public List<PolylineCurve> irVoronoi;
 
+            public Blister(List<Curve> pills, Polyline outline)
+            {
+                Initialize(pills, outline.ToPolylineCurve());
+            }
+            
+            public Blister(List<Curve> pills, PolylineCurve outline)
+            {
+                Initialize(pills, outline);
+            }
 
+            private void Initialize(List<Curve> pills, PolylineCurve outline)
+            {
+                minPoint = new Point3d(0, double.MaxValue, 0);
+                cells = new List<Cell>(pills.Count);
+                if (pills.Count > 1)
+                {
+                    // Prepare all needed Blister data
+                    this.outline = outline;
+                    BoundingBox blisterBB = Outline.GetBoundingBox(false);
+                    Rectangle3d rect = new Rectangle3d(Plane.WorldXY, blisterBB.Min, blisterBB.Max);
+                    BBox = rect.ToPolyline().ToPolylineCurve();
+                    // Find lowest mid point on Blister Bounding Box
+                    foreach (Line edge in BBox.ToPolyline().GetSegments())
+                    {
+                        if (edge.PointAt(0.5).Y < minPoint.Y)
+                        {
+                            minPoint = edge.PointAt(0.5);
+                            guideLine = new LineCurve(edge);
+                        }
+                    }
 
-        } 
+                    // Cells Creation
+                    cells = new List<Cell>(pills.Count);
+                    for (int cellId = 0; cellId < pills.Count; cellId++)
+                    {
+                        if (pills[cellId].IsClosed)
+                        {
+                            Cell cell = new Cell(cellId, pills[cellId]);
+                            cell.SetDistance(guideLine);
+                            cells.Add(cell);
+                        }
+                    }
+                    // Order by Corner distance. First Two set as possible Anchor.
+                    cells = cells.OrderBy(cell => cell.CornerDistance).ToList();
+                    for (int i = 0; i < 2; i++)
+                    {
+                        cells[i].possible_anchor = true;
+                    }
+                    cells = cells.OrderBy(cell => cell.CoordinateIndicator).Reverse().ToList();
+                    //cells = cells.OrderBy(cell => cell.CornerDistance).Reverse().ToList();
+                    ToTight = AreCellsOverlapping();
+                    if (!ToTight)
+                    {
+                        irVoronoi = Geometry.IrregularVoronoi(cells, Outline.ToPolyline(), 50, 0.05);
+                    }
+                }
+            }
+
+            public Point3d MinPoint
+            {
+                get { return minPoint; }
+            }
+            
+            public LineCurve GuideLine
+            {
+                get { return guideLine; }
+            }
+            public int LeftCellsCount
+            {
+                get
+                {
+                    int count = 0;
+                    if (cells.Count > 0)
+                    {
+                        foreach (Cell cell in cells)
+                        {
+                            if (!cell.removed) count++;
+                        }
+                    }
+                    return count;
+                }
+            }
+            
+            public List<int> LeftCellsIndices
+            {
+                get
+                {
+                    List<int> indices = new List<int>();
+                    if (cells.Count == 0) return indices;
+                    foreach ( Cell cell in cells)
+                    {
+                        if (!cell.removed) indices.Add(cell.id);
+                    }
+                    return indices;
+                }
+            }
+            
+            public List<NurbsCurve> GetPills
+            {
+                get
+                {
+                    List<NurbsCurve> pills = new List<NurbsCurve>();
+                    foreach (Cell cell in cells)
+                    {
+                        pills.Add(cell.pill);
+                    }
+                    return pills;
+                }
+
+            }
+
+            public bool IsDone
+            {
+                get
+                {
+                    if (ToTight) return true;
+                    else if (LeftCellsCount <= 1) return true;
+                    else return false;
+                }
+            }
+
+            public List<Cell> Cells { get { return cells; } set { cells = value; } }
+            
+            public List<Cell> OrderedCells { get { return orderedCells; } set { orderedCells = value; } }
+            
+            public PolylineCurve Outline { get { return outline; } set { outline = value; } }
+           
+            public PolylineCurve BBox { get { return bBox; } set { bBox = value; } }
+
+            public void CutNext()
+            {
+
+            }
+
+            public bool InclusionTest(Cell testCell)
+            {
+                return InclusionTest(testCell.pillOffset);
+            }
+            
+            public bool InclusionTest(Curve testCurve)
+            {
+                RegionContainment test = Curve.PlanarClosedCurveRelationship(Outline, testCurve, Plane.WorldXY, Setups.OverlapTolerance);
+                if (test == RegionContainment.BInsideA) return true;
+                else return false;
+            }
+            
+            protected bool AreCellsOverlapping()
+            {
+                // output = false;
+                for (int i = 0; i < cells.Count; i++)
+                {
+                    for (int j = i + 1; j < cells.Count; j++)
+                    {
+                        CurveIntersections inter = Intersection.CurveCurve(cells[i].pillOffset, cells[j].pillOffset, Setups.IntersectionTolerance, Setups.OverlapTolerance);
+                        if (inter.Count > 0)
+                        {
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            }
+
+            public void CreateConnectivityData()
+            {
+                foreach (Cell currentCell in cells)
+                {
+                    // If current cell is removed... go to next one.
+                    if (currentCell.removed) continue;
+                    List<Point3d> currentMidPoints = new List<Point3d>();
+                    List<Curve> currentConnectionLines = new List<Curve>();
+                    List<Cell> currenAdjacentCells = new List<Cell>();
+                    foreach (Cell proxCell in cells)
+                    {
+                        // If proxCell is removed or currCell is same as proxCell, next cell...
+                        if (proxCell.removed || proxCell.id != currentCell.id) continue;
+                        LineCurve line = new LineCurve(currentCell.pillCenter, proxCell.pillCenter);
+                        Point3d midPoint = line.PointAtNormalizedLength(0.5);
+                        double t;
+                        if (currentCell.voronoi.ClosestPoint(midPoint, out t, 1.000))
+                        {
+                            currenAdjacentCells.Add(proxCell);
+                            currentConnectionLines.Add(line);
+                            currentMidPoints.Add(midPoint);
+                        }
+                    }
+                    currentCell.AddConnectionData(currenAdjacentCells, currentConnectionLines, currentMidPoints, outline);
+                }
+            }
+
+        }
 
         public class Cell
         {
@@ -951,7 +1181,7 @@ namespace Blistructor
                     if (intersectionsData.Count == cutters.Count - 1)
                     {
                         //Create JoinedCurve from all interesection data
-                        List<Point3d> polyLinePoints = new List<Point3d>{cutters[0].PointAtStart};
+                        List<Point3d> polyLinePoints = new List<Point3d> { cutters[0].PointAtStart };
                         for (int i = 0; i < intersectionsData.Count; i++)
                         {
                             polyLinePoints.Add(intersectionsData[i][0].PointA);
@@ -983,7 +1213,7 @@ namespace Blistructor
                         {
                             intersectionPoints.Add(inter[i].PointA);
                             intersectionPoints.Add(inter[i].PointB);
-                        } 
+                        }
                     }
                 }
                 // Close Curve
@@ -1017,12 +1247,12 @@ namespace Blistructor
                             {
                                 ts[i] = blisterInter[i].ParameterB;
                             }
-                            List<Curve> commonParts = new List<Curve>(2) { blister.Trim(ts[0], ts[1]), blister.Trim(ts[1], ts[0])};
+                            List<Curve> commonParts = new List<Curve>(2) { blister.Trim(ts[0], ts[1]), blister.Trim(ts[1], ts[0]) };
                             // Look for shorter part.
                             List<Curve> blisterParts = commonParts.OrderBy(x => x.GetLength()).ToList();
                             temp.Add(pCrv);
                             //Curve common_part = commonParts.OrderBy(x => x.GetLength()).ToList()[0];
-   
+
                             //Join Curve into closed polygon
                             Curve[] pCurve = Curve.JoinCurves(new Curve[2] { blisterParts[0], pCrv });
                             Polyline polygon = new Polyline();
