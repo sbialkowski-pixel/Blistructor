@@ -720,7 +720,6 @@ namespace Blistructor
             public NurbsCurve pillOffset;
 
             private AreaMassProperties pillProp;
-            private NurbsCurve orientationCircle;
 
             // Connection and Adjacent Stuff
             public Curve voronoi;
@@ -789,7 +788,7 @@ namespace Blistructor
                 }
             }
 
-            public NurbsCurve OrientationCircle { get { return orientationCircle; } }
+            public NurbsCurve OrientationCircle { get; private set; }
 
             public CellState State { get { return state;  } }
 
@@ -835,7 +834,7 @@ namespace Blistructor
                 connectionLines = new List<Curve>();
 
                 EstimateOrientationCircle();
-                int[] ind = Geometry.SortPtsAlongCurve(midPoints, orientationCircle);
+                int[] ind = Geometry.SortPtsAlongCurve(midPoints, OrientationCircle);
 
                 foreach (int id in ind)
                 {
@@ -888,14 +887,14 @@ namespace Blistructor
             private void EstimateOrientationCircle()
             {
                 double circle_radius = pill.GetBoundingBox(false).Diagonal.Length / 2;
-                orientationCircle = (new Circle(PillCenter, circle_radius)).ToNurbsCurve();
-                Geometry.EditSeamBasedOnCurve(orientationCircle, blister.Outline);
+                OrientationCircle = (new Circle(PillCenter, circle_radius)).ToNurbsCurve();
+                Geometry.EditSeamBasedOnCurve(OrientationCircle, blister.Outline);
             }
 
             private void SortData()
             {
                 EstimateOrientationCircle();
-                int[] sortingIndexes = Geometry.SortPtsAlongCurve(samplePoints, orientationCircle);
+                int[] sortingIndexes = Geometry.SortPtsAlongCurve(samplePoints, OrientationCircle);
 
                 samplePoints = sortingIndexes.Select(index => samplePoints[index]).ToList();
                 connectionLines = sortingIndexes.Select(index => connectionLines[index]).ToList();
@@ -1179,7 +1178,7 @@ namespace Blistructor
                 LineCurve outLine = null;
                 if (ray != null)
                 {
-                    Geometry.FlipIsoRays(orientationCircle, ray);
+                    Geometry.FlipIsoRays(OrientationCircle, ray);
                     Tuple<List<Curve>, List<Curve>> result = Geometry.TrimWithRegion(ray, blister.Outline);
                     if (result.Item1.Count >= 1)
                     {
@@ -1377,8 +1376,14 @@ namespace Blistructor
                         return null;
                     }
                 }
+                log.Debug("Check smallest segment size requerment.");
+                // Check if smallest segment from cutout blister is smaller than some size.
+                PolylineCurve pill_region_Crv = pill_region.ToPolylineCurve();
+                PolylineCurve bbox =  Geometry.MinimumAreaRectangleBF(pill_region_Crv);
+                Line[] pill_region_segments = pill_region.GetSegments().OrderBy(line => line.Length).ToArray();
+                if (pill_region_segments[0].Length > Setups.MinimumCutOutSize) return null;
                 log.Debug("CutData created.");
-                return new CutData(pill_region.ToPolylineCurve(), pathCrv, cutted_blister_regions);
+                return new CutData(pill_region_Crv, pathCrv, cutted_blister_regions);
 
             }
 
@@ -1706,6 +1711,7 @@ namespace Blistructor
 
         static class Setups
         {
+            // All stuff in mm.
             public const double GeneralTolerance = 0.0001;
             public const double IntersectionTolerance = 0.0001;
             public const double OverlapTolerance = 0.0001;
@@ -1714,9 +1720,10 @@ namespace Blistructor
             public const double BladeWidth = 3.0;
             public const double CartesianThicknes = 3.0;
             public const double IsoRadius = 1000.0;
+            public const double MinimumCutOutSize = 35.0;
             public const double AngleTolerance = (0.5 * Math.PI) * 0.2;
             public const double CollapseTolerance = 1.0; // if path segment is shorter then this, it will be collapsed
-            public const double SnapDistance = 0.5; // if path segment is shorter then this, it will be collapsed
+            public const double SnapDistance = 1; // if path segment is shorter then this, it will be collapsed
         }
 
         static class Geometry
@@ -2184,8 +2191,32 @@ namespace Blistructor
                 }
                 return vCells;
             }
+
+            public static PolylineCurve MinimumAreaRectangleBF(Curve crv)
+            {
+                Point3d centre = AreaMassProperties.Compute(crv).Centroid;
+                double minArea = double.MaxValue;
+                PolylineCurve outCurve = null;
+
+                for (double i = 0; i < 180; i++)
+                {
+                    double radians = RhinoMath.ToRadians(i);
+                    Curve currentCurve = crv.DuplicateCurve();
+                    currentCurve.Rotate(radians, Vector3d.ZAxis, centre);
+                    BoundingBox box = currentCurve.GetBoundingBox(false);
+                    if (box.Area < minArea)
+                    {
+                        minArea = box.Area;
+                        Rectangle3d rect = new Rectangle3d(Plane.WorldXY, box.Min, box.Max);
+                        PolylineCurve r = rect.ToPolyline().ToPolylineCurve();
+                        r.Rotate(-radians, Vector3d.ZAxis, centre);
+                        outCurve = r;
+                    }
+                }
+                return outCurve;
+            }
         }
-    
+
         public class Logger
         {
             public static void Setup()
@@ -2196,7 +2227,7 @@ namespace Blistructor
                 patternLayout.ConversionPattern = "%5level %logger.%M - %message%newline";
                 patternLayout.ActivateOptions();
 
-                          //FileAppender
+                            //FileAppender
                 FileAppender roller = new FileAppender();
             
                 roller.File = @"D:\PIXEL\Blistructor\cutter.log";
