@@ -175,6 +175,21 @@ namespace Blistructor
             }
 
 
+            public void Run()
+            {
+                //while <- while all stuff is sut out...
+                for(int i=0; i<Queue.Count, i++)
+                {
+                    Blister blister = Queue[i];
+                    if (blister.IsDone) continue;
+                    Cell cuttedCell = blister.CutNext();
+                    // not shure if correct
+                    if (cuttedCell == null) continue;
+
+                }
+            }
+
+
         }
 
 
@@ -496,6 +511,16 @@ namespace Blistructor
                 }
             }
 
+
+            /// <summary>
+            /// Contructor mostly to creat cut out blisters with one cell
+            /// </summary>
+            /// <param name="cells"></param>
+            /// <param name="outline"></param>
+            public Blister(Cell cells, PolylineCurve outline) : this(outline)
+            {
+                this.cells = new List<Cell>(1) { cells };
+            }
             /// <summary>
             /// New blister based on already existing cells and outline.
             /// </summary>
@@ -503,7 +528,16 @@ namespace Blistructor
             /// <param name="outline">Blister edge outline</param>
             public Blister(List<Cell> cells, PolylineCurve outline) : this(outline)
             {
-                this.cells = cells;
+                cells = new List<Cell>(cells.Count);
+                // Loop by all given cells
+                foreach (Cell cell in cells)
+                {
+                    if (cell.State == CellState.Cutted) continue;
+                    // If cell is not cutOut, check if belong to this blister.
+                    if (this.InclusionTest(cell)) this.cells.Add(cell);
+                }
+                if (LeftCellsCount == 1) return;
+
                 // Order by CoordinateIndicator so it means Z-ordering.
                 cells = cells.OrderBy(cell => cell.CoordinateIndicator).Reverse().ToList();
                 // Rebuild cells connectivity.
@@ -683,41 +717,66 @@ namespace Blistructor
             public bool ToTight { get { return toTight; } }
 
             #endregion
-            public void CutNext()
+            // W trakcie prac !!!!!!
+            public Tuple<Blister, List<Blister>> CutNext()
             {
-                //for (int cellId = 0; cellId < cells.Count; cellId++)
+                //Check if 
+
+                Cell found_cell = null;
+                int counter = 0;
                 foreach (Cell currentCell in cells)
                 {
-                    if (currentCell.State == CellState.Cutted) continue;
-                    if (currentCell.GenerateSimpleCuttingData_v2())
+                    if (currentCell.TryCut() == false)
                     {
-                        currentCell.PolygonSelector();
+                        counter++;
+                        continue;
                     }
-
-
+                    else
+                    {
+                        found_cell = currentCell;
+                        break;
+                    }
                 }
-        //                //for (int cellId = 0; cellId < cells.Count; cellId++)
-        //                {
-        //                    Cell currentCell = cells[cellId];
-        //                    //if (!currentCell.removed && !currentCell.possible_anchor)
-        //                    if (!currentCell.removed)
-        //                    {
-        //                        //currentCell.SortData(currentBlister);
-        //                        if (currentCell.GenerateSimpleCuttingData(currentBlister))
-        //                        {
-        //                            currentCell.PolygonSelector();
-        //                            // HERE GET INSTRUCTION!!!
-        //                            currentBlister = currentCell.bestCuttingData.NewBlister;
-        //                            currentCell.RemoveConnectionData(currentBlister);
-        //                            cells[cellId].removed = true;
-        //                            orderedCells.Add(currentCell);
-        //                            advancedCutting = false;
-        //                            anyCutted = true;
-        //                            break;
-        //                        }
-        //                    }
-        //                }
+                if (found_cell == null) return null;
+                // If on blister was only one cell, after cutting is status change to Alone, so just return it, without any leftover blisters. 
+                if (found_cell.State == CellState.Alone) return Tuple.Create<Blister, List<Blister>>(this, null);
+                
+                // If more cells replace outline of current blister by first curve from the list...
+                // Update current blister outline
+                outline = found_cell.bestCuttingData.BlisterLeftovers[0];
+                // Create new blister with cutted pill
+                Blister cutted = new Blister(found_cell, found_cell.bestCuttingData.Polygon);
+                cells.RemoveAt(counter);
+                // Deal with more then one leftover
+                // remove all cells which are not belong to this blister anymore...
+                List<Cell> removerdCells = new List<Cell>(cells.Count);
+                for (int i =0; i< cells.Count; i++)
+                {
+                    // If cell is no more insied this blister, remove it.
+                    if (!InclusionTest(cells[i]))
+                    {
+                        // check if cell is aimed to cutt. For 100% all cells in blister should be Queue.. If not it;s BUGERSON
+                        if (cells[i].State != CellState.Queue) continue;
+                        removerdCells.Add(cells[i]);
+                        cells.RemoveAt(i);
+                        i--;
+                    }
+                }
+                // Loop by Leftovers (ommit first, it is current blister) and create new blisters.
+                List<Blister> newBlisters = new List<Blister>(found_cell.bestCuttingData.BlisterLeftovers.Count-1);
+                int cellCount = 0;
+                for (int j = 1; j < found_cell.bestCuttingData.BlisterLeftovers.Count; j++)
+                {
+                    PolylineCurve blisterLeftover = found_cell.bestCuttingData.BlisterLeftovers[j];
+                    Blister newBli = new Blister(removerdCells, blisterLeftover);
+                    // Verify if all cells were used.
+                    cellCount += newBli.Cells.Count;
+                    newBlisters.Add(newBli);
+                }
+                if (cellCount != removerdCells.Count) throw new InvalidOperationException("Number of cells not equal Befor and After new Blisters creation.");
 
+
+                return Tuple.Create<Blister, List<Blister>>(cutted, newBlisters);
             }
 
             public bool InclusionTest(Cell testCell)
@@ -761,14 +820,14 @@ namespace Blistructor
                 foreach (Cell currentCell in cells)
                 {
                     // If current cell is cut out... go to next one.
-                    if (currentCell.state == CellState.Cutted) continue;
+                    if (currentCell.State == CellState.Cutted) continue;
                     List<Point3d> currentMidPoints = new List<Point3d>();
                     List<Curve> currentConnectionLines = new List<Curve>();
                     List<Cell> currenAdjacentCells = new List<Cell>();
                     foreach (Cell proxCell in cells)
                     {
                         // If proxCell is cut out or cutCell is same as proxCell, next cell...
-                        if (proxCell.state == CellState.Cutted || proxCell.id != currentCell.id) continue;
+                        if (proxCell.State == CellState.Cutted || proxCell.id != currentCell.id) continue;
                         LineCurve line = new LineCurve(currentCell.PillCenter, proxCell.PillCenter);
                         Point3d midPoint = line.PointAtNormalizedLength(0.5);
                         double t;
@@ -785,7 +844,7 @@ namespace Blistructor
 
         }
 
-        public enum CellState { Queue = 0, Cutted = 1 };
+        public enum CellState { Queue = 0, Cutted = 1 , Alone = 2};
 
         public class Cell
         {
@@ -818,7 +877,7 @@ namespace Blistructor
 
             public List<Curve> obstacles;
 
-            public List<Curve> temp = new List<Curve>();
+            //public List<Curve> temp = new List<Curve>();
             // public List<Curve> temp2 = new List<Curve>();
             public List<CutData> cuttingData;
             public CutData bestCuttingData;
@@ -1136,12 +1195,17 @@ namespace Blistructor
             /// <summary>
             /// Get best Cutting Data from all generated and asign it to /bestCuttingData/ field.
             /// </summary>
-            public void PolygonSelector()
+            public CutData PolygonSelector()
             {
+                // Order by number of cuts to be performed.
                 cuttingData = cuttingData.OrderBy(x => x.CuttingCount).ToList();
+                // Limit only to lower number of cuts
                 List<CutData> selected = cuttingData.Where(x => x.CuttingCount == cuttingData[0].CuttingCount).ToList();
+                //Then sort by perimeter
                 selected = selected.OrderBy(x => x.GetPerimeter()).ToList();
+                //Pick best one.
                 bestCuttingData = selected[0];
+                return bestCuttingData;
                 // bestCuttingData = cuttingData[0];
             }
 
@@ -1162,10 +1226,17 @@ namespace Blistructor
                 */
             }
 
-            //TODO: DOKONCZYC TOOOOOO
             public bool TryCut()
             {
+                // If cell is cutted, dont try to cut it again... It supose to be in cutted blisters list...
                 if (state == CellState.Cutted) return false;
+                // If cell is not surrounded by other cell, update data
+                if (adjacentCells.Count == 0)
+                {
+                    state = CellState.Alone;
+                    return true;
+                }
+                // If still here, try to cut 
                 if (GenerateSimpleCuttingData_v2())
                 {
                     state = CellState.Cutted;
@@ -1672,7 +1743,8 @@ namespace Blistructor
             public List<PolylineCurve> BlisterLeftovers;
             public List<LineCurve> bladeFootPrint;
 
-            private CutData()
+
+            public CutData()
             {
                 TrimmedIsoRays = new List<LineCurve>();
                 IsoRays = new List<LineCurve>();
