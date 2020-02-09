@@ -24,6 +24,7 @@ using log4net.Appender;
 using log4net.Core;
 using log4net.Layout;
 using log4net.Repository.Hierarchy;
+using log4net.Filter;
 // </Custom using>
 
 /// Unique namespace, so visual studio won't throw any errors about duplicate definitions.
@@ -79,64 +80,88 @@ namespace Blistructor
 
         private void RunScript(List<Curve> Pills, Polyline Blister, int cellId, int iter1, int iter2, ref object A, ref object B, ref object C, ref object D, ref object E, ref object F, ref object G, ref object H, ref object I, ref object AA)
         {
+
             // <Custom code>
             //File.WriteAllText(@"D:\PIXEL\Blistructor\cutter.log", "");
-            ILog log = LogManager.GetLogger("Main.Run");
+            ILog log = LogManager.GetLogger("Main");
             Logger.Setup();
-            //XmlConfigurator.Configure(new System.IO.FileInfo(@"D:\PIXEL\Blistructor\Blistructor\cutter.config"));
-            log.Info("NEW RUN");
+            //Logger.ClearAllLogFile();
+            ////XmlConfigurator.Configure(new System.IO.FileInfo(@"D:\PIXEL\Blistructor\Blistructor\cutter.config"));
+            log.Info("====NEW RUN====");
 
-            bool prev_blister = true;
-            Blistructor blister = new Blistructor(Pills, Blister);
-            //blister.CreateConnectivityData();
-            blister.getCuttingInstructions(iter1, iter2);
-
-            List<NurbsCurve> pills = new List<NurbsCurve>();
-            List<PolylineCurve> polygons = new List<PolylineCurve>();
-            List<PolylineCurve> path = new List<PolylineCurve>();
-            List<PolylineCurve> blisters = new List<PolylineCurve>();
-            //List<LineCurve> bladeFootPrint = new  List<LineCurve>();
-            DataTree<LineCurve> bladeFootPrint = new DataTree<LineCurve>();
-
-
-
-            if (!blister.toTight && prev_blister)
+            try
             {
-                for (int i = 0; i < blister.orderedCells.Count; i++)
-                {
-                    log.Info("LogTest");
-                    LogManager.Flush(1);
-                    Cell cell = blister.orderedCells[i];
-                    // foreach(Cell cell in blister.orderedCells){
-                    polygons.Add(cell.bestCuttingData.Polygon);
-                    blisters.Add(cell.bestCuttingData.NewBlister);
-                    path.Add(cell.bestCuttingData.Path);
-                    //cell.bestCuttingData.GetInstructions();
-                    if (cell.bestCuttingData.bladeFootPrint.Count > 0)
-                    {
-                        bladeFootPrint.AddRange(cell.bestCuttingData.bladeFootPrint, new GH_Path(i));
-                    }
-                    pills.Add(cell.pill);
-                }
-                A = polygons;
-                B = path;
-                C = blisters;
-                D = pills;
-                F = bladeFootPrint;
+                Blistructor2 structor = new Blistructor2(Pills, Blister);
 
-                // E = blister.cells[cellId].GetTrimmedIsoRays();
-                //E = blister.irVoronoi;
-                //
-                //G = blister.cells[cellId].temp;
-                H = blister.cells[cellId].proxLines;
-                //I = blister.cells[cellId].GetPaths();
-                I = blister.cells[cellId].samplePoints;
-                //AA = blister.cells[cellId].orientationCircle;
+
+                structor.Run(iter1, iter2);
+                //if (structor.Queue != null)
+                //{
+                //B = structor.Queue[0].GetConnectionLines;
+                //C = structor.Queue[0].GetProxyLines;
+               // D = structor.Queue[0].GetSamplePoints;
+                //E = structor.Queue[0].GetObstacles;
+               // F = structor.Queue[0].Outline;
+                //}
+                A = structor.GetCuttedPolygons;
             }
-            else
+            catch (Exception ex)
             {
-                Print("TO TIGHT PILLS ARRANGMENT. I'M DONE HERE. BYEBYE...");
+                log.Error("Main Error catcher", ex);
+                throw;
             }
+
+            //bool prev_blister = true;
+            //Blistructor blister = new Blistructor(Pills, Blister);
+            ////blister.CreateConnectivityData();
+            //blister.getCuttingInstructions(iter1, iter2);
+
+            //List<NurbsCurve> pills = new List<NurbsCurve>();
+            //List<PolylineCurve> polygons = new List<PolylineCurve>();
+            //List<PolylineCurve> path = new List<PolylineCurve>();
+            //List<PolylineCurve> blisters = new List<PolylineCurve>();
+            ////List<LineCurve> bladeFootPrint = new  List<LineCurve>();
+            //DataTree<LineCurve> bladeFootPrint = new DataTree<LineCurve>();
+
+
+
+            //if (!blister.toTight && prev_blister)
+            //{
+            //    for (int i = 0; i < blister.orderedCells.Count; i++)
+            //    {
+            //        log.Info("LogTest");
+            //        LogManager.Flush(1);
+            //        Cell cell = blister.orderedCells[i];
+            //        // foreach(Cell cell in blister.orderedCells){
+            //        polygons.Add(cell.bestCuttingData.Polygon);
+            //        blisters.Add(cell.bestCuttingData.NewBlister);
+            //        path.Add(cell.bestCuttingData.Path);
+            //        //cell.bestCuttingData.GetInstructions();
+            //        if (cell.bestCuttingData.bladeFootPrint.Count > 0)
+            //        {
+            //            bladeFootPrint.AddRange(cell.bestCuttingData.bladeFootPrint, new GH_Path(i));
+            //        }
+            //        pills.Add(cell.pill);
+            //    }
+            //    A = polygons;
+            //    B = path;
+            //    C = blisters;
+            //    D = pills;
+            //    F = bladeFootPrint;
+
+            //    // E = blister.cells[cellId].GetTrimmedIsoRays();
+            //    //E = blister.irVoronoi;
+            //    //
+            //    //G = blister.cells[cellId].temp;
+            //    H = blister.cells[cellId].proxLines;
+            //    //I = blister.cells[cellId].GetPaths();
+            //    I = blister.cells[cellId].samplePoints;
+            //    //AA = blister.cells[cellId].orientationCircle;
+            //}
+            //else
+            //{
+            //    Print("TO TIGHT PILLS ARRANGMENT. I'M DONE HERE. BYEBYE...");
+            //}
             // </Custom code>
         }
         #endregion
@@ -144,13 +169,23 @@ namespace Blistructor
         #region Additional
         // <Custom additional code>
 
+
         public class Blistructor2
         {
+            private static readonly ILog log = LogManager.GetLogger("Main.Blistructor");
+
             public List<Blister> Queue;
             public List<Blister> Cutted;
             public Point3d knifeLastPoint = new Point3d();
+ 
 
-            public Blistructor2(string maskPath, Polyline Blister)
+            public Blistructor2()
+            {
+                Queue = new List<Blister>();
+                Cutted = new List<Blister>();
+            }
+
+            public Blistructor2(string maskPath, Polyline Blister) : this()
             {
                 /*
                 Conturer.Conturer cont = new Conturer.Conturer();
@@ -169,27 +204,87 @@ namespace Blistructor
           */
             }
 
-            public Blistructor2(List<Curve> Pills, Polyline Blister)
+            public Blistructor2(List<Curve> Pills, Polyline Blister)  :this()
             {
+                
                 Queue.Add(new Blister(Pills, Blister));
+                log.Debug(String.Format("New blistructor with {0} Queue blisters", Queue.Count));
             }
 
 
-            public void Run()
+            public void Run(int mainLoopLimiter, int innerLoopLimiter)
             {
-                //while <- while all stuff is sut out...
-                for(int i=0; i<Queue.Count, i++)
+                log.Info(String.Format("=== Start Cutting ==="));
+                int n = 0; // control
+                // Main Loop
+                while (Queue.Count > 0)
                 {
-                    Blister blister = Queue[i];
-                    if (blister.IsDone) continue;
-                    Cell cuttedCell = blister.CutNext();
-                    // not shure if correct
-                    if (cuttedCell == null) continue;
-
+                    if (n > mainLoopLimiter) break;
+                    log.Debug(String.Format(String.Format("==MainLoop: {0} ==", n)));
+                    log.Debug(String.Format(String.Format("Queue: {0}, Cutted {1}", Queue.Count, Cutted.Count)));
+                    // InnerLoop - Queue Blisters
+                    for (int i = 0; i < Queue.Count; i++)
+                    {
+                        //DEbug break stuff
+                        if (i > innerLoopLimiter) break;
+                        log.Debug(String.Format(String.Format("InnerLoop: {0}", i)));
+                        if (Queue == null) continue;
+                        log.Debug("Queue list not null.");
+                        Blister blister = Queue[i];
+                        log.Debug(String.Format("{0} Cells on Blister: {1}", blister.Cells.Count, i));
+                        if (blister.IsDone) continue;
+                        Tuple<Blister, Blister, List<Blister>> result = blister.CutNext();
+                        log.Debug(String.Format("Cutting Result: Cutout: {0} - Current Blister {1} - New Blisters {2}.", result.Item1, result.Item2, result.Item3.Count));
+                        // If anything was cutted, add to list
+                        if (result.Item1 != null) {
+                            log.Debug("Adding new CutOut blister to Cutted list");
+                            Cutted.Add(result.Item1);
+                        }
+                        else
+                        {
+                            log.Error("!!!Cannot cut blister Anymore!!!");
+                            return;
+                        }
+                        // override current bluster, if null , remove it from Queue list
+                        if (result.Item2 == null)
+                        {
+                            log.Debug("Current blister is empty. Removing from Queue");
+                            Queue.RemoveAt(i);
+                            i--;
+                        }
+                        else {
+                            log.Debug("Updating blister");
+                            blister = result.Item2;
+                        }
+                        // Add extra blsters if any was created
+                        if (result.Item3.Count != 0)
+                        {
+                            log.Debug("Adding new blister(s) to Queue");
+                            Queue.AddRange(result.Item3);
+                            break;
+                        }
+                        
+                    }
+                    n++;
                 }
             }
 
-
+            #region PROPERTIES
+            public List<PolylineCurve> GetCuttedPolygons
+            {
+                get
+                {
+                    List<PolylineCurve> polygons = new List<PolylineCurve>(Cutted.Count);
+                    foreach (Blister blister in Cutted)
+                    {
+                        polygons.Add(blister.Outline);
+                    }
+                    return polygons;
+                }
+            }
+           
+             //public List<List<PolylineCurve>>
+            #endregion
         }
 
 
@@ -478,6 +573,9 @@ namespace Blistructor
 
         public class Blister
         {
+            private static readonly ILog log = LogManager.GetLogger("Main.Blister");
+
+
             private bool toTight = false;
             private PolylineCurve outline;
             private PolylineCurve bBox;
@@ -499,7 +597,7 @@ namespace Blistructor
                 this.outline = outline;
                 BoundingBox blisterBB = Outline.GetBoundingBox(false);
                 Rectangle3d rect = new Rectangle3d(Plane.WorldXY, blisterBB.Min, blisterBB.Max);
-                BBox = rect.ToPolyline().ToPolylineCurve();
+                bBox = rect.ToPolyline().ToPolylineCurve();
                 // Find lowest mid point on Blister Bounding Box
                 foreach (Line edge in BBox.ToPolyline().GetSegments())
                 {
@@ -517,30 +615,39 @@ namespace Blistructor
             /// </summary>
             /// <param name="cells"></param>
             /// <param name="outline"></param>
-            public Blister(Cell cells, PolylineCurve outline) : this(outline)
+            public Blister(Cell _cells, PolylineCurve outline) : this(outline)
             {
-                this.cells = new List<Cell>(1) { cells };
+                this.cells = new List<Cell>(1) { _cells };
             }
+            
             /// <summary>
             /// New blister based on already existing cells and outline.
             /// </summary>
             /// <param name="cells">Existing cells</param>
             /// <param name="outline">Blister edge outline</param>
-            public Blister(List<Cell> cells, PolylineCurve outline) : this(outline)
+            public Blister(List<Cell> _cells, PolylineCurve outline) : this(outline)
             {
-                cells = new List<Cell>(cells.Count);
+                log.Debug("Creating new blister");
+                this.cells = new List<Cell>(_cells.Count);
                 // Loop by all given cells
-                foreach (Cell cell in cells)
+                foreach (Cell cell in _cells)
                 {
                     if (cell.State == CellState.Cutted) continue;
                     // If cell is not cutOut, check if belong to this blister.
-                    if (this.InclusionTest(cell)) this.cells.Add(cell);
-                }
-                if (LeftCellsCount == 1) return;
+                    if (this.InclusionTest(cell))
+                    {
+                        cell.Blister = this;
+                        this.cells.Add(cell);
+                    }
 
+                }
+                log.Debug(String.Format("Instantiated {0} cells on blister", cells.Count));
+                if (LeftCellsCount == 1) return;
+                log.Debug("Sorting Cells");
                 // Order by CoordinateIndicator so it means Z-ordering.
-                cells = cells.OrderBy(cell => cell.CoordinateIndicator).Reverse().ToList();
+                this.cells = cells.OrderBy(cell => cell.CoordinateIndicator).Reverse().ToList();
                 // Rebuild cells connectivity.
+                log.Debug("Creating ConncectivityData");
                 CreateConnectivityData();
             }
             
@@ -560,6 +667,7 @@ namespace Blistructor
             /// <param name="outline">Blister edge outline</param>
             public Blister(List<Curve> pills, PolylineCurve outline):this(outline)
             {
+                log.Debug("Creating new blister");
                 // Cells Creation
                 cells = new List<Cell>(pills.Count);
                 for (int cellId = 0; cellId < pills.Count; cellId++)
@@ -571,18 +679,22 @@ namespace Blistructor
                         cells.Add(cell);
                     }
                 }
+                log.Debug(String.Format("Instantiated {0} cells on blister", cells.Count));
                 // If only 1 cell, finish here.
                 if (cells.Count <= 1) return;
                 // Order by Corner distance. First Two set as possible Anchor.
+                log.Debug("Sorting Cells");
                 cells = cells.OrderBy(cell => cell.CornerDistance).ToList();
                 for (int i = 0; i < 2; i++)
                 {
-                    cells[i].possible_anchor = true;
+                    cells[i].PossibleAnchor = true;
                 }
                 // Order by CoordinateIndicator so it means Z-ordering.
                 cells = cells.OrderBy(cell => cell.CoordinateIndicator).Reverse().ToList();
                 //cells = cells.OrderBy(cell => cell.CornerDistance).Reverse().ToList();
-                ToTight = AreCellsOverlapping();
+                
+                toTight = AreCellsOverlapping();
+                log.Debug(String.Format("Is to tight? : {0}", toTight));
                 if (!ToTight)
                 {
                     irVoronoi = Geometry.IrregularVoronoi(cells, Outline.ToPolyline(), 50, 0.05);
@@ -592,56 +704,113 @@ namespace Blistructor
 
 
             /*
-           private void Initialize(List<Curve> pills, PolylineCurve outline)
-           {
-               minPoint = new Point3d(0, double.MaxValue, 0);
-               cells = new List<Cell>(pills.Count);
-               if (pills.Count > 1)
-               {
-                   // Prepare all needed Blister data
-                   this.outline = outline;
-                   BoundingBox blisterBB = Outline.GetBoundingBox(false);
-                   Rectangle3d rect = new Rectangle3d(Plane.WorldXY, blisterBB.Min, blisterBB.Max);
-                   BBox = rect.ToPolyline().ToPolylineCurve();
-                   // Find lowest mid point on Blister Bounding Box
-                   foreach (Line edge in BBox.ToPolyline().GetSegments())
-                   {
-                       if (edge.PointAt(0.5).Y < minPoint.Y)
-                       {
-                           minPoint = edge.PointAt(0.5);
-                           guideLine = new LineCurve(edge);
-                       }
-                   }
+            private void Initialize(List<Curve> pills, PolylineCurve outline)
+            {
+                minPoint = new Point3d(0, double.MaxValue, 0);
+                cells = new List<Cell>(pills.Count);
+                if (pills.Count > 1)
+                {
+                    // Prepare all needed Blister data
+                    this.outline = outline;
+                    BoundingBox blisterBB = Outline.GetBoundingBox(false);
+                    Rectangle3d rect = new Rectangle3d(Plane.WorldXY, blisterBB.Min, blisterBB.Max);
+                    BBox = rect.ToPolyline().ToPolylineCurve();
+                    // Find lowest mid point on Blister Bounding Box
+                    foreach (Line edge in BBox.ToPolyline().GetSegments())
+                    {
+                        if (edge.PointAt(0.5).Y < minPoint.Y)
+                        {
+                            minPoint = edge.PointAt(0.5);
+                            guideLine = new LineCurve(edge);
+                        }
+                    }
 
-                   // Cells Creation
-                   cells = new List<Cell>(pills.Count);
-                   for (int cellId = 0; cellId < pills.Count; cellId++)
-                   {
-                       if (pills[cellId].IsClosed)
-                       {
-                           Cell cell = new Cell(cellId, pills[cellId], this);
-                           cell.SetDistance(guideLine);
-                           cells.Add(cell);
-                       }
-                   }
-                   // Order by Corner distance. First Two set as possible Anchor.
-                   cells = cells.OrderBy(cell => cell.CornerDistance).ToList();
-                   for (int i = 0; i < 2; i++)
-                   {
-                       cells[i].possible_anchor = true;
-                   }
-                   cells = cells.OrderBy(cell => cell.CoordinateIndicator).Reverse().ToList();
-                   //cells = cells.OrderBy(cell => cell.CornerDistance).Reverse().ToList();
-                   ToTight = AreCellsOverlapping();
-                   if (!ToTight)
-                   {
-                       irVoronoi = Geometry.IrregularVoronoi(cells, Outline.ToPolyline(), 50, 0.05);
-                   }
-               }
-           }
-           */
+                    // Cells Creation
+                    cells = new List<Cell>(pills.Count);
+                    for (int cellId = 0; cellId < pills.Count; cellId++)
+                    {
+                        if (pills[cellId].IsClosed)
+                        {
+                            Cell cell = new Cell(cellId, pills[cellId], this);
+                            cell.SetDistance(guideLine);
+                            cells.Add(cell);
+                        }
+                    }
+                    // Order by Corner distance. First Two set as possible Anchor.
+                    cells = cells.OrderBy(cell => cell.CornerDistance).ToList();
+                    for (int i = 0; i < 2; i++)
+                    {
+                        cells[i].possible_anchor = true;
+                    }
+                    cells = cells.OrderBy(cell => cell.CoordinateIndicator).Reverse().ToList();
+                    //cells = cells.OrderBy(cell => cell.CornerDistance).Reverse().ToList();
+                    ToTight = AreCellsOverlapping();
+                    if (!ToTight)
+                    {
+                        irVoronoi = Geometry.IrregularVoronoi(cells, Outline.ToPolyline(), 50, 0.05);
+                    }
+                }
+            }
+            */
 
             #region PROPERTIES
+
+            public  DataTree<Curve> GetObstacles
+            {
+                get
+                {
+                    DataTree <Curve> out_data = new DataTree<Curve>();
+                    //List<List<Curve>> out_data = new List<List<Curve>>();
+                    for (int i = 0; i< cells.Count; i++)
+                    {
+                        GH_Path path = new GH_Path(i);
+                        out_data.AddRange(cells[i].obstacles, path);
+                    }
+                    return out_data;
+                }
+            }
+            public DataTree<Point3d> GetSamplePoints
+            {
+                get
+                {
+                    DataTree<Point3d> out_data = new DataTree<Point3d>();
+                    //List<List<Curve>> out_data = new List<List<Curve>>();
+                    for (int i = 0; i < cells.Count; i++)
+                    {
+                        GH_Path path = new GH_Path(i);
+                        out_data.AddRange(cells[i].samplePoints, path);
+                    }
+                    return out_data;
+                }
+            }
+            public DataTree<Curve> GetConnectionLines
+            {
+                get
+                {
+                    DataTree<Curve> out_data = new DataTree<Curve>();
+                    //List<List<Curve>> out_data = new List<List<Curve>>();
+                    for (int i = 0; i < cells.Count; i++)
+                    {
+                        GH_Path path = new GH_Path(i);
+                        out_data.AddRange(cells[i].connectionLines, path);
+                    }
+                    return out_data;
+                }
+            }
+            public DataTree<Curve> GetProxyLines
+            {
+                get
+                {
+                    DataTree<Curve> out_data = new DataTree<Curve>();
+                    //List<List<Curve>> out_data = new List<List<Curve>>();
+                    for (int i = 0; i < cells.Count; i++)
+                    {
+                        GH_Path path = new GH_Path(i);
+                        out_data.AddRange(cells[i].proxLines, path);
+                    }
+                    return out_data;
+                }
+            }
             public Point3d MinPoint
             {
                 get { return minPoint; }
@@ -661,7 +830,7 @@ namespace Blistructor
                     {
                         foreach (Cell cell in cells)
                         {
-                            if (cell.state == CellState.Queue) count++;
+                            if (cell.State == CellState.Queue) count++;
                         }
                     }
                     return count;
@@ -676,7 +845,7 @@ namespace Blistructor
                     if (cells.Count == 0) return indices;
                     foreach (Cell cell in cells)
                     {
-                        if (cell.state == CellState.Queue) indices.Add(cell.id);
+                        if (cell.State == CellState.Queue) indices.Add(cell.id);
                     }
                     return indices;
                 }
@@ -701,7 +870,7 @@ namespace Blistructor
                 get
                 {
                     if (ToTight) return true;
-                    else if (LeftCellsCount <= 1) return true;
+                    else if (LeftCellsCount < 1) return true;
                     else return false;
                 }
             }
@@ -718,30 +887,62 @@ namespace Blistructor
 
             #endregion
             // W trakcie prac !!!!!!
-            public Tuple<Blister, List<Blister>> CutNext()
+            // Return: <CutOut bLister><Updataed Current Blister><ExtraBlistersToCut>
+            public Tuple<Blister, Blister, List<Blister>> CutNext()
             {
-                //Check if 
 
+                //Check if 
                 Cell found_cell = null;
+                List<Blister> newBlisters = new List<Blister>(); ;
                 int counter = 0;
-                foreach (Cell currentCell in cells)
+                log.Debug(String.Format("There is still {0} cells on blister", cells.Count));
+                //bool[] anchorSwitcher = new bool[2] { true, false };
+                bool[] anchorSwitcher = new bool[1] { true };
+                foreach (bool ommitAnchor in anchorSwitcher)
                 {
-                    if (currentCell.TryCut() == false)
+                    counter = 0;
+                    foreach (Cell currentCell in cells)
                     {
-                        counter++;
-                        continue;
+                        if (currentCell.TryCut(ommitAnchor) == false)
+                        {
+                            counter++;
+                            continue;
+                        }
+                        else
+                        {
+                            found_cell = currentCell;
+                            log.Info(String.Format("Cut Path found for cell {0} after checking {1} cells", found_cell.id, counter));
+                            break;
+                        }
+                    }
+                    if (found_cell == null)
+                    {
+                        log.Warn("No cutting data generated for whole blister. Try to fined cutting data in anchored ...");
+                        //return Tuple.Create<Blister, Blister, List<Blister>>(null, this, newBlisters);
                     }
                     else
                     {
-                        found_cell = currentCell;
-                        break;
+                       break;
                     }
                 }
-                if (found_cell == null) return null;
+
+                if (found_cell == null)
+                {
+                    log.Warn("No cutting data generated for whole blister.");
+
+                    return Tuple.Create<Blister, Blister, List<Blister>>(null, this, newBlisters);
+                }
                 // If on blister was only one cell, after cutting is status change to Alone, so just return it, without any leftover blisters. 
-                if (found_cell.State == CellState.Alone) return Tuple.Create<Blister, List<Blister>>(this, null);
+                if (found_cell.State == CellState.Alone)
+                {
+                    log.Info(String.Format("Cell {0}. That was last cell on blister.", found_cell.id));
+                    return Tuple.Create<Blister, Blister, List<Blister>>(this, null, newBlisters);
+                }
                 
-                // If more cells replace outline of current blister by first curve from the list...
+                log.Info(String.Format("Cell {0}. That was NOT last cell on blister.", found_cell.id));
+                log.Info("Updating current blister outline. Creating cutout blister to store.");
+
+                // If more cells are on blister, replace outline of current blister by first curve from the list...
                 // Update current blister outline
                 outline = found_cell.bestCuttingData.BlisterLeftovers[0];
                 // Create new blister with cutted pill
@@ -749,34 +950,38 @@ namespace Blistructor
                 cells.RemoveAt(counter);
                 // Deal with more then one leftover
                 // remove all cells which are not belong to this blister anymore...
+                log.Debug("Remove all cells which are not belong to this blister anymore.");
+                log.Debug(String.Format("Before removal {0}", cells.Count));
                 List<Cell> removerdCells = new List<Cell>(cells.Count);
                 for (int i =0; i< cells.Count; i++)
                 {
                     // If cell is no more insied this blister, remove it.
                     if (!InclusionTest(cells[i]))
                     {
-                        // check if cell is aimed to cutt. For 100% all cells in blister should be Queue.. If not it;s BUGERSON
+                        // check if cell is aimed to cut. For 100% all cells in blister should be Queue.. If not it;s BUGERSON
                         if (cells[i].State != CellState.Queue) continue;
                         removerdCells.Add(cells[i]);
                         cells.RemoveAt(i);
                         i--;
                     }
                 }
+               // if (LeftCellsCount == 1) cells[0].State = CellState.Alone;
+                log.Debug(String.Format("After removal {0} - Removed Cells {1}", cells.Count, removerdCells.Count));
                 // Loop by Leftovers (ommit first, it is current blister) and create new blisters.
-                List<Blister> newBlisters = new List<Blister>(found_cell.bestCuttingData.BlisterLeftovers.Count-1);
-                int cellCount = 0;
+
+                log.Debug(String.Format("Loop by Leftovers  [{0}] (ommit first, it is current blister) and create new blisters.", found_cell.bestCuttingData.BlisterLeftovers.Count-1));
+                //int cellCount = 0;
                 for (int j = 1; j < found_cell.bestCuttingData.BlisterLeftovers.Count; j++)
                 {
                     PolylineCurve blisterLeftover = found_cell.bestCuttingData.BlisterLeftovers[j];
                     Blister newBli = new Blister(removerdCells, blisterLeftover);
                     // Verify if all cells were used.
-                    cellCount += newBli.Cells.Count;
+                    //cellCount += newBli.Cells.Count;
                     newBlisters.Add(newBli);
                 }
-                if (cellCount != removerdCells.Count) throw new InvalidOperationException("Number of cells not equal Befor and After new Blisters creation.");
-
-
-                return Tuple.Create<Blister, List<Blister>>(cutted, newBlisters);
+                //if (cellCount != removerdCells.Count) throw new InvalidOperationException("Number of cells not equal Befor and After new Blisters creation.");
+                
+                return Tuple.Create<Blister, Blister, List<Blister>>(cutted, this, newBlisters);
             }
 
             public bool InclusionTest(Cell testCell)
@@ -817,17 +1022,20 @@ namespace Blistructor
             /// </summary>
             public void CreateConnectivityData()
             {
+                log.Debug("Creating Conectivity Data.");
                 foreach (Cell currentCell in cells)
                 {
                     // If current cell is cut out... go to next one.
                     if (currentCell.State == CellState.Cutted) continue;
+                   // log.Debug(String.Format("Checking cell: {0}", currentCell.id));
                     List<Point3d> currentMidPoints = new List<Point3d>();
                     List<Curve> currentConnectionLines = new List<Curve>();
                     List<Cell> currenAdjacentCells = new List<Cell>();
                     foreach (Cell proxCell in cells)
                     {
                         // If proxCell is cut out or cutCell is same as proxCell, next cell...
-                        if (proxCell.State == CellState.Cutted || proxCell.id != currentCell.id) continue;
+                        if (proxCell.State == CellState.Cutted || proxCell.id == currentCell.id) continue;
+                       // log.Debug(String.Format("Checking cell: {0}", currentCell.id));
                         LineCurve line = new LineCurve(currentCell.PillCenter, proxCell.PillCenter);
                         Point3d midPoint = line.PointAtNormalizedLength(0.5);
                         double t;
@@ -838,6 +1046,7 @@ namespace Blistructor
                             currentMidPoints.Add(midPoint);
                         }
                     }
+                    log.Debug(String.Format("CELL ID: {0} - Adjacent:{1}, Conection {2} Proxy {3}", currentCell.id, currenAdjacentCells.Count, currentConnectionLines.Count, currentMidPoints.Count));
                     currentCell.AddConnectionData(currenAdjacentCells, currentConnectionLines, currentMidPoints);
                 }
             }
@@ -857,7 +1066,7 @@ namespace Blistructor
 
             // States
             private CellState state = CellState.Queue;
-            public bool possible_anchor = false;
+            public bool PossibleAnchor = false;
             public double CornerDistance = 0;
             public double GuideDistance = 0;
 
@@ -1094,16 +1303,19 @@ namespace Blistructor
             #region CUT STUFF
             public bool GenerateSimpleCuttingData_v2()
             {
-                log.Debug("Generating Simple Cutting Paths V2");
                 // Initialise new Arrays
                 obstacles = BuildObstacles();
+                log.Debug(String.Format("Obstacles count {0}", obstacles.Count));
                 cuttingData = new List<CutData>();
                 // Stage I - naive Cutting
                 // Get cutting Directions
 
                 PolygonBuilder_v2(GenerateIsoCurvesStage1());
+                log.Debug(String.Format(">>>After STAGE_1: {0} cuttng possibilietes<<<", cuttingData.Count));
                 PolygonBuilder_v2(GenerateIsoCurvesStage2());
+                log.Debug(String.Format(">>>After STAGE_2: {0} cuttng possibilietes<<<", cuttingData.Count));
                 PolygonBuilder_v2(GenerateIsoCurvesStage3());
+                log.Debug(String.Format(">>>After STAGE_3: {0} cuttng possibilietes<<<", cuttingData.Count));
                 if (cuttingData.Count > 0) return true;
                 else return false;
             }
@@ -1226,17 +1438,26 @@ namespace Blistructor
                 */
             }
 
-            public bool TryCut()
+            public bool TryCut(bool ommitAnchor)
             {
+
+                log.Info(String.Format("Trying to cut cell id: {0} with status: {1}", id, state));
                 // If cell is cutted, dont try to cut it again... It supose to be in cutted blisters list...
                 if (state == CellState.Cutted) return false;
+               
+
                 // If cell is not surrounded by other cell, update data
+                log.Debug(String.Format("Check if cell is alone on blister: No. adjacent cells: {0}", adjacentCells.Count));
                 if (adjacentCells.Count == 0)
                 {
                     state = CellState.Alone;
+                    log.Debug("This is last cell on blister.");
                     return true;
                 }
+                // If cell is marekd as possible anchor, also dont try to cut
+                if (ommitAnchor == true && PossibleAnchor == true) return false;
                 // If still here, try to cut 
+                log.Debug("Perform cutting data generation");
                 if (GenerateSimpleCuttingData_v2())
                 {
                     state = CellState.Cutted;
@@ -1245,6 +1466,7 @@ namespace Blistructor
                     return true;
                 }
                 else return false;
+
             }
             #endregion
 
@@ -1260,11 +1482,14 @@ namespace Blistructor
                     LineCurve isoLine = Geometry.GetIsoLine(samplePoints[i], direction, Setups.IsoRadius, obstacles);
                     if (isoLine != null)
                     {
+                      //  log.Debug("long ray created");
                         //LineCurve t_ray = TrimIsoCurve(isoLine, samplePoints[i]);
                         LineCurve t_ray = TrimIsoCurve(isoLine);
                         if (t_ray != null)
                         {
+                           // log.Debug("trimmed ray created");
                             isoLines.Add(t_ray);
+
                         }
                     }
                 }
@@ -1369,9 +1594,11 @@ namespace Blistructor
             {
                 LineCurve outLine = null;
                 if (ray == null) return outLine;
+              //  log.Debug("Ray not null");
                 Geometry.FlipIsoRays(OrientationCircle, ray);
                 Tuple<List<Curve>, List<Curve>> result = Geometry.TrimWithRegion(ray, blister.Outline);
                 if (result.Item1.Count < 1) return outLine;
+               // log.Debug("After trimming.");
                 foreach (Curve crv in result.Item1)
                 {
                     PointContainment test = blister.Outline.Contains(crv.PointAtNormalizedLength(0.5), Plane.WorldXY, 0.1);
@@ -1451,31 +1678,48 @@ namespace Blistructor
             {
                 //Generate Combinations array
                 List<List<LineCurve>> combinations = Combinators.Combinators.UniqueCombinations(rays, 1);
+                log.Debug(String.Format("Building cut data from {0} rays organized in {1} combinations", rays.Count, combinations.Count));
                 // Loop over combinations even with 1 ray
                 for (int combId = 0; combId < combinations.Count; combId++)
                 {
-                    // STAGE 1: Looking for 1 (ONE) continouse cutpath...
-                    // Generate Continouse Path, If ther is one curve in combination, PathBuilder retirn that cure. So it can be chacked
+                    log.Debug(String.Format("STAGE 1: Checking {0} rays.", combinations[combId].Count));
+                    List<CutData> localCutData = new List<CutData>(2);
+                    // STAGE 1: Check if each ray in combination, can cut sucessfully blister.
+                    List<PolylineCurve> pLineCombination = new List<PolylineCurve>(combinations[combId].Count);
+                    // Convert LineCurve to PolylineCurve....
+                    foreach (LineCurve line in combinations[combId])
+                    {
+                        pLineCombination.Add(new PolylineCurve(new List<Point3d>() { line.Line.From, line.Line.To }));
+                    }
+                    localCutData.Add(VerifyPath(pLineCombination));
+                    log.Debug("STAGE 1: Pass.");
+                    //log.Debug(String.Format("RAYS KURWA : {0}", combinations[combId].Count));
+                    // STAGE 2: Looking for 1 (ONE) continouse cutpath...
+                    // Generate Continouse Path, If there is one curve in combination, PathBuilder will return that curve, so it can be checked.
                     PolylineCurve curveToCheck = PathBuilder(combinations[combId]);
                     // If PathBuilder retun any curve... (ONE)
-                    if (curveToCheck == null) continue;
-
-                    // Remove very short segments
-                    Polyline pLineToCheck = curveToCheck.ToPolyline();
-                    pLineToCheck.DeleteShortSegments(Setups.CollapseTolerance);
-                    // Look if end of cutting line is close to existing point on blister. If tolerance is smaller snap to this point
-                    curveToCheck = pLineToCheck.ToPolylineCurve();
-                    curveToCheck = Geometry.SnapToPoints(curveToCheck, blister.Outline, Setups.SnapDistance);
-                    // TODO: straighten parts of curve????
-
-                    List<CutData> localCutData = new List<CutData>(2)
+                    if (curveToCheck != null)
                     {
-                        // Verify if path is cuttable
-                        VerifyPath(curveToCheck),
-                        // Now check if each cutter seperatly can divide bliter and generates cutting data. 
-                        // Internally it is looking only for combination of 2 cutters and above. One cutter was handled in stage 1.
-                        VerifyPath(combinations[combId].Cast<PolylineCurve>().ToList())
-                    };
+                        // Remove very short segments
+                        Polyline pLineToCheck = curveToCheck.ToPolyline();
+                        pLineToCheck.DeleteShortSegments(Setups.CollapseTolerance);
+                        // Look if end of cutting line is close to existing point on blister. If tolerance is smaller snap to this point
+                        curveToCheck = pLineToCheck.ToPolylineCurve();
+                        curveToCheck = Geometry.SnapToPoints(curveToCheck, blister.Outline, Setups.SnapDistance);
+                        // TODO: straighten parts of curve????
+                        localCutData.Add(VerifyPath(curveToCheck));
+                        log.Debug("STAGE 2: Pass.");
+                    }
+
+                    //List<CutData> localCutData = new List<CutData>(2)
+                    //{
+                    //    // Verify if path is cuttable
+                    //    VerifyPath(curveToCheck),
+                    //    // Now check if each cutter seperatly can divide bliter and generates cutting data. 
+                    //    // Internally it is looking only for combination of 2 cutters and above. One cutter was handled in stage 1.
+
+                    //    VerifyPath(pLineCombination)
+                    //};
 
                     foreach (CutData cutData in localCutData)
                     {
@@ -1520,6 +1764,10 @@ namespace Blistructor
                         pLine = new PolylineCurve(polyLinePoints);
                     }
                 }
+                else
+                {
+                    pLine =  new PolylineCurve(new List<Point3d>{ cutters[0].Line.From,  cutters[0].Line.To});
+                }
                 return pLine;
             }
             // TODO: Test that stuff...
@@ -1533,7 +1781,8 @@ namespace Blistructor
                 log.Debug(string.Format("Verify path. Segments: {0}", pathCrv.Count));
                 if (pathCrv == null) return null;
                 // Check if this curves creates closed polygon with blister edge.
-                List<Curve> splited_blister = Geometry.SplitRegion(blister.Outline, pathCrv.Cast<Curve>().ToList());
+                List<Curve> splitters = pathCrv.Cast<Curve>().ToList();
+                List<Curve> splited_blister = Geometry.SplitRegion(blister.Outline, splitters);
                 // If after split there is less then 2 region it means nothing was cutted and bliseter stays unchanged
                 if (splited_blister == null) return null;
                 if (splited_blister.Count < 2) return null;
@@ -1542,7 +1791,7 @@ namespace Blistructor
                 Polyline pill_region = null;
                 List<PolylineCurve> cutted_blister_regions = new List<PolylineCurve>();
 
-                // TODO: Check if any other pill is NOT inside this region
+                // Get region with pill
                 foreach (Curve s_region in splited_blister)
                 {
                     if (!s_region.IsValid || !s_region.IsClosed) continue;
@@ -1563,7 +1812,7 @@ namespace Blistructor
                 log.Debug("Chceck if only this pill is inside pill_region.");
                 foreach (Cell cell in blister.Cells)
                 {
-                    if (cell.id == this.id) break;
+                    if (cell.id == this.id) continue;
                     RegionContainment test = Curve.PlanarClosedCurveRelationship(cell.pillOffset, pill_region_curve, Plane.WorldXY, Setups.GeneralTolerance);
                     if (test == RegionContainment.AInsideB)
                     {
@@ -2028,6 +2277,7 @@ namespace Blistructor
 
             public static List<Curve> RemoveDuplicateCurves(List<Curve> crvs)
             {
+                if (crvs.Count <= 1) return crvs;
                 List<Curve> uniqueCurves = new List<Curve>();
                 for (int i = 0; i < crvs.Count; i++)
                 {
@@ -2410,35 +2660,94 @@ namespace Blistructor
 
         public class Logger
         {
+            private static readonly ILog log = LogManager.GetLogger("Blistructor.Logger");
+
             public static void Setup()
             {
                 Hierarchy hierarchy = (Hierarchy)LogManager.GetRepository();
+                hierarchy.Root.Level = Level.Debug;
 
                 PatternLayout patternLayout = new PatternLayout();
                 patternLayout.ConversionPattern = "%5level %logger.%M - %message%newline";
                 patternLayout.ActivateOptions();
 
-                            //FileAppender
-                FileAppender roller = new FileAppender();
-            
-                roller.File = @"D:\PIXEL\Blistructor\cutter.log";
-                roller.Layout = patternLayout;
-                //roller.MaxSizeRollBackups = 5;
-                //roller.MaximumFileSize = "10MB";
-                //roller.RollingStyle = RollingFileAppender.RollingMode.Size;
-                //roller.StaticLogFileName = true;
-                roller.ActivateOptions();
-                roller.AppendToFile = false;
-                hierarchy.Root.AddAppender(roller);
+                //FileAppender - Debug
+                FileAppender debug_roller = new FileAppender();
+
+                debug_roller.File = @"D:\PIXEL\Blistructor\debug_cutter.log";
+                debug_roller.Layout = patternLayout;
+                var levelFilter = new LevelRangeFilter();
+                levelFilter.LevelMin = Level.Debug;
+                debug_roller.AddFilter(levelFilter);
+                //debug_roller.MaxSizeRollBackups = 5;
+                //debug_roller.MaximumFileSize = "10MB";
+                //debug_roller.RollingStyle = RollingFileAppender.RollingMode.Size;
+                //debug_roller.StaticLogFileName = true;
+               // debug_roller.LockingModel = new FileAppender.MinimalLock();
+                debug_roller.ActivateOptions();
+                debug_roller.AppendToFile = false;
+
+                //FileAppender - Production
+                FileAppender prod_roller = new FileAppender();
+                prod_roller.File = @"D:\PIXEL\Blistructor\cutter.log";
+                prod_roller.Layout = patternLayout;
+                var levelFilter2 = new LevelRangeFilter();
+                levelFilter2.LevelMin = Level.Info;
+                prod_roller.AddFilter(levelFilter2);
+                //prod_roller.MaxSizeRollBackups = 5;
+                //prod_roller.MaximumFileSize = "10MB";
+                //prod_roller.RollingStyle = RollingFileAppender.RollingMode.Size;
+                //prod_roller.StaticLogFileName = true;
+              //  prod_roller.LockingModel = new FileAppender.MinimalLock();
+                prod_roller.ActivateOptions();
+                prod_roller.AppendToFile = false;
+
+
+                // Add to root
+                hierarchy.Root.AddAppender(debug_roller);
+                hierarchy.Root.AddAppender(prod_roller);
+                //hierarchy.Root.Appenders[0].L
 
                 //MemoryAppender memory = new MemoryAppender();
                 //memory.ActivateOptions();
                 //hierarchy.Root.AddAppender(memory);
 
-                hierarchy.Root.Level = Level.Debug;
+                
                 hierarchy.Configured = true;
             }
+            public static void ClearAllLogFile()
+            {
+                RollingFileAppender fileAppender = LogManager.GetRepository()
+                          .GetAppenders().FirstOrDefault(appender => appender is RollingFileAppender) as RollingFileAppender;
+
+
+                if (fileAppender != null && File.Exists(((RollingFileAppender)fileAppender).File))
+                {
+                    string path = ((RollingFileAppender)fileAppender).File;
+                    log4net.Appender.FileAppender curAppender = fileAppender as log4net.Appender.FileAppender; 
+                    curAppender.File = path;
+
+                    FileStream fs = null;
+                    try
+                    {
+                        fs = new FileStream(path, FileMode.Create);
+                    }
+                    catch (Exception ex)
+                    {
+                        log.Error("Could not clear the file log", ex);
+                    }
+                    finally
+                    {
+                        if (fs != null)
+                        {
+                            fs.Close();
+                        }
+
+                    }
+                }
+            }
         }
+
 
 
         // </Custom additional code>
