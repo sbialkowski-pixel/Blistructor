@@ -97,13 +97,19 @@ namespace Blistructor
                 structor.Run(iter1, iter2);
                 //if (structor.Queue != null)
                 //{
-                //B = structor.Queue[0].GetConnectionLines;
-                //C = structor.Queue[0].GetProxyLines;
-               // D = structor.Queue[0].GetSamplePoints;
-                //E = structor.Queue[0].GetObstacles;
+                E = structor.Queue[0].GetConnectionLines;
+                F = structor.Queue[0].GetProxyLines;
+                G = structor.Queue[0].GetSamplePoints;
+                // GetObstacles will generate obstacels. not intended....
+                H = structor.Queue[0].GetObstacles;
+                I = structor.Queue[0].irVoronoi;
                // F = structor.Queue[0].Outline;
                 //}
                 A = structor.GetCuttedPolygons;
+                //TODO -> nie generuja sie linie cięcia!!!!
+                B = structor.GetCuttingLinesGH;
+                C = structor.GetRaysGH;
+                D = structor.GetLeftOversGH;
             }
             catch (Exception ex)
             {
@@ -221,7 +227,7 @@ namespace Blistructor
                 {
                     if (n > mainLoopLimiter) break;
                     log.Debug(String.Format(String.Format("==MainLoop: {0} ==", n)));
-                    log.Debug(String.Format(String.Format("Queue: {0}, Cutted {1}", Queue.Count, Cutted.Count)));
+                    log.Info(String.Format(String.Format("Blisters Count: Queue: {0}, Cutted {1}", Queue.Count, Cutted.Count)));
                     // InnerLoop - Queue Blisters
                     for (int i = 0; i < Queue.Count; i++)
                     {
@@ -229,15 +235,14 @@ namespace Blistructor
                         if (i > innerLoopLimiter) break;
                         log.Debug(String.Format(String.Format("InnerLoop: {0}", i)));
                         if (Queue == null) continue;
-                        log.Debug("Queue list not null.");
                         Blister blister = Queue[i];
-                        log.Debug(String.Format("{0} Cells on Blister: {1}", blister.Cells.Count, i));
+                        log.Info(String.Format("{0} Cells on Blister: {1} to cut.", blister.Cells.Count, i));
                         if (blister.IsDone) continue;
                         Tuple<Blister, Blister, List<Blister>> result = blister.CutNext();
                         log.Debug(String.Format("Cutting Result: Cutout: {0} - Current Blister {1} - New Blisters {2}.", result.Item1, result.Item2, result.Item3.Count));
                         // If anything was cutted, add to list
                         if (result.Item1 != null) {
-                            log.Debug("Adding new CutOut blister to Cutted list");
+                            log.Info("Adding new CutOut blister to Cutted list");
                             Cutted.Add(result.Item1);
                         }
                         else
@@ -248,18 +253,18 @@ namespace Blistructor
                         // override current bluster, if null , remove it from Queue list
                         if (result.Item2 == null)
                         {
-                            log.Debug("Current blister is empty. Removing from Queue");
+                            log.Info("Current blister is empty. Removing from Queue");
                             Queue.RemoveAt(i);
                             i--;
                         }
                         else {
-                            log.Debug("Updating blister");
+                            log.Info("Updating blister");
                             blister = result.Item2;
                         }
                         // Add extra blsters if any was created
                         if (result.Item3.Count != 0)
                         {
-                            log.Debug("Adding new blister(s) to Queue");
+                            log.Info("Adding new blister(s) to Queue");
                             Queue.AddRange(result.Item3);
                             break;
                         }
@@ -282,8 +287,65 @@ namespace Blistructor
                     return polygons;
                 }
             }
-           
-             //public List<List<PolylineCurve>>
+
+            //public List<List<PolylineCurve>>
+            public List<List<LineCurve>> GetCuttingLines
+            {
+                get
+                {
+                    List<List<LineCurve>> cuttingLines = new List<List<LineCurve>>(Cutted.Count);
+                    foreach (Blister blister in Cutted)
+                    {
+                        cuttingLines.Add(blister.GetCuttingLines());
+                    }
+                    return cuttingLines;
+                }
+            }
+
+            public DataTree<Curve> GetCuttingLinesGH
+            {
+                get
+                {
+                    DataTree<Curve> out_data = new DataTree<Curve>();
+                    //List<List<Curve>> out_data = new List<List<Curve>>();
+                    for (int i = 0; i < Cutted.Count; i++)
+                    {
+                        GH_Path path = new GH_Path(i);
+                        out_data.AddRange(Cutted[i].GetCuttingLines(), path);
+                    }
+                    return out_data;
+                }
+            }
+
+            public DataTree<LineCurve> GetRaysGH
+            {
+                get
+                {
+                    DataTree<LineCurve> out_data = new DataTree<LineCurve>();
+                    //List<List<Curve>> out_data = new List<List<Curve>>();
+                    for (int i = 0; i < Cutted.Count; i++)
+                    {
+                        GH_Path path = new GH_Path(i);
+                        out_data.AddRange(Cutted[i].GetIsoRays(), path);
+                    }
+                    return out_data;
+                }
+            }
+
+            public DataTree<PolylineCurve> GetLeftOversGH
+            {
+                get
+                {
+                    DataTree<PolylineCurve> out_data = new DataTree<PolylineCurve>();
+                    //List<List<Curve>> out_data = new List<List<Curve>>();
+                    for (int i = 0; i < Cutted.Count; i++)
+                    {
+                        GH_Path path = new GH_Path(i);
+                        out_data.AddRange(Cutted[i].GetLeftOvers(), path);
+                    }
+                    return out_data;
+                }
+            }
             #endregion
         }
 
@@ -571,6 +633,8 @@ namespace Blistructor
         //    }
         //}
 
+      
+
         public class Blister
         {
             private static readonly ILog log = LogManager.GetLogger("Main.Blister");
@@ -761,10 +825,13 @@ namespace Blistructor
                 {
                     DataTree <Curve> out_data = new DataTree<Curve>();
                     //List<List<Curve>> out_data = new List<List<Curve>>();
+                  //  if (cells.Count == 0) return out_data;
                     for (int i = 0; i< cells.Count; i++)
                     {
-                        GH_Path path = new GH_Path(i);
-                        out_data.AddRange(cells[i].obstacles, path);
+                       GH_Path path = new GH_Path(i);
+                       if (cells[i].obstacles == null) cells[i].obstacles = cells[i].BuildObstacles_v2();
+                    //   if (cells[i].obstacles.Count == 0) out_data.AddRang(new List<Curve>());
+                       out_data.AddRange(cells[i].obstacles, path);
                     }
                     return out_data;
                 }
@@ -886,8 +953,7 @@ namespace Blistructor
             public bool ToTight { get { return toTight; } }
 
             #endregion
-            // W trakcie prac !!!!!!
-            // Return: <CutOut bLister><Updataed Current Blister><ExtraBlistersToCut>
+
             public Tuple<Blister, Blister, List<Blister>> CutNext()
             {
 
@@ -1039,7 +1105,7 @@ namespace Blistructor
                         LineCurve line = new LineCurve(currentCell.PillCenter, proxCell.PillCenter);
                         Point3d midPoint = line.PointAtNormalizedLength(0.5);
                         double t;
-                        if (currentCell.voronoi.ClosestPoint(midPoint, out t, 1.000))
+                        if (currentCell.voronoi.ClosestPoint(midPoint, out t, 2.000))
                         {
                             currenAdjacentCells.Add(proxCell);
                             currentConnectionLines.Add(line);
@@ -1049,6 +1115,28 @@ namespace Blistructor
                     log.Debug(String.Format("CELL ID: {0} - Adjacent:{1}, Conection {2} Proxy {3}", currentCell.id, currenAdjacentCells.Count, currentConnectionLines.Count, currentMidPoints.Count));
                     currentCell.AddConnectionData(currenAdjacentCells, currentConnectionLines, currentMidPoints);
                 }
+            }
+
+            public List<LineCurve> GetCuttingLines()
+            {
+               // !!!============If cell is anchor it probably doesn't have cutting stuff... To validate===========!!!!
+               if (cells[0].PossibleAnchor) return new List<LineCurve>();
+               // cells[0].bestCuttingData.GenerateBladeFootPrint();
+               return cells[0].bestCuttingData.bladeFootPrint;
+            }
+            public List<LineCurve> GetIsoRays()
+            {
+                // !!!============If cell is anchor it probably doesn't have cutting stuff... To validate===========!!!!
+                if (cells[0].PossibleAnchor) return new List<LineCurve>();
+                // cells[0].bestCuttingData.GenerateBladeFootPrint();
+                return cells[0].bestCuttingData.IsoRays;
+            }
+            public List<PolylineCurve> GetLeftOvers()
+            {
+                // !!!============If cell is anchor it probably doesn't have cutting stuff... To validate===========!!!!
+               // if (cells[0].PossibleAnchor) return new List<PolylineCurve>();
+                // cells[0].bestCuttingData.GenerateBladeFootPrint();
+                return cells[0].bestCuttingData.BlisterLeftovers;
             }
 
         }
@@ -1279,13 +1367,28 @@ namespace Blistructor
                 return proxyLines;
             }
 
+            private Dictionary<int, Curve> GetUniqueProxy_v2(int id)
+            {
+                Dictionary<int, Curve> proxData = new Dictionary<int, Curve>();
+
+                //List<Curve> proxyLines = new List<Curve>();
+                for (int i = 0; i < adjacentCells.Count; i++)
+                {
+                    if (adjacentCells[i].id != id)
+                    {
+                        proxData.Add(adjacentCells[i].id, proxLines[i]);
+                       // proxyLines.Add(proxLines[i]);
+                    }
+                }
+                return proxData;
+            }
+
             public List<Curve> BuildObstacles()
             {
-                List<Curve> limiters = new List<Curve> { pillOffset };
+                List<Curve> limiters = new List<Curve> { pillOffset };    
                 for (int i = 0; i < adjacentCells.Count; i++)
                 {
                     limiters.Add(adjacentCells[i].pillOffset);
-
                     List<Curve> prox = adjacentCells[i].GetUniqueProxy(id);
                     foreach (Curve crv in prox)
                     {
@@ -1298,24 +1401,49 @@ namespace Blistructor
                 return Geometry.RemoveDuplicateCurves(limiters);
             }
 
+            public List<Curve> BuildObstacles_v2()
+            {
+                List<Curve> limiters = new List<Curve> { pillOffset };
+                Dictionary <int, Curve> uniqueCellsOffset = new Dictionary<int, Curve>();
+
+                for (int i = 0; i < adjacentCells.Count; i++)
+                {
+                   // limiters.Add(adjacentCells[i].pillOffset);
+                    Dictionary<int, Curve> proxDict = adjacentCells[i].GetUniqueProxy_v2(id);
+                    uniqueCellsOffset[adjacentCells[i].id] =  adjacentCells[i].pillOffset;
+                    //List<Curve> prox = adjacentCells[i].GetUniqueProxy(id);
+                    foreach (KeyValuePair<int,Curve> prox_crv in proxDict)
+                    {
+                        uniqueCellsOffset[prox_crv.Key] = blister.Cells[prox_crv.Key].pillOffset;
+
+                        if (Geometry.CurveCurveIntersection(prox_crv.Value, proxLines).Count == 0)
+                        {
+                            limiters.Add(prox_crv.Value);
+                        }
+                    }
+                }
+                limiters.AddRange(uniqueCellsOffset.Values.ToList());
+                return Geometry.RemoveDuplicateCurves(limiters);
+            }
+
             #endregion
 
             #region CUT STUFF
             public bool GenerateSimpleCuttingData_v2()
             {
                 // Initialise new Arrays
-                obstacles = BuildObstacles();
+                obstacles = BuildObstacles_v2();
                 log.Debug(String.Format("Obstacles count {0}", obstacles.Count));
                 cuttingData = new List<CutData>();
                 // Stage I - naive Cutting
                 // Get cutting Directions
 
                 PolygonBuilder_v2(GenerateIsoCurvesStage1());
-                log.Debug(String.Format(">>>After STAGE_1: {0} cuttng possibilietes<<<", cuttingData.Count));
+                log.Info(String.Format(">>>After STAGE_1: {0} cuttng possibilietes<<<", cuttingData.Count));
                 PolygonBuilder_v2(GenerateIsoCurvesStage2());
-                log.Debug(String.Format(">>>After STAGE_2: {0} cuttng possibilietes<<<", cuttingData.Count));
+                log.Info(String.Format(">>>After STAGE_2: {0} cuttng possibilietes<<<", cuttingData.Count));
                 PolygonBuilder_v2(GenerateIsoCurvesStage3());
-                log.Debug(String.Format(">>>After STAGE_3: {0} cuttng possibilietes<<<", cuttingData.Count));
+                log.Info(String.Format(">>>After STAGE_3: {0} cuttng possibilietes<<<", cuttingData.Count));
                 if (cuttingData.Count > 0) return true;
                 else return false;
             }
@@ -1410,13 +1538,14 @@ namespace Blistructor
             public CutData PolygonSelector()
             {
                 // Order by number of cuts to be performed.
-                cuttingData = cuttingData.OrderBy(x => x.CuttingCount).ToList();
+                cuttingData = cuttingData.OrderBy(x => x.EstimatedCuttingCount).ToList();
                 // Limit only to lower number of cuts
-                List<CutData> selected = cuttingData.Where(x => x.CuttingCount == cuttingData[0].CuttingCount).ToList();
+                List<CutData> selected = cuttingData.Where(x => x.EstimatedCuttingCount == cuttingData[0].EstimatedCuttingCount).ToList();
                 //Then sort by perimeter
                 selected = selected.OrderBy(x => x.GetPerimeter()).ToList();
                 //Pick best one.
                 bestCuttingData = selected[0];
+                bestCuttingData.GenerateBladeFootPrint();
                 return bestCuttingData;
                 // bestCuttingData = cuttingData[0];
             }
@@ -1472,26 +1601,18 @@ namespace Blistructor
 
             #region Polygon Builder Stuff
 
+            // All methods will generat full Rays, without trimming to blister! PoligonBuilder is responsible for trimming.
             private List<LineCurve> GenerateIsoCurvesStage1()
             {
+                
                 List<LineCurve> isoLines = new List<LineCurve>(samplePoints.Count);
                 for (int i = 0; i < samplePoints.Count; i++)
                 {
                     Vector3d direction = Vector3d.CrossProduct((connectionLines[i].PointAtEnd - connectionLines[i].PointAtStart), Vector3d.ZAxis);
                     //direction = StraigtenVector(direction);
                     LineCurve isoLine = Geometry.GetIsoLine(samplePoints[i], direction, Setups.IsoRadius, obstacles);
-                    if (isoLine != null)
-                    {
-                      //  log.Debug("long ray created");
-                        //LineCurve t_ray = TrimIsoCurve(isoLine, samplePoints[i]);
-                        LineCurve t_ray = TrimIsoCurve(isoLine);
-                        if (t_ray != null)
-                        {
-                           // log.Debug("trimmed ray created");
-                            isoLines.Add(t_ray);
-
-                        }
-                    }
+                    if (isoLine == null) continue;
+                    isoLines.Add(isoLine);
                 }
                 return isoLines;
             }
@@ -1504,15 +1625,8 @@ namespace Blistructor
                     Vector3d direction = Vector3d.CrossProduct((proxLines[i].PointAtEnd - proxLines[i].PointAtStart), Vector3d.ZAxis);
                     //direction = StraigtenVector(direction);
                     LineCurve isoLine = Geometry.GetIsoLine(samplePoints[i], direction, Setups.IsoRadius, obstacles);
-                    if (isoLine != null)
-                    {
-                        //LineCurve t_ray = TrimIsoCurve(isoLine, samplePoints[i]);
-                        LineCurve t_ray = TrimIsoCurve(isoLine);
-                        if (t_ray != null)
-                        {
-                            isoLines.Add(t_ray);
-                        }
-                    }
+                    if (isoLine == null) continue;
+                    isoLines.Add(isoLine);
                 }
                 return isoLines;
             }
@@ -1527,15 +1641,8 @@ namespace Blistructor
                     //Vector3d sum_direction = StraigtenVector(direction + direction2);
                     Vector3d sum_direction = direction + direction2;
                     LineCurve isoLine = Geometry.GetIsoLine(samplePoints[i], sum_direction, Setups.IsoRadius, obstacles);
-                    if (isoLine != null)
-                    {
-                        //LineCurve t_ray = TrimIsoCurve(isoLine, samplePoints[i]);
-                        LineCurve t_ray = TrimIsoCurve(isoLine);
-                        if (t_ray != null)
-                        {
-                            isoLines.Add(t_ray);
-                        }
-                    }
+                    if (isoLine == null) continue;
+                    isoLines.Add(isoLine);
                 }
                 return isoLines;
             }
@@ -1676,27 +1783,50 @@ namespace Blistructor
             /// <param name="rays"></param>
             private void PolygonBuilder_v2(List<LineCurve> rays)
             {
-                //Generate Combinations array
-                List<List<LineCurve>> combinations = Combinators.Combinators.UniqueCombinations(rays, 1);
-                log.Debug(String.Format("Building cut data from {0} rays organized in {1} combinations", rays.Count, combinations.Count));
-                // Loop over combinations even with 1 ray
-                for (int combId = 0; combId < combinations.Count; combId++)
+                // Trim incomming rays and build current working full ray aray.
+                List<LineCurve> trimedRays = new List<LineCurve>(rays.Count);
+                List<LineCurve> fullRays = new List<LineCurve>(rays.Count);
+                foreach (LineCurve ray in rays)
                 {
-                    log.Debug(String.Format("STAGE 1: Checking {0} rays.", combinations[combId].Count));
+                    LineCurve trimed_ray = TrimIsoCurve(ray);
+                    if (trimed_ray == null) continue;
+                    trimedRays.Add(trimed_ray);
+                    fullRays.Add(ray);
+                }
+                if (trimedRays.Count != rays.Count) log.Warn("After trimming there is less rays!");
+
+
+                List<int> raysIndicies = Enumerable.Range(0, trimedRays.Count).ToList();
+
+                //Generate Combinations array
+                List<List<int>> raysIndiciesCombinations = Combinators.Combinators.UniqueCombinations(raysIndicies, 1);
+                log.Debug(String.Format("Building cut data from {0} rays organized in {1} combinations", trimedRays.Count, raysIndiciesCombinations.Count));
+                // Loop over combinations even with 1 ray
+                foreach(List<int> combinationIndicies in raysIndiciesCombinations)
+                //for (int combId = 0; combId < raysIndiciesCombinations.Count; combId++)
+                {
+                    List<LineCurve> currentTimmedIsoRays = new List<LineCurve>(combinationIndicies.Count);
+                    List<LineCurve> currentFullIsoRays = new List<LineCurve>(combinationIndicies.Count);
+                    List<PolylineCurve> pLinecurrentTimmedIsoRays = new List<PolylineCurve>(combinationIndicies.Count);
+                    foreach (int combinationIndex in combinationIndicies)
+                    {
+                        currentTimmedIsoRays.Add(trimedRays[combinationIndex]);
+                        currentFullIsoRays.Add(fullRays[combinationIndex]);
+                        pLinecurrentTimmedIsoRays.Add(new PolylineCurve(new List<Point3d>() { trimedRays[combinationIndex].Line.From, trimedRays[combinationIndex].Line.To }));
+                    }
+                        
+                    log.Debug(String.Format("STAGE 1: Checking {0} rays.", currentTimmedIsoRays.Count));
                     List<CutData> localCutData = new List<CutData>(2);
                     // STAGE 1: Check if each ray in combination, can cut sucessfully blister.
-                    List<PolylineCurve> pLineCombination = new List<PolylineCurve>(combinations[combId].Count);
+                    
                     // Convert LineCurve to PolylineCurve....
-                    foreach (LineCurve line in combinations[combId])
-                    {
-                        pLineCombination.Add(new PolylineCurve(new List<Point3d>() { line.Line.From, line.Line.To }));
-                    }
-                    localCutData.Add(VerifyPath(pLineCombination));
+
+                    localCutData.Add(VerifyPath(pLinecurrentTimmedIsoRays));
                     log.Debug("STAGE 1: Pass.");
                     //log.Debug(String.Format("RAYS KURWA : {0}", combinations[combId].Count));
                     // STAGE 2: Looking for 1 (ONE) continouse cutpath...
                     // Generate Continouse Path, If there is one curve in combination, PathBuilder will return that curve, so it can be checked.
-                    PolylineCurve curveToCheck = PathBuilder(combinations[combId]);
+                    PolylineCurve curveToCheck = PathBuilder(currentTimmedIsoRays);
                     // If PathBuilder retun any curve... (ONE)
                     if (curveToCheck != null)
                     {
@@ -1724,7 +1854,8 @@ namespace Blistructor
                     foreach (CutData cutData in localCutData)
                     {
                         if (cutData == null) continue;
-                        cutData.TrimmedIsoRays = combinations[combId];
+                        cutData.TrimmedIsoRays = currentTimmedIsoRays;
+                        cutData.IsoRays = currentFullIsoRays;
                         cuttingData.Add(cutData);
                     }
                 }
@@ -1981,14 +2112,9 @@ namespace Blistructor
 
         public class CutData
         {
-            // public List<PolylineCurve> Paths = new List<PolylineCurve>();
-            // public List<List<LineCurve>> IsoRays = new List<List<LineCurve>>();
-            // public List<PolylineCurve> Polygons = new List<PolylineCurve>();
-
-            private List<LineCurve> trimmedIsoRays;
-            private List<LineCurve> isoRays;
-            public List<PolylineCurve> Path;
-            public PolylineCurve Polygon;
+            private static readonly ILog log = LogManager.GetLogger("Blistructor.CutData");
+            private List<PolylineCurve> path;
+            private PolylineCurve polygon;
             public List<PolylineCurve> BlisterLeftovers;
             public List<LineCurve> bladeFootPrint;
 
@@ -2002,8 +2128,8 @@ namespace Blistructor
 
             private CutData(PolylineCurve polygon, List<PolylineCurve> path) : this()
             {
-                Path = path;
-                Polygon = polygon;
+                this.path = path;
+                this.polygon = polygon;
             }
 
             public CutData(PolylineCurve polygon, List<PolylineCurve> path, PolylineCurve blisterLeftover) : this(polygon, path)
@@ -2018,16 +2144,10 @@ namespace Blistructor
                // GenerateBladeFootPrint();
             }
 
-            //public double GetCuttingLength
-            //{
-            //    get
-            //    {
+            public List<PolylineCurve> Path { get { return path; } }
+            public PolylineCurve Polygon { get { return polygon; } }
 
-            //        return Path.ToPolyline().Length;
-            //    }
-            //}
-
-            public int CuttingCount
+            public int EstimatedCuttingCount
             {
                 get
                 {
@@ -2043,94 +2163,132 @@ namespace Blistructor
                 }
             }
 
+            public int RealCuttingCount
+            {
+                get
+                {
+                    if (bladeFootPrint == null) return -1;
+                    return bladeFootPrint.Count;
+                }
+            }
+
             public int Count
             {
                 get
                 {
-                    return Polygon.PointCount - 1;
+                    return polygon.PointCount - 1;
                 }
             }
 
-            public List<LineCurve> TrimmedIsoRays
-            {
-                set
-                {
-                    trimmedIsoRays = value;
-                }
-                get
-                {
-                    return trimmedIsoRays;
-                }
-            }
+            public List<LineCurve> TrimmedIsoRays { set; get; }
 
-            public List<LineCurve> IsoRays
-            {
-                set
-                {
-                    isoRays = value;
-                }
-                get
-                {
-                    return isoRays;
-                }
-            }
+            public List<LineCurve> IsoRays { set; get; }
 
             public bool Cuttable
             {
                 get
                 {
-                    if (isoRays.Count > 0) return true;
+                    if (IsoRays.Count > 0) return true;
                     else return false;
                 }
             }
 
-            //public void GenerateBladeFootPrint()
-            //{
+            public void GenerateBladeFootPrint()
+            {
+                log.Info("===GENERATE CUTTING FOOTPRINT===");
+                if (polygon == null || path == null) return;
+              //  log.Info("Data are ok.");
+                // Loop by all paths
+                foreach (PolylineCurve pline in Path)
+                { 
+                    Line[] segments = pline.ToPolyline().GetSegments();
+                    //log.Info(String.Format("{0} segements to check", segments.Length));
+                    // If polyline is not proper (less then 2 contruction points), skip this.
+                    if (segments == null) continue;
+                    for (int i = 0; i < segments.Length; i++)
+                    {
+                        Line seg = segments[i];
+                        // First Segment. End point is on the blister Edge
+                        if (i < segments.Length - 1)
+                        {
+                           // log.Info(String.Format("Segement id: {0} - Type A", i));
+                            int parts = GetCuttingPartsCount(seg);
+                            Point3d cutStartPt = seg.To + (seg.UnitTangent * Setups.BladeTol);
+                            for (int j = 0; j < parts; j++)
+                            {
+                               // log.Info(String.Format("Parts generted: {0}", parts));
+                                Point3d cutEndPt = cutStartPt + (seg.UnitTangent * -Setups.BladeLength);
+                                Line cutPrint = new Line(cutStartPt, cutEndPt);
+                                bladeFootPrint.Add(new LineCurve(cutPrint));
+                                cutStartPt = cutEndPt + (seg.UnitTangent * Setups.BladeTol);
+                            }
+                        }
 
-            //    if (Polygon != null && Path != null)
-            //    {
-            //        Polyline path = Path.ToPolyline();
-            //        if (path.SegmentCount > 0)
-            //        {
-            //            Line[] segments = path.GetSegments();
-            //            for (int i = 0; i < segments.Length; i++)
-            //            {
-            //                Line seg = segments[i];
-            //                // First Segment. End point is on the blister Edge
-            //                if (i < segments.Length - 1)
-            //                {
-            //                    int parts = GetCuttingPartsCount(seg);
-            //                    Point3d cutStartPt = seg.To + (seg.UnitTangent * Setups.BladeTol);
-            //                    for (int j = 0; j < parts; j++)
-            //                    {
-            //                        Point3d cutEndPt = cutStartPt + (seg.UnitTangent * -Setups.BladeLength);
-            //                        Line cutPrint = new Line(cutStartPt, cutEndPt);
-            //                        bladeFootPrint.Add(new LineCurve(cutPrint));
-            //                        cutStartPt = cutEndPt + (seg.UnitTangent * Setups.BladeTol);
-            //                    }
-            //                }
+                        // Last segment.
+                        if (i == segments.Length - 1)
+                        {
+                           // log.Info(String.Format("Segement id: {0} - Type B", i));
+                            int parts = GetCuttingPartsCount(seg);
+                            Point3d cutStartPt = seg.From - (seg.UnitTangent * Setups.BladeTol);
+                            for (int j = 0; j < parts; j++)
+                            {
+                               // log.Info(String.Format("Parts generted: {0}", parts));
+                                Point3d cutEndPt = cutStartPt + (seg.UnitTangent * Setups.BladeLength);
+                                Line cutPrint = new Line(cutStartPt, cutEndPt);
+                                bladeFootPrint.Add(new LineCurve(cutPrint));
+                                cutStartPt = cutEndPt - (seg.UnitTangent * Setups.BladeTol);
+                            }
+                        }
+                    }
+                }
+                log.Info(String.Format("Generated {0} Blade Footpronts.", bladeFootPrint.Count));
 
-            //                // Last segment.
-            //                if (i == segments.Length - 1)
-            //                {
-            //                    int parts = GetCuttingPartsCount(seg);
-            //                    Point3d cutStartPt = seg.From - (seg.UnitTangent * Setups.BladeTol);
-            //                    for (int j = 0; j < parts; j++)
-            //                    {
-            //                        Point3d cutEndPt = cutStartPt + (seg.UnitTangent * Setups.BladeLength);
-            //                        Line cutPrint = new Line(cutStartPt, cutEndPt);
-            //                        bladeFootPrint.Add(new LineCurve(cutPrint));
-            //                        cutStartPt = cutEndPt - (seg.UnitTangent * Setups.BladeTol);
-            //                    }
-            //                }
-            //            }
-            //        }
-            //        else
-            //        {
-            //            //Errror
-            //        }
-            //    }
-            //}
+
+                //            {
+
+
+                //        Polyline path = Path.ToPolyline();
+                //        if (path.SegmentCount > 0)
+                //        {
+                //            Line[] segments = path.GetSegments();
+                //            for (int i = 0; i < segments.Length; i++)
+                //            {
+                //                Line seg = segments[i];
+                //                // First Segment. End point is on the blister Edge
+                //                if (i < segments.Length - 1)
+                //                {
+                //                    int parts = GetCuttingPartsCount(seg);
+                //                    Point3d cutStartPt = seg.To + (seg.UnitTangent * Setups.BladeTol);
+                //                    for (int j = 0; j < parts; j++)
+                //                    {
+                //                        Point3d cutEndPt = cutStartPt + (seg.UnitTangent * -Setups.BladeLength);
+                //                        Line cutPrint = new Line(cutStartPt, cutEndPt);
+                //                        bladeFootPrint.Add(new LineCurve(cutPrint));
+                //                        cutStartPt = cutEndPt + (seg.UnitTangent * Setups.BladeTol);
+                //                    }
+                //                }
+
+                //                // Last segment.
+                //                if (i == segments.Length - 1)
+                //                {
+                //                    int parts = GetCuttingPartsCount(seg);
+                //                    Point3d cutStartPt = seg.From - (seg.UnitTangent * Setups.BladeTol);
+                //                    for (int j = 0; j < parts; j++)
+                //                    {
+                //                        Point3d cutEndPt = cutStartPt + (seg.UnitTangent * Setups.BladeLength);
+                //                        Line cutPrint = new Line(cutStartPt, cutEndPt);
+                //                        bladeFootPrint.Add(new LineCurve(cutPrint));
+                //                        cutStartPt = cutEndPt - (seg.UnitTangent * Setups.BladeTol);
+                //                    }
+                //                }
+                //            }
+                //        }
+                //        else
+                //        {
+                //            //Errror
+                //        }
+
+            }
 
             private int GetCuttingPartsCount(Line line)
             {
@@ -2139,13 +2297,13 @@ namespace Blistructor
 
             public double GetArea()
             {
-                AreaMassProperties prop = AreaMassProperties.Compute(Polygon);
+                AreaMassProperties prop = AreaMassProperties.Compute(polygon);
                 return prop.Area;
             }
 
             public double GetPerimeter()
             {
-                return Polygon.GetLength();
+                return polygon.GetLength();
             }
         }
 
@@ -2665,7 +2823,7 @@ namespace Blistructor
             public static void Setup()
             {
                 Hierarchy hierarchy = (Hierarchy)LogManager.GetRepository();
-                hierarchy.Root.Level = Level.Debug;
+                hierarchy.Root.Level = Level.Info;
 
                 PatternLayout patternLayout = new PatternLayout();
                 patternLayout.ConversionPattern = "%5level %logger.%M - %message%newline";
@@ -2704,7 +2862,7 @@ namespace Blistructor
 
 
                 // Add to root
-                hierarchy.Root.AddAppender(debug_roller);
+               // hierarchy.Root.AddAppender(debug_roller);
                 hierarchy.Root.AddAppender(prod_roller);
                 //hierarchy.Root.Appenders[0].L
 
