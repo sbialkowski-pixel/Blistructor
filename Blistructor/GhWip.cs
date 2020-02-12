@@ -25,6 +25,12 @@ using log4net.Core;
 using log4net.Layout;
 using log4net.Repository.Hierarchy;
 using log4net.Filter;
+
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using Newtonsoft.Json.Schema;
+using Newtonsoft.Json.Serialization;
+
 // </Custom using>
 
 /// Unique namespace, so visual studio won't throw any errors about duplicate definitions.
@@ -98,7 +104,7 @@ namespace Blistructor
             // TODO: Adaptacyjna kolejność ciecia - po każdej wycietej tabletce, nalezało by przesortowac cell tak aby wubierał najbliższe
             // TODO: BlisterFootPrint -> mądzej, bo teraz nie są brana pod uwage w ogóle Rays i ich możliwości tylko na pałe jest robiona 
             // TODO: Weryfikacja PolygonSelectora (patrz blister 6, dziwnie wybrał...)
-            // TODO: Generowanie JSONA, Obsługa wyjątków, lista errorów. struktura pliku
+            // TODO: Generowanie JSONA (WIP), Obsługa wyjątków, lista errorów. struktura pliku
             // TODO: Generowani punktów kartezjana, sprawdzeanie rozstawu, właczenie tego do JSON'a
             // TODO: Kalibracja punktu 0,0
             // TODO: Właczenie Conturera do Blistructora
@@ -126,6 +132,7 @@ namespace Blistructor
                 D = structor.GetLeftOversGH;
                 E = structor.GetAllCuttingPolygonsGH;
                 F = structor.GetPathGH;
+                G = structor.GetJSON();
             }
             catch (Exception ex)
             {
@@ -144,15 +151,18 @@ namespace Blistructor
         {
             private static readonly ILog log = LogManager.GetLogger("Main.Blistructor");
 
+            private int initialPillCount;
             public List<Blister> Queue;
             public List<Blister> Cutted;
             public Point3d knifeLastPoint = new Point3d();
+            private Dictionary<int, string> errorCodes;
  
 
             public Blistructor2()
             {
                 Queue = new List<Blister>();
                 Cutted = new List<Blister>();
+                errorCodes = new Dictionary<int, string>() { { 0, "Cutting successful." }, {1, "Cutting Failed" }, { 2, "Cutting Failed" } };
             }
 
             public Blistructor2(string maskPath, Polyline Blister) : this()
@@ -176,79 +186,13 @@ namespace Blistructor
 
             public Blistructor2(List<Curve> Pills, Polyline Blister)  :this()
             {
+                initialPillCount = Pills.Count;
                 Blister initialBlister = new Blister(Pills, Blister);
                 initialBlister.SortCellsByCoordinates(true);
                 Queue.Add(initialBlister);
                 log.Debug(String.Format("New blistructor with {0} Queue blisters", Queue.Count));
             }
 
-
-
-            public void Run(int mainLoopLimiter, int innerLoopLimiter)
-            {
-                log.Info(String.Format("=== Start Cutting ==="));
-
-                if (Queue[0].IsDone) return;
-
-                int n = 0; // control
-                // Main Loop
-                while (Queue.Count > 0)
-                {
-                    if (n > mainLoopLimiter) break;
-                    log.Debug(String.Format(String.Format("==MainLoop: {0} ==", n)));
-                    log.Info(String.Format(String.Format("Blisters Count: Queue: {0}, Cutted {1}", Queue.Count, Cutted.Count)));
-                    // InnerLoop - Queue Blisters
-                    for (int i = 0; i < Queue.Count; i++)
-                    {
-                        //DEbug break stuff
-                        if (i > innerLoopLimiter) break;
-                        log.Debug(String.Format(String.Format("InnerLoop: {0}", i)));
-                        if (Queue == null) continue;
-                        Blister blister = Queue[i];
-                        log.Info(String.Format("{0} Cells on Blister: {1} to cut.", blister.Cells.Count, i));
-                        if (blister.IsDone)
-                        {
-                            log.Info("Blister is already cutted or is to tight for cutting.");
-                            continue;
-                        }
-                        Tuple<Blister, Blister, List<Blister>> result = blister.CutNext();
-                        log.Debug(String.Format("Cutting Result: Cutout: {0} - Current Blister {1} - New Blisters {2}.", result.Item1, result.Item2, result.Item3.Count));
-                        // If anything was cutted, add to list
-                        if (result.Item1 != null) {
-                            log.Info("Adding new CutOut blister to Cutted list");
-                            Cutted.Add(result.Item1);
-                        }
-                        else
-                        {
-                            log.Error("!!!Cannot cut blister Anymore!!!");
-                            return;
-                        }
-                        // override current bluster, if null , remove it from Queue list
-                        if (result.Item2 == null)
-                        {
-                            log.Info("Current blister is empty. Removing from Queue");
-                            Queue.RemoveAt(i);
-                            i--;
-                        }
-                        else {
-                            log.Info("Updating blister");
-                            blister = result.Item2;
-
-                            // Sort rest of the cells by distance to the knife las move... knife possition taken form CutData
-                            //Cutted.Last()
-                        }
-                        // Add extra blsters if any was created
-                        if (result.Item3.Count != 0)
-                        {
-                            log.Info("Adding new blister(s) to Queue");
-                            Queue.AddRange(result.Item3);
-                            break;
-                        }
-                        
-                    }
-                    n++;
-                }
-            }
 
             #region PROPERTIES
             public List<PolylineCurve> GetCuttedPolygons
@@ -355,6 +299,96 @@ namespace Blistructor
                 }
             }
             #endregion
+
+            public void Run(int mainLoopLimiter, int innerLoopLimiter)
+            {
+                log.Info(String.Format("=== Start Cutting ==="));
+
+                if (Queue[0].IsDone) return;
+
+                int n = 0; // control
+                // Main Loop
+                while (Queue.Count > 0)
+                {
+                    if (n > mainLoopLimiter) break;
+                    log.Debug(String.Format(String.Format("==MainLoop: {0} ==", n)));
+                    log.Info(String.Format(String.Format("Blisters Count: Queue: {0}, Cutted {1}", Queue.Count, Cutted.Count)));
+                    // InnerLoop - Queue Blisters
+                    for (int i = 0; i < Queue.Count; i++)
+                    {
+                        //DEbug break stuff
+                        if (i > innerLoopLimiter) break;
+                        log.Debug(String.Format(String.Format("InnerLoop: {0}", i)));
+                        if (Queue == null) continue;
+                        Blister blister = Queue[i];
+                        log.Info(String.Format("{0} Cells on Blister: {1} to cut.", blister.Cells.Count, i));
+                        if (blister.IsDone)
+                        {
+                            log.Info("Blister is already cutted or is to tight for cutting.");
+                            continue;
+                        }
+                        Tuple<Blister, Blister, List<Blister>> result = blister.CutNext();
+                        log.Debug(String.Format("Cutting Result: Cutout: {0} - Current Blister {1} - New Blisters {2}.", result.Item1, result.Item2, result.Item3.Count));
+                        // If anything was cutted, add to list
+                        if (result.Item1 != null)
+                        {
+                            log.Info("Adding new CutOut blister to Cutted list");
+                            Cutted.Add(result.Item1);
+                        }
+                        else
+                        {
+                            log.Error("!!!Cannot cut blister Anymore!!!");
+                            return;
+                        }
+                        // override current bluster, if null , remove it from Queue list
+                        if (result.Item2 == null)
+                        {
+                            log.Info("Current blister is empty. Removing from Queue");
+                            Queue.RemoveAt(i);
+                            i--;
+                        }
+                        else
+                        {
+                            log.Info("Updating blister");
+                            blister = result.Item2;
+
+                            // Sort rest of the cells by distance to the knife las move... knife possition taken form CutData
+                            //Cutted.Last()
+                        }
+                        // Add extra blsters if any was created
+                        if (result.Item3.Count != 0)
+                        {
+                            log.Info("Adding new blister(s) to Queue");
+                            Queue.AddRange(result.Item3);
+                            break;
+                        }
+
+                    }
+                    n++;
+                }
+            }
+
+            public JObject GetJSON()
+            {
+                JObject data = new JObject();
+
+                // Status
+                JObject status = new JObject();
+                status.Add("Code", null);
+                status.Add("Description", null);
+                data.Add("Status", status);
+                data.Add("PillsDetected", initialPillCount);
+                data.Add("PillsCutted", Cutted.Count);
+
+                // Cutting Instructions
+                JArray allCuttingInstruction = new JArray();
+                foreach (Blister blister in Cutted)
+                {
+                    allCuttingInstruction.Add(blister.Cells[0].GetJSON());
+                }
+                data.Add("CuttingData", allCuttingInstruction);
+                return data;
+            }
         }
 
         //    public List<Curve> EstimateCartesian()
@@ -704,6 +738,7 @@ namespace Blistructor
 
             #endregion
 
+            #region SORTS
             /// <summary>
             /// Z-Ordering, Descending
             /// </summary>
@@ -736,6 +771,7 @@ namespace Blistructor
                 if (reverse) cells.Reverse();
             }
 
+            #endregion
 
             public Tuple<Blister, Blister, List<Blister>> CutNext()
             {
@@ -948,7 +984,6 @@ namespace Blistructor
 
 
             #endregion
-
         }
 
         public enum CellState { Queue = 0, Cutted = 1 , Alone = 2};
@@ -1811,9 +1846,17 @@ namespace Blistructor
             }       
             
         #endregion
-            public void GetInstructions()
+            
+            public JObject GetJSON()
             {
-                //TO IMPLEMENT
+                JObject data = new JObject();
+                data.Add("PillIndex", this.id);
+                // Add Anchor Data <- to be implement.
+                data.Add("Anchor", null);
+                // Add Cutting Instruction
+                if (bestCuttingData != null) data.Add("CutInstruction", bestCuttingData.GetJSON());
+                else data.Add("CutInstruction", new JArray());
+                return data;
             }
         }
 
@@ -1984,8 +2027,29 @@ namespace Blistructor
                 if (bladeFootPrint.Count == 0) return new Point3d(double.NaN, double.NaN, double.NaN);
                 return bladeFootPrint.Last().PointAtNormalizedLength(0.5);
             }
-        }
 
+            public JArray GetJSON()
+            {
+                JArray instructionsArray = new JArray();
+                if (bladeFootPrint.Count == 0) return instructionsArray;
+                foreach (LineCurve line in bladeFootPrint)
+                {
+                    //Angle
+                    JObject cutData = new JObject();
+                    double angle = Vector3d.VectorAngle(Vector3d.XAxis, line.Line.UnitTangent);
+                    cutData.Add("Angle", angle);
+                    //Point 
+                    JArray pointArray = new JArray();
+                    Point3d midPt = line.Line.PointAt(0.5);
+                    pointArray.Add(midPt.X);
+                    pointArray.Add(midPt.Y);
+                    cutData.Add("Point", pointArray);
+                    instructionsArray.Add(cutData);
+                }
+                return instructionsArray;
+            }
+        }
+                        
 
         static class Setups
         {
