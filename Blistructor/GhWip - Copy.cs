@@ -17,7 +17,6 @@ using Grasshopper.Kernel.Geometry.Delaunay;
 using Rhino.Geometry.Intersect;
 using System.Linq;
 using Combinators;
-using Conturer;
 // </Custom using>
 
 /// Unique namespace, so visual studio won't throw any errors about duplicate definitions.

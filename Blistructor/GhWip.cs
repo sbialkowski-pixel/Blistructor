@@ -13,13 +13,12 @@ using Grasshopper.Kernel.Types;
 // <Custom using>
 using System.ComponentModel;
 
-using Grasshopper.Kernel.Geometry.Voronoi;
-using Grasshopper.Kernel.Geometry.Delaunay;
+using GH_Voronoi = Grasshopper.Kernel.Geometry.Voronoi;
+using GH_Delanuey = Grasshopper.Kernel.Geometry.Delaunay;
 
 using Rhino.Geometry.Intersect;
 using System.Linq;
 using Combinators;
-using Conturer;
 using System.IO;
 using log4net;
 using log4net.Appender;
@@ -32,6 +31,12 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Newtonsoft.Json.Schema;
 using Newtonsoft.Json.Serialization;
+
+using Emgu.CV;
+using Emgu.CV.CvEnum;
+using Emgu.CV.Structure;
+using Emgu.CV.Util;
+
 
 // </Custom using>
 
@@ -340,7 +345,11 @@ namespace Blistructor
                 //    pills[i] = pills[i].Smooth(0.5, true, true, false, false, SmoothingCoordinateSystem.Object);
                 //}
                 // Smooth blister destroys shape. Maybe with NN output....
-                List<Curve> blister = GetContursBasedOnBinaryImage(blisterMask, 0.0); // This should be 1 element list....
+                List<Curve> blisters = GetContursBasedOnBinaryImage(blisterMask, 0.0); // This should be 1 element list....
+                // TODO: Here should be return code to jason and end of process
+                if (blisters.Count != 1) return null;
+                PolylineCurve blister = (PolylineCurve)blisters[0];
+                ApplyCalibrationData(pills, blister);
                 // initialize(rawContours, Blister);
 
                 //CutBlister()
@@ -488,8 +497,7 @@ namespace Blistructor
 
             private List<Curve> GetContursBasedOnBinaryImage(string imagePath, double tol)
             {
-                Conturer.Conturer cont = new Conturer.Conturer();
-                List<List<int[]>> allPoints = cont.getContours(imagePath, tol);
+                List<List<int[]>> allPoints = Conturer.getContours(imagePath, tol);
                 List<Curve> finalContours = new List<Curve>();
                 foreach (List<int[]> conturPoints in allPoints) 
                 {
@@ -500,9 +508,25 @@ namespace Blistructor
                         pLine.Add(point);
                     }
                     pLine.Add(pLine.First);
-                    finalContours.Add((Curve) pLine.ToPolylineCurve());
+                    PolylineCurve ppLine = pLine.ToPolylineCurve();
+                    
+                    finalContours.Add((Curve) ppLine.Rebuild(pLine.Count, 3, true));
                 }
                 return finalContours;
+            }
+
+            private void ApplyCalibrationData(List<Curve> pills, PolylineCurve blister) 
+            {
+                // Get reveresed calibraion vector
+                Vector3d vector = new Vector3d(-Setups.CalibrationVectorX, -Setups.CalibrationVectorY, 0);
+                foreach (Curve crv in pills)
+                {
+                    crv.Scale(Setups.Spacing);
+                    crv.Translate(vector);
+                }
+
+                blister.Scale(Setups.Spacing);
+                blister.Translate(vector);
             }
 
         }
@@ -2180,10 +2204,9 @@ namespace Blistructor
             // All stuff in mm.
             // IMAGE
             // Later this will be taken from calibration data
-            public const double CalibrationVectorX = 0.0;
-            public const double CalibrationVectorY = 0.0;
-            public const double Spacing = 0.156623; 
-
+            public const double CalibrationVectorX = 133.48341;
+            public const double CalibrationVectorY = 127.952386;
+            public const double Spacing = 0.15645; 
 
             // GENERAL TOLERANCES
             public const double GeneralTolerance = 0.0001;
@@ -2196,7 +2219,9 @@ namespace Blistructor
             
             // CARTESIAN
             public const double CartesianThickness = 5.0;
-            public const double CartesianDepth = 5.0;
+            public const double CartesianDepth = 3.0;
+            public const double CartesianMaxWidth = 85.0;
+            public const double CartesianMinWidth = 10.0;
 
             //OTHER
             public const double IsoRadius = 1000.0;
@@ -2644,8 +2669,8 @@ namespace Blistructor
                     outline.Add(new Grasshopper.Kernel.Geometry.Node2(pt.X, pt.Y));
                 }
 
-                Connectivity del_con = Grasshopper.Kernel.Geometry.Delaunay.Solver.Solve_Connectivity(n2l, 0.001, true);
-                List<Cell2> voronoi = Grasshopper.Kernel.Geometry.Voronoi.Solver.Solve_Connectivity(n2l, del_con, outline);
+                GH_Delanuey.Connectivity del_con = GH_Delanuey.Solver.Solve_Connectivity(n2l, 0.001, true);
+                List<GH_Voronoi.Cell2> voronoi = GH_Voronoi.Solver.Solve_Connectivity(n2l, del_con, outline);
 
                 List<PolylineCurve> vCells = new List<PolylineCurve>();
                 for (int i = 0; i < cells.Count; i++)
@@ -2697,6 +2722,24 @@ namespace Blistructor
                     }
                 }
                 return outCurve;
+            }
+       
+            public static PolylineCurve PolylineThicken(PolylineCurve crv, double thickness) {
+                
+                List<Curve> Outline = new List<Curve>();
+                Curve[] offser_1 = crv.Offset(Plane.WorldXY, thickness, Setups.GeneralTolerance, CurveOffsetCornerStyle.Sharp);
+                if (offser_1.Length == 1) Outline.Add(offser_1[0]);
+                else return null;
+                Curve[] offser_2 = crv.Offset(Plane.WorldXY, -thickness, Setups.GeneralTolerance, CurveOffsetCornerStyle.Sharp);
+                if (offser_2.Length == 1) Outline.Add(offser_2[0]);
+                else return null ;
+
+                if (Outline.Count != 2) return null;
+                Outline.Add(new LineCurve(Outline[0].PointAtStart, Outline[1].PointAtStart));
+                Outline.Add(new LineCurve(Outline[0].PointAtEnd, Outline[1].PointAtEnd));
+                Curve[] result = Curve.JoinCurves(Outline);
+                if (result.Length != 1) return null;
+                return (PolylineCurve)result[0];
             }
         }
 
@@ -2790,7 +2833,39 @@ namespace Blistructor
             }
         }
 
+        public static class Conturer
+        {
 
+            public static List<List<int[]>> getContours(string pathToImage, double tolerance)
+            {
+                Image<Gray, Byte>  img = new Image<Gray, byte>(pathToImage);
+                UMat uimage = new UMat();
+                VectorOfVectorOfPoint contours = new VectorOfVectorOfPoint();
+                CvInvoke.FindContours(img, contours, null, RetrType.List, ChainApproxMethod.LinkRuns);
+                List<List<int[]>> allPoints = new List<List<int[]>>();
+                int count = contours.Size;
+                int nContours = count;
+                for (int i = 0; i < count; i++)
+                {
+                    using (VectorOfPoint contour = contours[i])
+                    using (VectorOfPoint approxContour = new VectorOfPoint())
+                    {
+                        CvInvoke.ApproxPolyDP(contour, approxContour, CvInvoke.ArcLength(contour, true) * tolerance, true);
+                        System.Drawing.Point[] pts = approxContour.ToArray();
+                        List<int[]> contPoints = new List<int[]>();
+                        for (int k = 0; k < pts.Length; k++)
+                        {
+                            int[] pointsCord = new int[2];
+                            pointsCord[0] = pts[k].X;
+                            pointsCord[1] = pts[k].Y;
+                            contPoints.Add(pointsCord);
+                        }
+                        allPoints.Add(contPoints);
+                    }
+                }
+                return allPoints;
+            }
+        }
 
         // </Custom additional code>
         #endregion
