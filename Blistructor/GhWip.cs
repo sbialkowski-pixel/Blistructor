@@ -156,8 +156,8 @@ namespace Blistructor
                //AA = structor.pillsss;
 
 
-                anchMAUp = structor.anchor.maUpperLimitLine;
-                anchAAUp = structor.anchor.aaUpperLimitLine;
+                anchMAUp = structor.anchor.GetJawsPoints();
+                anchAAUp = structor.anchor.GuideLine;
                 anchPred = structor.anchor.GrasperPossibleLocation;
 
             }
@@ -412,7 +412,8 @@ namespace Blistructor
                 cuttingResult["PillsDetected"] = pills.Count;
                 try
                 {
-                    status = PerformCut();
+                    //status = PerformCut();
+                    status = CuttingState.CTR_UNSET;
                 }
                 catch
                 {
@@ -567,6 +568,7 @@ namespace Blistructor
                 {
                     crv.Scale(Setups.Spacing);
                     crv.Translate(vector);
+                    crv.Rotate(Setups.Rotate, Vector3d.ZAxis, new Point3d(0, 0, 0));
                 }
             }
 
@@ -600,66 +602,67 @@ namespace Blistructor
         public class Anchor
         {
 
+
+            public LineCurve cartesianLimitLine;
+
             public MultiBlister mBlister;
             public PolylineCurve mainOutline;
             public PolylineCurve aaBBox;
             public PolylineCurve maBBox;
-            public LineCurve aaGuideLine;
-            public LineCurve aaUpperLimitLine;
-            public LineCurve maGuideLine;
-            public LineCurve maUpperLimitLine;
+            public LineCurve GuideLine;
+            //public LineCurve aaUpperLimitLine;
+            //public LineCurve maGuideLine;
+            //public LineCurve maUpperLimitLine;
 
             public List<LineCurve> GrasperPossibleLocation;
 
 
             public Anchor(MultiBlister mBlister)
             {
+                // Create Coartesin Limit Line
+                Line tempLine = new Line(new Point3d(0, -Setups.BlisterCartesianDistance, 0), Vector3d.XAxis, 1.0);
+                tempLine.Extend(Setups.IsoRadius, Setups.IsoRadius);
+                cartesianLimitLine = new LineCurve(tempLine);
+
+                // Get needed data
                 this.mBlister = mBlister;
                 GrasperPossibleLocation = new List<LineCurve>();
                 //Build initial blister shape data
                 mainOutline = mBlister.Queue[0].Outline;
-             
-                // minPoint = new Point3d(0, double.MaxValue, 0);
+
+                // Generate BBoxes
                 BoundingBox blisterBB = mainOutline.GetBoundingBox(false);
                 Rectangle3d rect = new Rectangle3d(Plane.WorldXY, blisterBB.Min, blisterBB.Max);
                 maBBox = Geometry.MinimumAreaRectangleBF(mainOutline);
                 Geometry.UnifyCurve(maBBox);
                 aaBBox = rect.ToPolyline().ToPolylineCurve();
                 Geometry.UnifyCurve(aaBBox);
-                // Find lowest mid point on Blister MA Bounding Box
-                List<Line> maSegments = new List<Line>(maBBox.ToPolyline().GetSegments());
-                // List<Tuple<Line, Point3d>> maData = maSegments.OrderBy(line => line.PointAt(0.5).Y).Select(line => Tuple.Create(line, line.PointAt(0.5))).ToList();
-                maGuideLine = new LineCurve(maSegments.OrderBy(line => line.PointAt(0.5).Y).ToList()[0]);
-                // Normalize
-          
-                Plane perpFrame;
-                maGuideLine.PerpendicularFrameAt(0.5, out perpFrame);
-                maUpperLimitLine = new LineCurve(maGuideLine);
-                maUpperLimitLine.Translate(perpFrame.XAxis * Setups.CartesianDepth);
-                 
+
                 // Find lowest mid point on Blister AA Bounding Box
                 List<Line> aaSegments = new List<Line>(aaBBox.ToPolyline().GetSegments());
-                aaGuideLine = new LineCurve(aaSegments.OrderBy(line => line.PointAt(0.5).Y).ToList()[0]);
-                aaUpperLimitLine = new LineCurve(aaGuideLine);
-                aaUpperLimitLine.Translate(Vector3d.YAxis * Setups.CartesianDepth);
+                GuideLine = new LineCurve(aaSegments.OrderBy(line => line.PointAt(0.5).Y).ToList()[0]);
+                // Move line to Y => 0
+                GuideLine.SetStartPoint(new Point3d(GuideLine.PointAtStart.X, 0, 0));
+                GuideLine.SetEndPoint(new Point3d(GuideLine.PointAtEnd.X, 0, 0));
 
-                LineCurve fullPredLine = new LineCurve(aaGuideLine);
-                fullPredLine.Translate(Vector3d.YAxis * Setups.CartesianDepth/2);
-                //GrasperPossibleLocation.Add(fullPredLine);
+                // Create initial predition Line
+                LineCurve fullPredLine = new LineCurve(GuideLine);
+                fullPredLine.Translate(Vector3d.YAxis * Setups.CartesianDepth / 2);
 
-                // Create controlPoint list
-                double[] paramT = aaGuideLine.DivideByCount(50, true);
-                //List<Point3d> controlPoints = new List<Point3d>(paramT.Length);
+                // Find limits based on Blister Shape
+                double[] paramT = GuideLine.DivideByCount(50, true);
                 List<double> limitedParamT = new List<double>(paramT.Length);
                 foreach (double t in paramT)
                 {
                     double parT;
-                    if (mainOutline.ClosestPoint(aaGuideLine.PointAt(t), out parT, Setups.CartesianDepth / 2)) limitedParamT.Add(parT);
+                    if (mainOutline.ClosestPoint(GuideLine.PointAt(t), out parT, Setups.CartesianDepth / 2)) limitedParamT.Add(parT);
                 }
+                // Find Extreme points on Blister
                 List<Point3d> extremePointsOnBlister = new List<Point3d>(){
                     mainOutline.PointAt(limitedParamT.First()),
                     mainOutline.PointAt(limitedParamT.Last())
                 };
+                // Project this point to Predition Line
                 List<double> fullPredLineParamT = new List<double>(paramT.Length);
                 foreach (Point3d pt in extremePointsOnBlister)
                 {
@@ -667,30 +670,76 @@ namespace Blistructor
                     if (fullPredLine.ClosestPoint(pt, out parT)) fullPredLineParamT.Add(parT);
                 }
 
-                // Shrink curve on both sides by half of Grasper width.
+                // keep lines between extreme points
                 fullPredLine = (LineCurve)fullPredLine.Trim(fullPredLineParamT[0], fullPredLineParamT[1]);
-                Line tempLine = fullPredLine.Line;
-                tempLine.Extend(-Setups.CartesianThickness / 2, -Setups.CartesianThickness / 2);
-                // Move temporaly prefLine to the upper position
-                fullPredLine = new LineCurve(tempLine);
+                // Shrink curve on both sides by half of Grasper width.
+
+                // Move temporaly predLine to the upper position, too chceck intersection with pills.
                 fullPredLine.Translate(Vector3d.YAxis * Setups.CartesianDepth / 2);
-                Tuple<List<Curve>, List<Curve>> trimResult =  Geometry.TrimWithRegions(fullPredLine, mBlister.Queue[0].GetPills);
-                if (trimResult.Item2.Count == 1) fullPredLine = (LineCurve)trimResult.Item2.First();
-                fullPredLine.Translate(Vector3d.YAxis * -Setups.CartesianDepth / 2);
-
-                GrasperPossibleLocation.Add(fullPredLine);
-
-                // DOKONCZYC TUUUUUUUU
-                // Te wszystkie wymairy, to zamiast odnosic do aaBoxa to przeba do zafixowanego 0,0 
-
-
-
+                // NOTE: Check intersection with pills (Or maybe with pillsOffset. Rethink problem)
+                Tuple<List<Curve>, List<Curve>> trimResult = Geometry.TrimWithRegions(fullPredLine, mBlister.Queue[0].GetPills(true));
+                // Gather all parts outsite (not in pills) shrink curve on both sides by half of Grasper width and move it back to mid position 
+                foreach (Curve crv in trimResult.Item2)
+                {
+                    // Shrink pieces on both sides by half of Grasper width.
+                    Line ln = ((LineCurve)crv).Line;
+                    if (ln.Length < Setups.CartesianThickness) continue;
+                    ln.Extend(-Setups.CartesianThickness / 2, -Setups.CartesianThickness / 2);
+                    LineCurve cln = new LineCurve(ln);
+                    //move it back to mid position
+                    cln.Translate(Vector3d.YAxis * -Setups.CartesianDepth / 2);
+                    // Gather 
+                    GrasperPossibleLocation.Add(cln);
+                }
             }
 
-         //   public 
 
+            public List<Point3d> GetJawsPoints()
+            {
+                List<Point3d> extremePoints = GetExtremePoints();
+                if  (extremePoints == null) return null;
+                Line spectrumLine = new Line(extremePoints[0], extremePoints[1]);
+                if (spectrumLine.Length < Setups.CartesianMaxWidth && spectrumLine.Length > Setups.CartesianMinWidth) return extremePoints;
+                
+                Point3d midPoint = spectrumLine.PointAt(0.5);
+                if (spectrumLine.Length > Setups.CartesianMaxWidth)
+                {
+                    NurbsCurve maxJawsCircle = new Circle(midPoint, Setups.CartesianMaxWidth/2).ToNurbsCurve();
+                    List<Curve> trimResult = new List<Curve>();
+                    foreach(LineCurve ln in GrasperPossibleLocation)
+                    {
+                        Tuple<List<Curve>, List<Curve>> result = Geometry.TrimWithRegion(ln, maxJawsCircle);
+                        if (result.Item1.Count > 0) trimResult.AddRange(result.Item1);
+                    }
 
+                    if (trimResult.Count == 0) return null;
+                    List<Point3d> toEvaluate = new List<Point3d>(trimResult.Count);
+                    foreach (Curve ln in trimResult)
+                    {
+                        Point3d pt, pt2;
+                        ln.ClosestPoints(maxJawsCircle, out pt, out pt2);
+                        toEvaluate.Add(pt);
+                    }
+                    toEvaluate = toEvaluate.OrderBy(pt => pt.X).ToList();
+                    Point3d leftJaw = toEvaluate.First();
+                    Point3d rightJaw = toEvaluate.Last();
+                    if (leftJaw.DistanceTo(rightJaw) < Setups.CartesianMinWidth) return null;
+                    return new List<Point3d>() { leftJaw, rightJaw };
+                }
+                else return null;
+            }
+
+            public List<Point3d> GetExtremePoints()
+            {
+                if (GrasperPossibleLocation == null) return null;
+                if (GrasperPossibleLocation.Count == 0) return null;
+                Point3d leftJaw = GrasperPossibleLocation.OrderBy(line => line.PointAtStart.X).Select(line => line.PointAtStart).First();
+                Point3d rightJaw = GrasperPossibleLocation.OrderBy(line => line.PointAtStart.X).Select(line => line.PointAtEnd).Last();
+                return new List<Point3d>() { leftJaw, rightJaw };
+            }
         }
+
+
 
         public class Blister
         {
@@ -908,18 +957,15 @@ namespace Blistructor
                 }
             }
 
-            public List<Curve> GetPills
+            public List<Curve> GetPills(bool offset)
             {
-                get
+                List<Curve> pills = new List<Curve>();
+                foreach (Cell cell in cells)
                 {
-                    List<Curve> pills = new List<Curve>();
-                    foreach (Cell cell in cells)
-                    {
-                        pills.Add(cell.pill);
-                    }
-                    return pills;
+                    if (offset) pills.Add(cell.pillOffset);
+                    else pills.Add(cell.pill);
                 }
-
+                return pills;
             }
 
             public bool IsDone
@@ -2158,7 +2204,8 @@ namespace Blistructor
             // Later this will be taken from calibration data
             public const double CalibrationVectorX = 133.48341;
             public const double CalibrationVectorY = 127.952386;
-            public const double Spacing = 0.15645; 
+            public const double Spacing = 0.15645;
+            public const double Rotate = 0.021685;
 
             // GENERAL TOLERANCES
             public const double GeneralTolerance = 0.0001;
@@ -2503,7 +2550,21 @@ namespace Blistructor
                 return Tuple.Create(inside, outside);
             }
 
-            public static List<Curve> SplitRegion(Curve region, Curve splittingCurve)
+            /*
+            public static Tuple<List<Curve>, List<Curve>> TrimWithRegions(List<Curve> crv, List<Curve> regions)
+            {
+
+            }
+            List<Curve> trimResult = new List<Curve>();
+                    foreach(LineCurve ln in GrasperPossibleLocation)
+                    {
+                        Tuple<List<Curve>, List<Curve>> result = Geometry.TrimWithRegions(ln, maxJawsCircle);
+                        if (result.Item1.Count > 0) trimResult.AddRange(result.Item1);
+
+                    }
+                    */
+
+        public static List<Curve> SplitRegion(Curve region, Curve splittingCurve)
             {
                 List<double> region_t_params = new List<double>();
                 List<double> splitter_t_params = new List<double>();
