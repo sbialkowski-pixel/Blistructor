@@ -599,10 +599,34 @@ namespace Blistructor
         //        }
         //        return temp;
         //    }
+        
+        public enum AnchorSite { Left = 0, Right = 1, Unset = 2};
+        public enum AnchorState { Active = 0, Inactive = 1, Cutted = 2 };
+        public class AnchorPoint
+        {
+            public Point3d location;
+            public AnchorSite orientation;
+            public AnchorState state;
+
+            public AnchorPoint()
+            {
+                location = new Point3d(-1,-1,-1);
+                orientation = AnchorSite.Unset;
+                state = AnchorState.Inactive;
+            }
+
+            public AnchorPoint(Point3d pt, AnchorSite site)
+            {
+                location = pt;
+                orientation = site;
+                state = AnchorState.Active;
+            }
+
+
+        }
+
         public class Anchor
         {
-
-
             public LineCurve cartesianLimitLine;
 
             public MultiBlister mBlister;
@@ -615,6 +639,7 @@ namespace Blistructor
             //public LineCurve maUpperLimitLine;
 
             public List<LineCurve> GrasperPossibleLocation;
+            public List<AnchorPoint> anchors;
 
 
             public Anchor(MultiBlister mBlister)
@@ -691,14 +716,17 @@ namespace Blistructor
                     // Gather 
                     GrasperPossibleLocation.Add(cln);
                 }
+
+                anchors = GetJawsPoints();
             }
 
+          //  public void Update
 
-            public List<Point3d> GetJawsPoints()
+            public List<AnchorPoint> GetJawsPoints()
             {
-                List<Point3d> extremePoints = GetExtremePoints();
+                List<AnchorPoint> extremePoints = GetExtremePoints();
                 if  (extremePoints == null) return null;
-                Line spectrumLine = new Line(extremePoints[0], extremePoints[1]);
+                Line spectrumLine = new Line(extremePoints[0].location, extremePoints[1].location);
                 if (spectrumLine.Length < Setups.CartesianMaxWidth && spectrumLine.Length > Setups.CartesianMinWidth) return extremePoints;
                 
                 Point3d midPoint = spectrumLine.PointAt(0.5);
@@ -724,19 +752,50 @@ namespace Blistructor
                     Point3d leftJaw = toEvaluate.First();
                     Point3d rightJaw = toEvaluate.Last();
                     if (leftJaw.DistanceTo(rightJaw) < Setups.CartesianMinWidth) return null;
-                    return new List<Point3d>() { leftJaw, rightJaw };
+                    return new List<AnchorPoint>() {
+                        new AnchorPoint(leftJaw, AnchorSite.Left),
+                        new AnchorPoint(rightJaw, AnchorSite.Right)
+                    };
                 }
                 else return null;
             }
 
-            public List<Point3d> GetExtremePoints()
+            private List<AnchorPoint> GetExtremePoints()
             {
                 if (GrasperPossibleLocation == null) return null;
                 if (GrasperPossibleLocation.Count == 0) return null;
                 Point3d leftJaw = GrasperPossibleLocation.OrderBy(line => line.PointAtStart.X).Select(line => line.PointAtStart).First();
                 Point3d rightJaw = GrasperPossibleLocation.OrderBy(line => line.PointAtStart.X).Select(line => line.PointAtEnd).Last();
-                return new List<Point3d>() { leftJaw, rightJaw };
+                return new List<AnchorPoint>() {
+                        new AnchorPoint(leftJaw, AnchorSite.Left),
+                        new AnchorPoint(rightJaw, AnchorSite.Right)
+                    };
             }
+
+            /// <summary>
+            /// Check which Anchor belongs to which cell. 
+            /// </summary>
+            /// <returns></returns>
+            public bool ApplyAnchorOnBlister()
+            {
+                if (mBlister.Queue[0].Cells == null) return false;
+                if (mBlister.Queue[0].Cells.Count == 0 ) return false;
+                foreach (AnchorPoint pt in anchors) 
+                {
+                    foreach (Cell cell in mBlister.Queue[0].Cells)
+                    {
+                       PointContainment result =  cell.voronoi.Contains(pt.location, Plane.WorldXY, Setups.IntersectionTolerance);
+                        if (result == PointContainment.Inside)
+                        {
+                            cell.Anchor = pt;
+                            break;
+                        }
+                    }
+                        
+                }
+                return true;
+            }
+
         }
 
 
@@ -1041,13 +1100,58 @@ namespace Blistructor
                 List<Blister> newBlisters = new List<Blister>(); ;
                 int counter = 0;
                 log.Debug(String.Format("There is still {0} cells on blister", cells.Count));
-                //bool[] anchorSwitcher = new bool[2] { true, false };
+
+                //NOTE: Updated, popsute...Chceck cutting possibieletes for normal cells
+                
+                counter = 0;
+                foreach (Cell currentCell in cells)
+                {
+                    if (currentCell.TryCut(true, worldObstacles) == false)
+                    {
+                        counter++;
+                        continue;
+                    }
+                    else
+                    {
+                        found_cell = currentCell;
+                        log.Info(String.Format("Cut Path found for cell {0} after checking {1} cells", found_cell.id, counter));
+                        break;
+                    }
+                }
+
+                // It here is no cell, tryc to fined in anchors.
+                if (found_cell == null)
+                {
+                    log.Warn("No cutting data generated for whole blister. Try to find cutting data in anchored ...");
+                    counter = 0;
+                    foreach (Cell currentCell in cells)
+                    {
+                        if (currentCell.Anchor.state == AnchorState.Active && currentCell.TryCut(false, worldObstacles) == false)
+                        {
+                            counter++;
+                            continue;
+                        }
+                        else
+                        {
+                            found_cell = currentCell;
+
+                            //Here should be Anchor update after cell remove. 
+                            log.Info(String.Format("Cut Path found for cell {0} after checking {1} cells", found_cell.id, counter));
+                            break;
+                        }
+
+                    }
+                }
+                    
+                /* 
+                //NOTE: OLD PART
                 bool[] anchorSwitcher = new bool[2] { true, false };
                 foreach (bool ommitAnchor in anchorSwitcher)
                 {
                     counter = 0;
                     foreach (Cell currentCell in cells)
                     {
+                    
                         if (currentCell.TryCut(ommitAnchor, worldObstacles) == false)
                         {
                             counter++;
@@ -1070,6 +1174,8 @@ namespace Blistructor
                         break;
                     }
                 }
+                */
+                
 
                 if (found_cell == null)
                 {
@@ -1201,7 +1307,6 @@ namespace Blistructor
             public List<PolylineCurve> GetCuttingPath()
             {
                 // !!!============If cell is anchor it probably doesn't have cutting stuff... To validate===========!!!!
-                //if (cells[0].PossibleAnchor) return new List<LineCurve>();
                 if (cells[0].bestCuttingData == null) return new List<PolylineCurve>();
 
                 // cells[0].bestCuttingData.GenerateBladeFootPrint();
@@ -1211,7 +1316,6 @@ namespace Blistructor
             public List<LineCurve> GetCuttingLines()
             {
                 // !!!============If cell is anchor it probably doesn't have cutting stuff... To validate===========!!!!
-                //if (cells[0].PossibleAnchor) return new List<LineCurve>();
                 if (cells[0].bestCuttingData == null) return new List<LineCurve>();
 
                 // cells[0].bestCuttingData.GenerateBladeFootPrint();
@@ -1220,7 +1324,6 @@ namespace Blistructor
             public List<LineCurve> GetIsoRays()
             {
                 // !!!============If cell is anchor it probably doesn't have cutting stuff... To validate===========!!!!
-                //if (cells[0].PossibleAnchor) return new List<LineCurve>();
                 if (cells[0].bestCuttingData == null) return new List<LineCurve>();
                 // cells[0].bestCuttingData.GenerateBladeFootPrint();
                 return cells[0].bestCuttingData.IsoRays;
@@ -1228,7 +1331,6 @@ namespace Blistructor
             public List<PolylineCurve> GetLeftOvers()
             {
                 // !!!============If cell is anchor it probably doesn't have cutting stuff... To validate===========!!!!
-                // if (cells[0].PossibleAnchor) return new List<PolylineCurve>();
                 // cells[0].bestCuttingData.GenerateBladeFootPrint();
                 if (cells[0].bestCuttingData == null) return new List<PolylineCurve>();
                 return cells[0].bestCuttingData.BlisterLeftovers;
@@ -1236,7 +1338,6 @@ namespace Blistructor
             public List<PolylineCurve> GetAllPossiblePolygons()
             {
                 // !!!============If cell is anchor it probably doesn't have cutting stuff... To validate===========!!!!
-                // if (cells[0].PossibleAnchor) return new List<PolylineCurve>();
                 // cells[0].bestCuttingData.GenerateBladeFootPrint();
                 if (cells[0].bestCuttingData == null) return new List<PolylineCurve>();
                 return cells[0].bestCuttingData.BlisterLeftovers;
@@ -1259,7 +1360,7 @@ namespace Blistructor
 
             // States
             private CellState state = CellState.Queue;
-            public bool PossibleAnchor = false;
+            public AnchorPoint Anchor;
             //public double CornerDistance = 0;
             //public double GuideDistance = 0;
 
@@ -1293,6 +1394,8 @@ namespace Blistructor
                 pill = _pill;
                 // Make Pill curve oriented in proper direction.
                 Geometry.UnifyCurve(pill);
+
+                Anchor = new AnchorPoint();
 
                 pillProp = AreaMassProperties.Compute(pill);
 
@@ -1667,7 +1770,8 @@ namespace Blistructor
                     return true;
                 }
                 // If cell is marekd as possible anchor, also dont try to cut
-                if (ommitAnchor == true && PossibleAnchor == true)
+                // NOTE: Zmiana z possibleAnchor na anchor... Moga byc problemy.
+                if (ommitAnchor == true && Anchor.state == AnchorState.Active)
                 {
                     log.Info("Marked as anchored. Omitting");
                     return false;
