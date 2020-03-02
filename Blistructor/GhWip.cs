@@ -104,13 +104,14 @@ namespace Blistructor
 
             // TODO: -DONE-: Przejechanie wszystkich blistrów i sprawdzenie jak działa -> szukanie błedów
             // TODO: -DONE-: Dodac sprawdzenie czy przed i po cieciu mam tyle samo tabletek. -> czy cały blister sie pociął. (ErrorType)
-            // TODO: Adaptacyje anchory -> Aktualizacja anchorów (ich przemieszczania) wraz z procesem ciecia np. przypadek blistra 19.
+            // TODO: -DONE?-: Adaptacyje anchory -> Aktualizacja anchorów (ich przemieszczania) wraz z procesem ciecia np. przypadek blistra 19.
+            // TODO: -WIP-: Adaptacyje anchory -> Czasem jak zostaje ostatni rzad tabletek, to wycina sie tabletka blisko anchora i resta wisi nietrzymana....
             // TODO: AdvancedCutting -> blister 19.
             // TODO: -DONE-: (Część bedzie w logach) Obsługa braku możliwości technicznych pociecia (Za ciasno, za skomplikowany, nie da sie wprowadzić noża, pocięty kawałek wiekszy niż 34mm..)
             // TODO: -DONE-: (Bład wyswietlania) Brak BladeFootPrintów dla ostanich blistów oznaczonych jako anchor np jezeli dwa ostatnie trzeba rozciac. np. Blistr 31
-            // TODO: -DONE-: Adaptacyjna kolejność ciecia - po każdej wycietej tabletce, nalezało by przesortowac cell tak aby wubierał najbliższe
+            // TODO: -WIP-: Adaptacyjna kolejność ciecia - po każdej wycietej tabletce, nalezało by przesortowac cell tak aby wubierał najbliższe - Nadal kolejnosc ciecia jest do kitu ...
             // TODO: -DONE-: BlisterFootPrint -> mądzej, bo teraz nie są brana pod uwage w ogóle Rays i ich możliwości tylko na pałe jest robiona 
-            // TODO: Weryfikacja PolygonSelectora (patrz blister 6, dziwnie wybrał...)
+            // TODO: -WIP-:Weryfikacja PolygonSelectora (patrz blister 6, dziwnie wybrał...) 
             // TODO: -DONE???-: Generowanie JSONA, Obsługa wyjątków, lista errorów. struktura pliku
             // TODO: Generowani punktów kartezjana, sprawdzanie rozstawu, właczenie tego do JSON'a
             // TODO: Kalibracja punktu 0,0
@@ -384,6 +385,7 @@ namespace Blistructor
                             out_data.AddRange(cell.cuttingData[j].IsoSegments, new GH_Path(i, j, 0));
                             out_data.AddRange(cell.cuttingData[j].Segments, new GH_Path(i, j, 1));
                             out_data.AddRange(cell.cuttingData[j].obstacles, new GH_Path(i, j, 2));
+                            out_data.AddRange(cell.cuttingData[j].Path, new GH_Path(i, j, 3));
                         }
                     }
                     return out_data;
@@ -1804,7 +1806,13 @@ namespace Blistructor
                 log.Info(String.Format(">>>After STAGE_1: {0} cuttng possibilietes<<<", cuttingData.Count));
                 PolygonBuilder_v2(GenerateIsoCurvesStage2());
                 log.Info(String.Format(">>>After STAGE_2: {0} cuttng possibilietes<<<", cuttingData.Count));
-                PolygonBuilder_v2(GenerateIsoCurvesStage3());
+                IEnumerable<IEnumerable<LineCurve>> isoLines = GenerateIsoCurvesStage3a(1, 2.0);
+                foreach (List<LineCurve> isoLn in isoLines)
+                {
+                    PolygonBuilder_v2(isoLn);
+                }
+
+                //PolygonBuilder_v2(GenerateIsoCurvesStage3a(1, 2.0));
                 log.Info(String.Format(">>>After STAGE_3: {0} cuttng possibilietes<<<", cuttingData.Count));
                 if (cuttingData.Count > 0) return true;
                 else return false;
@@ -1840,14 +1848,15 @@ namespace Blistructor
             public bool PolygonSelector()
             {
                 // Order by number of cuts to be performed.
-                cuttingData = cuttingData.OrderBy(x => x.EstimatedCuttingCount).ToList();
+                cuttingData = cuttingData.OrderBy(x => x.EstimatedCuttingCount* x.GetPerimeter()).ToList();
+                List<CutData> selected = cuttingData;
                 // Limit only to lower number of cuts
-                List<CutData> selected = cuttingData.Where(x => x.EstimatedCuttingCount == cuttingData[0].EstimatedCuttingCount).ToList();
+                //List<CutData> selected = cuttingData.Where(x => x.EstimatedCuttingCount == cuttingData[0].EstimatedCuttingCount).ToList();
                 //Then sort by perimeter
-                selected = selected.OrderBy(x => x.GetPerimeter()).ToList();
+                //selected = selected.OrderBy(x => x.GetPerimeter()).ToList();
                 foreach  ( CutData cData in selected)
                 {
-                    if (!cData.RecalculateIsoSegments(OrientationCircle)) continue;
+                   // if (!cData.RecalculateIsoSegments(OrientationCircle)) continue;
                     if (!cData.GenerateBladeFootPrint()) continue;
                     bestCuttingData = cData;
                     return true;
@@ -1965,6 +1974,37 @@ namespace Blistructor
                 return isoLines;
             }
 
+            private IEnumerable<IEnumerable<LineCurve>> GenerateIsoCurvesStage3a(int raysCount, double stepAngle)
+            {
+                List<List<LineCurve>> isoLines = new List<List<LineCurve>>(samplePoints.Count);
+                for (int i = 0; i < samplePoints.Count; i++)
+                {
+                    Vector3d direction = Vector3d.CrossProduct((proxLines[i].PointAtEnd - proxLines[i].PointAtStart), Vector3d.ZAxis);
+                    Vector3d direction2 = Vector3d.CrossProduct((connectionLines[i].PointAtEnd - connectionLines[i].PointAtStart), Vector3d.ZAxis);
+                    //Vector3d sum_direction = StraigtenVector(direction + direction2);
+                    Vector3d sum_direction = direction + direction2;
+                    double stepAngleInRadians = RhinoMath.ToRadians(stepAngle);
+                    if (!sum_direction.Rotate(-raysCount * stepAngleInRadians, Vector3d.ZAxis)) continue;
+                    //List<double>rotationAngles = Enumerable.Range(-raysCount, (2 * raysCount) + 1).Select(x => x* RhinoMath.ToRadians(stepAngle)).ToList();
+                    List<LineCurve> currentIsoLines = new List<LineCurve>((2 * raysCount) + 1);
+                    foreach (double angle in Enumerable.Range(0, (2 * raysCount) + 1)) 
+
+                    {
+                        if (!sum_direction.Rotate(stepAngleInRadians, Vector3d.ZAxis)) continue;
+                        LineCurve isoLine = Geometry.GetIsoLine(samplePoints[i], sum_direction, Setups.IsoRadius, obstacles);
+                        if (isoLine == null) continue;
+                        currentIsoLines.Add(isoLine);
+                    }
+                    if (currentIsoLines.Count == 0) continue;
+                    isoLines.Add(currentIsoLines);
+                    //sum_direction.Rotate(RhinoMath.ToRadians(stepAngle), Vector3d.ZAxis)
+                    //LineCurve isoLine = Geometry.GetIsoLine(samplePoints[i], sum_direction, Setups.IsoRadius, obstacles);
+                    // if (isoLine == null) continue;
+                    //isoLines.Add(isoLine);
+                }
+                return Combinators.Combinators.CartesianProduct(isoLines);
+            }
+
             private List<List<LineCurve>> GenerateIsoCurvesStage4(int count, double radius)
             {
                 // Obstacles need to be calculated or updated earlier
@@ -2056,7 +2096,7 @@ namespace Blistructor
 
                 //Generate Combinations array
                 List<List<int>> raysIndiciesCombinations = Combinators.Combinators.UniqueCombinations(raysIndicies, 1);
-                log.Debug(String.Format("Building cut data from {0} rays organized in {1} combinations", trimedRays.Count, raysIndiciesCombinations.Count));
+                log.Info(String.Format("Building cut data from {0} rays organized in {1} combinations", trimedRays.Count, raysIndiciesCombinations.Count));
                 // Loop over combinations even with 1 ray
                 foreach (List<int> combinationIndicies in raysIndiciesCombinations)
                 //for (int combId = 0; combId < raysIndiciesCombinations.Count; combId++)
@@ -2088,10 +2128,10 @@ namespace Blistructor
                     {
                         // Remove very short segments
                         Polyline pLineToCheck = curveToCheck.ToPolyline();
-                        pLineToCheck.DeleteShortSegments(Setups.CollapseTolerance);
+                        //pLineToCheck.DeleteShortSegments(Setups.CollapseTolerance);
                         // Look if end of cutting line is close to existing point on blister. If tolerance is smaller snap to this point
                         curveToCheck = pLineToCheck.ToPolylineCurve();
-                        curveToCheck = Geometry.SnapToPoints(curveToCheck, blister.Outline, Setups.SnapDistance);
+                        //curveToCheck = Geometry.SnapToPoints(curveToCheck, blister.Outline, Setups.SnapDistance);
                         // NOTE: straighten parts of curve????
                         localCutData.Add(VerifyPath(curveToCheck));
                         log.Debug("STAGE 2: Pass.");
@@ -2102,7 +2142,7 @@ namespace Blistructor
                     {
                         if (cutData == null) continue;
                         //cutData.TrimmedIsoRays = currentTimmedIsoRays;
-                        //cutData.IsoRays = currentFullIsoRays;
+                        cutData.IsoSegments = currentFullIsoRays;
                         cutData.Obstacles = obstacles;
                         cuttingData.Add(cutData);
                     }
@@ -2301,7 +2341,11 @@ namespace Blistructor
                 }
             }
 
-            public List<LineCurve> IsoSegments { get { return isoSegments.Select(line => new LineCurve(line)).ToList(); } }
+            public List<LineCurve> IsoSegments
+            {
+                get { return isoSegments.Select(line => new LineCurve(line)).ToList(); }
+                set { isoSegments = value.Select(x => x.Line).ToList(); }
+            }
 
             public List<LineCurve> Segments { get { return segments.Select(line => new LineCurve(line)).ToList(); } }
 
@@ -2351,7 +2395,8 @@ namespace Blistructor
             public bool GenerateBladeFootPrint()
             {
                 log.Info("===GENERATE CUTTING FOOTPRINT===");
-                if (IsoSegments == null || path == null) return false;
+                if (isoSegments == null || segments == null) return false;
+                if (!GenerateSegments()) return false;
                 //  log.Info("Data are ok.");
                 // Loop by all paths and generate Segments and IsoSegments
                 for (int i =0; i< segments.Count; i++)
@@ -2393,6 +2438,21 @@ namespace Blistructor
                 log.Info(String.Format("Generated {0} Blade Footpronts.", bladeFootPrint.Count));
             }
             */
+            public bool GenerateSegments()
+            {
+                if (path == null) return false;
+                // Loop by all paths and generate Segments
+                segments = new List<Line>();
+                foreach (PolylineCurve pline in Path)
+                {
+                    foreach (Line ln in pline.ToPolyline().GetSegments())
+                    {
+                        segments.Add(ln);
+                    }
+                }
+                return true;
+            }
+
 
             public bool RecalculateIsoSegments(Curve orientationGuideCurve)
             {
