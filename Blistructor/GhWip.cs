@@ -14,6 +14,7 @@ using Grasshopper.Kernel.Types;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 
 using Rhino.Geometry.Intersect;
 
@@ -94,6 +95,7 @@ namespace Blistructor
         {
 
             // <Custom code>
+   
             ILog log = LogManager.GetLogger("Main");
             Logger.Setup();
             //Logger.ClearAllLogFile();
@@ -101,18 +103,18 @@ namespace Blistructor
             log.Info("====NEW RUN====");
 
             // TODO: -DONE-: Przejechanie wszystkich blistrów i sprawdzenie jak działa -> szukanie błedów
-            // TODO: -DON-E: Dodac sprawdzenie czy przed i po cieciu mam tyle samo tabletek. -> czy cały blister sie pociął. (ErrorType)
+            // TODO: -DONE-: Dodac sprawdzenie czy przed i po cieciu mam tyle samo tabletek. -> czy cały blister sie pociął. (ErrorType)
             // TODO: Adaptacyje anchory -> Aktualizacja anchorów (ich przemieszczania) wraz z procesem ciecia np. przypadek blistra 19.
             // TODO: AdvancedCutting -> blister 19.
             // TODO: -DONE-: (Część bedzie w logach) Obsługa braku możliwości technicznych pociecia (Za ciasno, za skomplikowany, nie da sie wprowadzić noża, pocięty kawałek wiekszy niż 34mm..)
             // TODO: -DONE-: (Bład wyswietlania) Brak BladeFootPrintów dla ostanich blistów oznaczonych jako anchor np jezeli dwa ostatnie trzeba rozciac. np. Blistr 31
-            // TODO: Adaptacyjna kolejność ciecia - po każdej wycietej tabletce, nalezało by przesortowac cell tak aby wubierał najbliższe
-            // TODO: BlisterFootPrint -> mądzej, bo teraz nie są brana pod uwage w ogóle Rays i ich możliwości tylko na pałe jest robiona 
+            // TODO: -DONE-: Adaptacyjna kolejność ciecia - po każdej wycietej tabletce, nalezało by przesortowac cell tak aby wubierał najbliższe
+            // TODO: -DONE-: BlisterFootPrint -> mądzej, bo teraz nie są brana pod uwage w ogóle Rays i ich możliwości tylko na pałe jest robiona 
             // TODO: Weryfikacja PolygonSelectora (patrz blister 6, dziwnie wybrał...)
             // TODO: -DONE???-: Generowanie JSONA, Obsługa wyjątków, lista errorów. struktura pliku
             // TODO: Generowani punktów kartezjana, sprawdzanie rozstawu, właczenie tego do JSON'a
             // TODO: Kalibracja punktu 0,0
-            // TODO: Właczenie Conturera do Blistructora
+            // TODO: -DONE-: Właczenie Conturera do Blistructora
             // TODO: "ładne" logowanie produkcyjne jak i debugowe.
             // TODO: Posprzątanie w klasach.
             // TODO: Coś za duzo obstacles się dodaje do listy. Nieby nie spowalnia jakoś bardzo ale po co....
@@ -137,7 +139,8 @@ namespace Blistructor
                     // F = structor.Queue[0].GetProxyLines;
                     //  G = structor.Queue[0].GetSamplePoints;
                     // GetObstacles will generate obstacels. not intended....
-                    // I = structor.Queue[0].GetObstacles;
+
+                    I = structor.GetUnfinishedCutDataGH;
                     // I = structor.Queue[0].irVoronoi;
                     // F = structor.Queue[0].Outline;
                 }
@@ -217,6 +220,17 @@ namespace Blistructor
                 mainLimit = Limit1;
                 Queue = new List<Blister>();
                 Cutted = new List<Blister>();
+            }
+
+            public int CuttableCellsLeft { get
+                {
+                    int counter = 0;
+                    foreach (Blister blister in Queue)
+                    {
+                        counter += blister.Cells.Select(cell => cell.State).Where(state => state == CellState.Queue || state == CellState.Alone).ToList().Count;
+                    }
+                    return counter;
+                }
             }
 
             #region PROPERTIES
@@ -354,6 +368,29 @@ namespace Blistructor
                     return out_data;
                 }
             }
+
+            public DataTree<Curve> GetUnfinishedCutDataGH
+            {
+                get
+                {
+                    DataTree<Curve> out_data = new DataTree<Curve>();
+                    //List<List<Curve>> out_data = new List<List<Curve>>();
+                    for (int i = 0; i < Queue[0].Cells.Count; i++)
+                    {
+                        Cell cell = Queue[0].Cells[i];
+                        if (cell.cuttingData == null) continue;
+                        if (cell.cuttingData.Count == 0) continue;
+                        for (int j = 0; j < cell.cuttingData.Count; j++) {
+                            out_data.AddRange(cell.cuttingData[j].IsoSegments, new GH_Path(i, j, 0));
+                            out_data.AddRange(cell.cuttingData[j].Segments, new GH_Path(i, j, 1));
+                            out_data.AddRange(cell.cuttingData[j].obstacles, new GH_Path(i, j, 2));
+                        }
+                    }
+                    return out_data;
+                }
+            }
+
+
             #endregion
 
             private void Initialise(List<PolylineCurve> Pills, PolylineCurve Blister)
@@ -419,20 +456,21 @@ namespace Blistructor
                 return CutBlister(convPills, blister.ToPolylineCurve());
             }
 
-
             public JObject CutBlister(List<PolylineCurve> pills, PolylineCurve blister)
             {
                 // Prepare basic stuff
                 JObject cuttingResult = PrepareEmptyJSON();
                 CuttingState status = CuttingState.CTR_UNSET;
-         
+
                 // Pills and blister are already curve objects
                 Initialise(pills, blister);
                 cuttingResult["PillsDetected"] = pills.Count;
+
+
                 try
                 {
                     status = PerformCut(mainLimit, cellLimit);
-                   
+
                     // status = CuttingState.CTR_UNSET;
                 }
                 catch (Exception ex)
@@ -440,6 +478,7 @@ namespace Blistructor
                     status = CuttingState.CTR_OTHER_ERR;
                     log.Error("Main Error catcher", ex);
                 }
+ 
                 cuttingResult["Status"] = status.ToString();
                 cuttingResult["PillsCutted"] = Cutted.Count;
                 // If all alright, populate by cutting data
@@ -462,8 +501,9 @@ namespace Blistructor
                 int initialPillCount = Queue[0].Cells.Count;
                 if (Queue[0].ToTight) return CuttingState.CTR_TO_TIGHT;
                 if (Queue[0].LeftCellsCount == 1) return CuttingState.CTR_ONE_PILL;
-
-                int n = 0; // control
+                if (!anchor.ApplyAnchorOnBlister()) return CuttingState.CTR_ANCHOR_LOCATION_ERR;
+   
+                    int n = 0; // control
                 // Main Loop
                 while (Queue.Count > 0)
                 {
@@ -491,6 +531,9 @@ namespace Blistructor
                         // If anything was cutted, add to list
                         if (result.Item1 != null)
                         {
+                            Cell cuttedCell = result.Item1.Cells[0];
+                            if (cuttedCell.Anchor.state == AnchorState.Inactive) anchor.Update(result.Item1);
+                            if (cuttedCell.Anchor.state == AnchorState.Active && cuttedCell.State != CellState.Alone && CuttableCellsLeft ==2 ) anchor.FindNewAnchorAndApplyOnBlister(result.Item1);
                             log.Info("Adding new CutOut blister to Cutted list");
                             Cutted.Add(result.Item1);
                         }
@@ -510,13 +553,12 @@ namespace Blistructor
                         {
                             log.Info("Updating blister");
                             blister = result.Item2;
-                            // Sort Pills by last Knife Possition
-                           // Point3d lastKnifePossition = Cutted.Last().Cells[0].bestCuttingData.GetLastKnifePossition();
+                            // Sort Pills by last Knife Possition -> Last Pill Centre
+                            // Point3d lastKnifePossition = Cutted.Last().Cells[0].bestCuttingData.GetLastKnifePossition();
                             Point3d lastKnifePossition = Cutted.Last().Cells[0].PillCenter;
-                            // NOTE: Not working properly. Need fixation. X direction should be pioretize.!!!!
-                            if (lastKnifePossition.X != double.NaN) blister.SortCellsByParametrisedPointDistance(lastKnifePossition, false);
-                            // Sort rest of the cells by distance to the knife las move... knife possition taken form CutData
-                            //
+                           if (lastKnifePossition.X != double.NaN) blister.SortCellsByParametrisedPointDistance(lastKnifePossition, true);
+                            //if (lastKnifePossition.X != double.NaN) blister.SortCellsByCoordinates(true);
+
                         }
                         // Add extra blsters if any was created
                         if (result.Item3.Count != 0)
@@ -598,6 +640,7 @@ namespace Blistructor
                 }
             }
 
+
         }
 
         //    public List<Curve> EstimateCartesian()
@@ -647,7 +690,19 @@ namespace Blistructor
                 orientation = site;
                 state = AnchorState.Active;
             }
-
+            /*
+            public JObject GetJSON()
+            {
+                JObject data = new JObject();
+                data.Add("PillIndex", this.id);
+                // Add Anchor Data <- to be implement.
+                data.Add("Anchor", null);
+                // Add Cutting Instruction
+                if (bestCuttingData != null) data.Add("CutInstruction", bestCuttingData.GetJSON());
+                else data.Add("CutInstruction", new JArray());
+                return data;
+            }
+            */
 
         }
 
@@ -728,7 +783,7 @@ namespace Blistructor
                 // Move temporaly predLine to the upper position, too chceck intersection with pills.
                 fullPredLine.Translate(Vector3d.YAxis * Setups.CartesianDepth / 2);
                 // NOTE: Check intersection with pills (Or maybe with pillsOffset. Rethink problem)
-                Tuple<List<Curve>, List<Curve>> trimResult = Geometry.TrimWithRegions(fullPredLine, mBlister.Queue[0].GetPills(true));
+                Tuple<List<Curve>, List<Curve>> trimResult = Geometry.TrimWithRegions(fullPredLine, mBlister.Queue[0].GetPills(false));
                 // Gather all parts outsite (not in pills) shrink curve on both sides by half of Grasper width and move it back to mid position 
                 foreach (Curve crv in trimResult.Item2)
                 {
@@ -802,38 +857,82 @@ namespace Blistructor
                     };
             }
 
+            // NOTE: TO TEST AND IMPLENT
             /// <summary>
             /// Check which Anchor belongs to which cell and reset other cells anchors. 
             /// </summary>
             /// <returns></returns>
             public bool ApplyAnchorOnBlister()
             {
-                if (mBlister.Queue[0].Cells == null) return false;
-                if (mBlister.Queue[0].Cells.Count == 0 ) return false;
-                foreach (Cell cell in mBlister.Queue[0].Cells)   
+                // NOTE: For loop by all queue blisters.
+                foreach (Blister blister in mBlister.Queue)
                 {
-                    // Reset anchors in each cell.
-                    cell.Anchor = new AnchorPoint();
-                    foreach (AnchorPoint pt in anchors)
+                    if (blister.Cells == null) return false;
+                    if (blister.Cells.Count == 0) return false;
+                    foreach (Cell cell in blister.Cells)
                     {
-                        PointContainment result =  cell.voronoi.Contains(pt.location, Plane.WorldXY, Setups.IntersectionTolerance);
-                        if (result == PointContainment.Inside)
+                        // Reset anchors in each cell.
+                        cell.Anchor = new AnchorPoint();
+                        foreach (AnchorPoint pt in anchors)
                         {
-                            cell.Anchor = pt;
-                            break;
+                            PointContainment result = cell.voronoi.Contains(pt.location, Plane.WorldXY, Setups.IntersectionTolerance);
+                            if (result == PointContainment.Inside)
+                            {
+                                cell.Anchor = pt;
+                                break;
+                            }
                         }
+
                     }
-                        
                 }
                 return true;
             }
 
-            public void UpdateJaws()
+            // NOTE: TO TEST AND IMPLENT
+            
+            public void Update(Blister cuttedBlister)
             {
+                Update(null, cuttedBlister.Cells[0].bestCuttingData.Polygon);
+            }
+
+            public void Update(PolylineCurve path, PolylineCurve polygon)
+            {
+                 if (polygon != null)
+                {
+                   Curve[] offset = polygon.Offset(Plane.WorldXY, Setups.CartesianThickness / 2, Setups.GeneralTolerance, CurveOffsetCornerStyle.Sharp);
+                    if (offset.Length > 0)
+                    {
+                        Tuple<List<Curve>, List<Curve>> result = Geometry.TrimWithRegion(GrasperPossibleLocation.Select(crv => (Curve)crv).ToList(), offset[0]);
+                        GrasperPossibleLocation = result.Item2.Select(crv => (LineCurve)crv).ToList();
+                    }
+                }
+
+                if (path != null)
+                {
+                    PolylineCurve pathOutline = Geometry.PolylineThicken(path, Setups.BladeWidth / 2 + Setups.CartesianThickness / 2);
+                    Tuple<List<Curve>,List<Curve>> result= Geometry.TrimWithRegion(GrasperPossibleLocation.Select(crv => (Curve)crv).ToList(), pathOutline);
+                    GrasperPossibleLocation = result.Item2.Select(crv => (LineCurve)crv ).ToList();
+                }
 
             }
 
+            public void FindNewAnchorAndApplyOnBlister(Blister cuttedBlister)
+            {
+                Update(cuttedBlister);
+                anchors = GetJawsPoints();
+                ApplyAnchorOnBlister();
+            }
         }
+       
+        /*
+        public class CuttedBlister : Blister
+        {
+            public CuttedBlister(Cell cell, PolylineCurve outline) :base(outline)
+            {
+               this.cells = new List<Cell>(1) { _cells };
+            }
+        }
+        */
 
         public class Blister
         {
@@ -1141,9 +1240,7 @@ namespace Blistructor
                 List<Blister> newBlisters = new List<Blister>(); ;
                 int counter = 0;
                 log.Debug(String.Format("There is still {0} cells on blister", cells.Count));
-
-                //NOTE: Updated, popsute...Chceck cutting possibieletes for normal cells
-                
+               
                 counter = 0;
                 foreach (Cell currentCell in cells)
                 {
@@ -1175,7 +1272,7 @@ namespace Blistructor
                         else
                         {
                             found_cell = currentCell;
-
+                            //found_cell.Anchor.state = AnchorState.Cutted;
                             //Here should be Anchor update after cell remove. 
                             log.Info(String.Format("Cut Path found for cell {0} after checking {1} cells", found_cell.id, counter));
                             break;
@@ -1183,40 +1280,7 @@ namespace Blistructor
 
                     }
                 }
-                    
-                /* 
-                //NOTE: OLD PART
-                bool[] anchorSwitcher = new bool[2] { true, false };
-                foreach (bool ommitAnchor in anchorSwitcher)
-                {
-                    counter = 0;
-                    foreach (Cell currentCell in cells)
-                    {
-                    
-                        if (currentCell.TryCut(ommitAnchor, worldObstacles) == false)
-                        {
-                            counter++;
-                            continue;
-                        }
-                        else
-                        {
-                            found_cell = currentCell;
-                            log.Info(String.Format("Cut Path found for cell {0} after checking {1} cells", found_cell.id, counter));
-                            break;
-                        }
-                    }
-                    if (found_cell == null)
-                    {
-                        log.Warn("No cutting data generated for whole blister. Try to fined cutting data in anchored ...");
-                        //return Tuple.Create<Blister, Blister, List<Blister>>(null, this, newBlisters);
-                    }
-                    else
-                    {
-                        break;
-                    }
-                }
-                */
-                
+                                    
 
                 if (found_cell == null)
                 {
@@ -1236,6 +1300,7 @@ namespace Blistructor
 
                 // If more cells are on blister, replace outline of current blister by first curve from the list...
                 // Update current blister outline
+                // NOTE: TU jest Error, prawdopodobnie FootPront nie generuje sie poprawnie przez co wywala tu błałd bo nie ma bestCuting data
                 outline = found_cell.bestCuttingData.BlisterLeftovers[0];
                 // Create new blister with cutted pill
                 Blister cutted = new Blister(found_cell, found_cell.bestCuttingData.Polygon);
@@ -1386,7 +1451,6 @@ namespace Blistructor
                 return cells[0].bestCuttingData.BlisterLeftovers;
             }
 
-
             #endregion
         }
 
@@ -1451,7 +1515,6 @@ namespace Blistructor
                 }
                 if (ofCur.Length == 1)
                 {
-                    PolylineCurve outPline;
                     pillOffset = (PolylineCurve) ofCur[0];
                 }
                 else
@@ -1517,8 +1580,11 @@ namespace Blistructor
             #region DISTANCES
             public double GetParametrizedDistance(Point3d pt)
             {
-               // Vector3d vec = pt - this.PillCenter;    
-                return pt.DistanceTo(this.PillCenter) + Math.Abs((pt - this.PillCenter).Y);
+                // Vector3d vec = pt - this.PillCenter;  
+              //  double factor = Math.Abs((pt - this.PillCenter).Y);
+              //  double distance =;
+                // log.Info(distance + factor);
+                return pt.DistanceTo(this.PillCenter) + this.CoordinateIndicator;
             }
             public double GetDistance(Point3d pt)
             {
@@ -1771,7 +1837,7 @@ namespace Blistructor
             /// <summary>
             /// Get best Cutting Data from all generated and asign it to /bestCuttingData/ field.
             /// </summary>
-            public CutData PolygonSelector()
+            public bool PolygonSelector()
             {
                 // Order by number of cuts to be performed.
                 cuttingData = cuttingData.OrderBy(x => x.EstimatedCuttingCount).ToList();
@@ -1779,10 +1845,21 @@ namespace Blistructor
                 List<CutData> selected = cuttingData.Where(x => x.EstimatedCuttingCount == cuttingData[0].EstimatedCuttingCount).ToList();
                 //Then sort by perimeter
                 selected = selected.OrderBy(x => x.GetPerimeter()).ToList();
+                foreach  ( CutData cData in selected)
+                {
+                    if (!cData.RecalculateIsoSegments(OrientationCircle)) continue;
+                    if (!cData.GenerateBladeFootPrint()) continue;
+                    bestCuttingData = cData;
+                    return true;
+                }
                 //Pick best one.
-                bestCuttingData = selected[0];
-                bestCuttingData.GenerateBladeFootPrint(OrientationCircle);
-                return bestCuttingData;
+                //bestCuttingData = selected[0];
+                //if (bestCuttingData.RecalculateIsoSegments(OrientationCircle))
+                //{
+                //    bestCuttingData.GenerateBladeFootPrint();
+               //     return true;
+               // }
+                return false;
                 // bestCuttingData = cuttingData[0];
             }
 
@@ -1820,7 +1897,6 @@ namespace Blistructor
                     return true;
                 }
                 // If cell is marekd as possible anchor, also dont try to cut
-                // NOTE: Zmiana z possibleAnchor na anchor... Moga byc problemy.
                 if (ommitAnchor == true && Anchor.state == AnchorState.Active)
                 {
                     log.Info("Marked as anchored. Omitting");
@@ -1831,9 +1907,9 @@ namespace Blistructor
                 log.Debug("Perform cutting data generation");
                 if (GenerateSimpleCuttingData_v2(worldObstacles))
                 {
-                    state = CellState.Cutted;
                     RemoveConnectionData();
                     PolygonSelector();
+                    state = CellState.Cutted;
                     return true;
                 }
                 else return false;
@@ -2141,7 +2217,7 @@ namespace Blistructor
                 JObject data = new JObject();
                 data.Add("PillIndex", this.id);
                 // Add Anchor Data <- to be implement.
-                data.Add("Anchor", null);
+                data.Add("Anchor", Anchor.orientation.ToString());
                 // Add Cutting Instruction
                 if (bestCuttingData != null) data.Add("CutInstruction", bestCuttingData.GetJSON());
                 else data.Add("CutInstruction", new JArray());
@@ -2158,14 +2234,14 @@ namespace Blistructor
             public List<LineCurve> bladeFootPrint;
             // public List<LineCurve> bladeFootPrint2;
             public List<Curve> obstacles;
-            public List<LineCurve> IsoSegments;
+            public List<Line> isoSegments;
+            public List<Line> segments;
 
             public CutData()
             {
-                IsoSegments = new List<LineCurve>();
-              //  IsoRays = new List<LineCurve>();
+                segments = new List<Line>();
+                isoSegments = new List<Line>();
                 bladeFootPrint = new List<LineCurve>();
-             //   bladeFootPrint2 = new List<LineCurve>();
             }
 
             private CutData(PolylineCurve polygon, List<PolylineCurve> path) : this()
@@ -2225,6 +2301,10 @@ namespace Blistructor
                 }
             }
 
+            public List<LineCurve> IsoSegments { get { return isoSegments.Select(line => new LineCurve(line)).ToList(); } }
+
+            public List<LineCurve> Segments { get { return segments.Select(line => new LineCurve(line)).ToList(); } }
+
             /*
             public List<LineCurve> TrimmedIsoRays { set; get; }
 
@@ -2268,7 +2348,24 @@ namespace Blistructor
             }
             */
 
-            public void GenerateBladeFootPrint(Curve orientationGuideCurve)
+            public bool GenerateBladeFootPrint()
+            {
+                log.Info("===GENERATE CUTTING FOOTPRINT===");
+                if (IsoSegments == null || path == null) return false;
+                //  log.Info("Data are ok.");
+                // Loop by all paths and generate Segments and IsoSegments
+                for (int i =0; i< segments.Count; i++)
+                {
+                    List<LineCurve> footPrint = GetKnifeprintPerSegment(segments[i], isoSegments[i]);
+                    if (footPrint.Count == 0) return false;
+                    bladeFootPrint.AddRange(footPrint);
+                }
+                log.Info(String.Format("Generated {0} Blade Footpronts.", bladeFootPrint.Count));
+                return true;
+            }
+
+            /*
+            public void GenerateBladeFootPrint_old(Curve orientationGuideCurve)
             {
                 log.Info("===GENERATE CUTTING FOOTPRINT===");
                 if (polygon == null || path == null) return;
@@ -2281,10 +2378,10 @@ namespace Blistructor
                     foreach (Line ln in pline.ToPolyline().GetSegments())
                     {
                         segments.Add(ln);
-                        Line isoLn = Geometry.GetIsoLine(ln.PointAt(0.5), ln.UnitTangent, Setups.IsoRadius, obstacles).Line;
-                        LineCurve cIsoLn = new LineCurve(isoLn);
+                        LineCurve cIsoLn = Geometry.GetIsoLine(ln.PointAt(0.5), ln.UnitTangent, Setups.IsoRadius, obstacles);
+                       // LineCurve cIsoLn = new LineCurve(isoLn);
                         Geometry.FlipIsoRays(orientationGuideCurve, cIsoLn);
-                        isoLn = cIsoLn.Line;
+                        Line isoLn = cIsoLn.Line;
                         if (isoLn == null) throw new InvalidOperationException("Computing IsoSegment failed during BladeFootPrint Generation.");
                         isoSegments.Add(isoLn);
                         bladeFootPrint.AddRange(GetKnifeprintPerSegment(ln, isoLn));
@@ -2293,52 +2390,31 @@ namespace Blistructor
                 }
                 IsoSegments = isoSegments.Select(line => new LineCurve(line)).ToList();
 
-                 /*
-                // foreach (PolylineCurve pline in Path)
-                // { 
-                //Line[] segments = pline.ToPolyline().GetSegments();
-                //log.Info(String.Format("{0} segements to check", segments.Length));
-                // If polyline is not proper (less then 2 contruction points), skip this.
-                if (segments == null) return;
-                //if (segments == null) continue;
-                for (int i = 0; i < segments.Count; i++)
-                {
-                    Line seg = segments[i];
-                    // First Segment. End point is on the blister Edge
-                    if (i < segments.Count - 1 || segments.Count == 1)
-                    {
-                        // log.Info(String.Format("Segement id: {0} - Type A", i));
-                        int parts = GetCuttingPartsCount(seg);
-                        Point3d cutStartPt = seg.To + (seg.UnitTangent * Setups.BladeTol);
-                        for (int j = 0; j < parts; j++)
-                        {
-                            // log.Info(String.Format("Parts generted: {0}", parts));
-                            Point3d cutEndPt = cutStartPt + (seg.UnitTangent * -Setups.BladeLength);
-                            Line cutPrint = new Line(cutStartPt, cutEndPt);
-                            bladeFootPrint.Add(new LineCurve(cutPrint));
-                            cutStartPt = cutEndPt + (seg.UnitTangent * Setups.BladeTol);
-                        }
-                    }
+                log.Info(String.Format("Generated {0} Blade Footpronts.", bladeFootPrint.Count));
+            }
+            */
 
-                    // Last segment.
-                    else if (i == segments.Count - 1)
+            public bool RecalculateIsoSegments(Curve orientationGuideCurve)
+            {
+                if (polygon == null || path == null) return false;
+                //  log.Info("Data are ok.");
+                // Loop by all paths and generate Segments and IsoSegments
+                segments = new List<Line>();
+                isoSegments = new List<Line>();
+                foreach (PolylineCurve pline in Path)
+                {
+                    foreach (Line ln in pline.ToPolyline().GetSegments())
                     {
-                        // log.Info(String.Format("Segement id: {0} - Type B", i));
-                        int parts = GetCuttingPartsCount(seg);
-                        Point3d cutStartPt = seg.From - (seg.UnitTangent * Setups.BladeTol);
-                        for (int j = 0; j < parts; j++)
-                        {
-                            // log.Info(String.Format("Parts generted: {0}", parts));
-                            Point3d cutEndPt = cutStartPt + (seg.UnitTangent * Setups.BladeLength);
-                            Line cutPrint = new Line(cutStartPt, cutEndPt);
-                            bladeFootPrint.Add(new LineCurve(cutPrint));
-                            cutStartPt = cutEndPt - (seg.UnitTangent * Setups.BladeTol);
-                        }
+                        segments.Add(ln);
+                        LineCurve cIsoLn = Geometry.GetIsoLine(ln.PointAt(0.5), ln.UnitTangent, Setups.IsoRadius, obstacles);
+                        if (cIsoLn == null) return false;
+                        Geometry.FlipIsoRays(orientationGuideCurve, cIsoLn);
+                        Line isoLn = cIsoLn.Line;
+                        if (isoLn == null) throw new InvalidOperationException("Computing IsoSegment failed during BladeFootPrint Generation.");
+                        isoSegments.Add(isoLn);
                     }
                 }
-                */
-                //  }
-                log.Info(String.Format("Generated {0} Blade Footpronts.", bladeFootPrint.Count));
+                return true;
             }
 
             public List<LineCurve> GetKnifeprintPerSegment(Line segment, Line isoSegment)
@@ -2357,7 +2433,7 @@ namespace Blistructor
                     Point3d exSegmentPt = segment.PointAt(t);
                     // Check if extended point is still on isoSegment line.
                     Point3d testPt = isoSegment.ClosestPoint(exSegmentPt,true);
-                    if (testPt.DistanceTo(exSegmentPt) > Setups.GeneralTolerance) return null;
+                   // if (testPt.DistanceTo(exSegmentPt) > Setups.GeneralTolerance) return knifeLines;
                     // Check if any side of the IsoSegment is out of blister...
                     double dist = exSegmentPt.DistanceTo(isoSegment.PointAt(t));
                     if (dist > Setups.IsoRadius / 2) segmentSide = (int)t;
@@ -3154,7 +3230,6 @@ namespace Blistructor
 
         public static class Conturer
         {
-
             public static List<List<int[]>> getContours(string pathToImage, double tolerance)
             {
                 Image<Gray, Byte>  img = new Image<Gray, byte>(pathToImage);
