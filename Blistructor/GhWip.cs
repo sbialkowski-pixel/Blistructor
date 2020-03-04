@@ -142,7 +142,7 @@ namespace Blistructor
                     // GetObstacles will generate obstacels. not intended....
 
                     I = structor.GetUnfinishedCutDataGH;
-                    // I = structor.Queue[0].irVoronoi;
+                     //I = structor.Queue[0].irVoronoi;
                     // F = structor.Queue[0].Outline;
                 }
                 
@@ -442,8 +442,6 @@ namespace Blistructor
                 mainOutline = blister;
                 pillsss = outPills;
 
-
-
                 JObject cuttingResult = CutBlister(outPills, blister);
                 return cuttingResult;
               // return null;
@@ -527,6 +525,7 @@ namespace Blistructor
                             log.Info("Blister is already cutted or is to tight for cutting.");
                             continue;
                         }
+                        //TODO: Jezeli blister dzieli sie na dwie części to każada musi miec ANchorPointa aktywnego, chyba ze blister jest Last, wedy nie jest pod ta regóła...
                         // In tuple I have | CutOut Blister | Current Updated Blister | Extra Blisters to Cut (recived by spliting currentBlister) 
                         Tuple<Blister, Blister, List<Blister>> result = blister.CutNext(worldObstacles) ;
                         log.Debug(String.Format("Cutting Result: Cutout: {0} - Current Blister {1} - New Blisters {2}.", result.Item1, result.Item2, result.Item3.Count));
@@ -558,7 +557,7 @@ namespace Blistructor
                             // Sort Pills by last Knife Possition -> Last Pill Centre
                             // Point3d lastKnifePossition = Cutted.Last().Cells[0].bestCuttingData.GetLastKnifePossition();
                             Point3d lastKnifePossition = Cutted.Last().Cells[0].PillCenter;
-                           if (lastKnifePossition.X != double.NaN) blister.SortCellsByParametrisedPointDistance(lastKnifePossition, true);
+                           //if (lastKnifePossition.X != double.NaN) blister.SortCellsByPointDirection(lastKnifePossition, false);
                             //if (lastKnifePossition.X != double.NaN) blister.SortCellsByCoordinates(true);
 
                         }
@@ -891,7 +890,7 @@ namespace Blistructor
             }
 
             // NOTE: TO TEST AND IMPLENT
-            
+            // TODO: Dla ostatniej tabletki wywala jakis null pointer...
             public void Update(Blister cuttedBlister)
             {
                 Update(null, cuttedBlister.Cells[0].bestCuttingData.Polygon);
@@ -925,7 +924,7 @@ namespace Blistructor
                 ApplyAnchorOnBlister();
             }
         }
-       
+
         /*
         public class CuttedBlister : Blister
         {
@@ -995,7 +994,8 @@ namespace Blistructor
                 if (LeftCellsCount == 1) return;
                 log.Debug("Sorting Cells");
                 // Order by CoordinateIndicator so it means Z-ordering.
-                this.cells = cells.OrderBy(cell => cell.CoordinateIndicator).Reverse().ToList();
+                SortCellsByCoordinates(true);
+                //  this.cells = cells.OrderBy(cell => cell.CoordinateIndicator).Reverse().ToList();
                 // Rebuild cells connectivity.
                 log.Debug("Creating ConncectivityData");
                 CreateConnectivityData();
@@ -1025,7 +1025,7 @@ namespace Blistructor
                     if (pills[cellId].IsClosed)
                     {
                         Cell cell = new Cell(cellId, pills[cellId], this);
-                      //  cell.SetDistance(guideLine);
+                        //  cell.SetDistance(guideLine);
                         cells.Add(cell);
                     }
                 }
@@ -1034,13 +1034,12 @@ namespace Blistructor
                 if (cells.Count <= 1) return;
                 // NOTE: Cells Sorting move to BLister nd controled in BListructor...
                 // Order by Corner distance. First Two set as possible Anchor.
-               // log.Debug("Sorting Cells");
-               // cells = cells.OrderBy(cell => cell.CornerDistance).ToList();
-               // for (int i = 0; i < 2; i++)
+                // log.Debug("Sorting Cells");
+                // cells = cells.OrderBy(cell => cell.CornerDistance).ToList();
+                // for (int i = 0; i < 2; i++)
                 //{
-               //     cells[i].PossibleAnchor = true;
-               // }
-
+                //     cells[i].PossibleAnchor = true;
+                // }
                 toTight = AreCellsOverlapping();
                 log.Info(String.Format("Is to tight? : {0}", toTight));
                 if (toTight) return;
@@ -1182,6 +1181,13 @@ namespace Blistructor
                 return null;
             }
 
+            public bool HasActiveAnchor{
+                get
+                {
+                    if (cells.Select(cell => cell.Anchor.state).Where(state => state == AnchorState.Active).ToList().Count > 0) return true;
+                    else return false;
+                }
+            }
 
             //public List<Cell> OrderedCells { get { return orderedCells; } set { orderedCells = value; } }
 
@@ -1203,9 +1209,9 @@ namespace Blistructor
                 if (reverse) cells.Reverse();
             }
 
-            public void SortCellsByParametrisedPointDistance(Point3d pt, bool reverse)
+            public void SortCellsByPointDirection(Point3d pt, bool reverse)
             {
-                cells = cells.OrderBy(cell => cell.GetParametrizedDistance(pt)).ToList();
+                cells = cells.OrderBy(cell => cell.GetDirectionIndicator(pt)).ToList();
                 if (reverse) cells.Reverse();
             }
 
@@ -1234,10 +1240,14 @@ namespace Blistructor
 
             #endregion
 
+            /// <summary>
+            /// 
+            /// </summary>
+            /// <param name="worldObstacles"></param>
+            /// <returns> In tuple I have | CutOut Blister | Current Updated Blister | Extra Blisters to Cut (recived by spliting currentBlister)</returns>
             public Tuple<Blister, Blister, List<Blister>> CutNext(List<Curve> worldObstacles)
             {
 
-                //Check if 
                 Cell found_cell = null;
                 List<Blister> newBlisters = new List<Blister>(); ;
                 int counter = 0;
@@ -1302,7 +1312,7 @@ namespace Blistructor
 
                 // If more cells are on blister, replace outline of current blister by first curve from the list...
                 // Update current blister outline
-                // NOTE: TU jest Error, prawdopodobnie FootPront nie generuje sie poprawnie przez co wywala tu błałd bo nie ma bestCuting data
+
                 outline = found_cell.bestCuttingData.BlisterLeftovers[0];
                 // Create new blister with cutted pill
                 Blister cutted = new Blister(found_cell, found_cell.bestCuttingData.Polygon);
@@ -1324,6 +1334,9 @@ namespace Blistructor
                         i--;
                     }
                 }
+                // Check if any form remaining cells in current blister has Active anchore. /It is not aLone/if not, 
+               if (!this.HasActiveAnchor)   return 
+
                 // if (LeftCellsCount == 1) cells[0].State = CellState.Alone;
                 log.Debug(String.Format("After removal {0} - Removed Cells {1}", cells.Count, removerdCells.Count));
                 // Loop by Leftovers (ommit first, it is current blister) and create new blisters.
@@ -1580,13 +1593,10 @@ namespace Blistructor
             #region GENERAL MANAGE
 
             #region DISTANCES
-            public double GetParametrizedDistance(Point3d pt)
+            public double GetDirectionIndicator(Point3d pt)
             {
-                // Vector3d vec = pt - this.PillCenter;  
-              //  double factor = Math.Abs((pt - this.PillCenter).Y);
-              //  double distance =;
-                // log.Info(distance + factor);
-                return pt.DistanceTo(this.PillCenter) + this.CoordinateIndicator;
+                Vector3d vec = pt - this.PillCenter;
+                return Math.Abs(vec.X) + Math.Abs(vec.Y) * 100;
             }
             public double GetDistance(Point3d pt)
             {
@@ -1848,7 +1858,9 @@ namespace Blistructor
             public bool PolygonSelector()
             {
                 // Order by number of cuts to be performed.
-                cuttingData = cuttingData.OrderBy(x => x.EstimatedCuttingCount* x.GetPerimeter()).ToList();
+
+                cuttingData = cuttingData.OrderBy(x => x.EstimatedCuttingCount * x.Polygon.GetBoundingBox(false).Area * x.BlisterLeftovers.Select(y=> y.PointCount).Sum()).ToList();
+               // cuttingData = cuttingData.OrderBy(x => x.EstimatedCuttingCount* x.GetPerimeter()).ToList();
                 List<CutData> selected = cuttingData;
                 // Limit only to lower number of cuts
                 //List<CutData> selected = cuttingData.Where(x => x.EstimatedCuttingCount == cuttingData[0].EstimatedCuttingCount).ToList();
@@ -2882,11 +2894,15 @@ namespace Blistructor
                         foreach (Curve part_crv in splitedCrv)
                         {
                             Point3d testPt = part_crv.PointAtNormalizedLength(0.5);
-                            PointContainment result = region.Contains(testPt, Plane.WorldXY, 0.0001);
+                            PointContainment result = region.Contains(testPt, Plane.WorldXY, 0.000001);
                             if (result == PointContainment.Inside) inside.Add(part_crv);
                             else if (result == PointContainment.Outside) outside.Add(part_crv);
                             else if (result == PointContainment.Unset) throw new InvalidOperationException("Unset");
-                            else throw new InvalidOperationException("Trim Failed");
+                            else 
+                            {
+                                
+                                throw new InvalidOperationException(String.Format("Trim Failed- {0}", result.ToString()));
+                            }
                         }
                     }
                     else throw new InvalidOperationException("Trim Failed on Split");
@@ -3110,7 +3126,7 @@ namespace Blistructor
                     outline.Add(new Grasshopper.Kernel.Geometry.Node2(pt.X, pt.Y));
                 }
 
-                GH_Delanuey.Connectivity del_con = GH_Delanuey.Solver.Solve_Connectivity(n2l, 0.001, true);
+                GH_Delanuey.Connectivity del_con = GH_Delanuey.Solver.Solve_Connectivity(n2l, 0.0001, true);
                 List<GH_Voronoi.Cell2> voronoi = GH_Voronoi.Solver.Solve_Connectivity(n2l, del_con, outline);
 
                 List<PolylineCurve> vCells = new List<PolylineCurve>();
@@ -3131,8 +3147,10 @@ namespace Blistructor
                             }
                         }
                     }
-
-                    Polyline poly = new Polyline(SortPtsAlongCurve(Point3d.CullDuplicates(pts, 0.001), cells[i].pill));
+               
+                    Circle fitCirc;
+                    Circle.TryFitCircleToPoints(pts, out fitCirc);
+                    Polyline poly = new Polyline(SortPtsAlongCurve(Point3d.CullDuplicates(pts, 0.0001), fitCirc.ToNurbsCurve()));
                     poly.Add(poly[0]);
                     poly.ReduceSegments(tolerance);
                     vCells.Add(new PolylineCurve(poly));
