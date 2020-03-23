@@ -16,7 +16,8 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 
-using Rhino.Geometry.Intersect;
+//using Blistructor;
+
 
 using log4net;
 using log4net.Appender;
@@ -24,9 +25,10 @@ using log4net.Core;
 using log4net.Filter;
 using log4net.Layout;
 using log4net.Repository.Hierarchy;
+/*
 using Newtonsoft.Json.Linq;
-
-using Combinators;
+ */
+/*
 using Emgu.CV;
 using Emgu.CV.CvEnum;
 using Emgu.CV.Structure;
@@ -34,12 +36,13 @@ using Emgu.CV.Util;
 
 using GH_Delanuey = Grasshopper.Kernel.Geometry.Delaunay;
 using GH_Voronoi = Grasshopper.Kernel.Geometry.Voronoi;
+*/
 
 
 // </Custom using>
 
 /// Unique namespace, so visual studio won't throw any errors about duplicate definitions.
-namespace Blistructor
+namespace BlistructorGH
 {
     /// <summary>
     /// This class will be instantiated on demand by the Script component.
@@ -93,9 +96,14 @@ namespace Blistructor
 
        // private void RunScript(List<Polyline> Pills, Polyline Blister, int cellId, int iter1, int iter2, ref object A, ref object B, ref object C, ref object D, ref object E, ref object F, ref object G, ref object H, ref object I, ref object AA)
         {
-
             // <Custom code>
-   
+            string assPath = @"D:\PIXEL\Blistructor\Blistructor\bin\Release\Blistructor.dll";
+            var blistructorAssembly = Assembly.Load(File.ReadAllBytes(assPath));
+            var structorType = blistructorAssembly.GetType("Blistructor.MultiBlisterGH");
+
+
+            Print(structorType.ToString());
+
             ILog log = LogManager.GetLogger("Main");
             Logger.Setup();
             //Logger.ClearAllLogFile();
@@ -130,47 +138,30 @@ namespace Blistructor
 
             try
             {
-                MultiBlister structor = new MultiBlister(L1, L2);
+                dynamic structor = Activator.CreateInstance(structorType, L1, L2);
+                // MultiBlister structor = new MultiBlister(L1, L2);
 
-              
+
 
                 JSON = structor.CutBlister(PillsPath, BlisterPath);
                 // G = structor.CutBlister(Pills, Blister);
                 if (structor.Queue.Count != 0)
                 {
-                    //E = structor.Queue[0].GetConnectionLines;
-                    // F = structor.Queue[0].GetProxyLines;
-                    //  G = structor.Queue[0].GetSamplePoints;
-                    // GetObstacles will generate obstacels. not intended....
                     InitData = structor.GetQueuePillDataGH;
                     UnfinishedCut = structor.GetUnfinishedCutDataGH;
-                    LeftOvers = structor.GetLeftOversGH;
-                    //I = structor.Queue[0].irVoronoi;
-                    // F = structor.Queue[0].Outline;
-                }
-                CuttedData = structor.GetCuttedPillDataGH;
-                QAState = structor.GetQueuedAnchorStatus;
-                CAState = structor.GetCuttedAnchorStatus;
+                   LeftOvers = structor.GetLeftOversGH;
+                 }
+                 CuttedData = structor.GetCuttedPillDataGH;
+                 QAState = structor.GetQueuedAnchorStatus;
+                 CAState = structor.GetCuttedAnchorStatus;
 
-               LeftOvers = structor.GetLeftOversGH;
-
-                /*
-                     Pills = structor.GetPillsGH;
-                CuttedPolygons = structor.GetCuttedPolygons;
-                CuttingLines = structor.GetCuttingLinesGH;
-                Rays = structor.GetRaysGH;
-                LeftOvers = structor.GetLeftOversGH;
-                AllCuttingPolygons = structor.GetAllCuttingPolygonsGH;
-                Path = structor.GetPathGH;
-                Obstacles = structor.GetObstaclesGH;
-                       */
-                //I = structor.mainOutline;
+                 LeftOvers = structor.GetLeftOversGH;
                 //AA = structor.pillsss;
 
 
-                anchMAUp = structor.anchor.GetJawsPoints().Select(aP => aP.location).ToList()  ;
-                anchAAUp = structor.anchor.GuideLine;
-                anchPred = structor.anchor.GrasperPossibleLocation;
+                //anchMAUp = structor.anchor.GetJawsPoints().Select(aP => aP.location).ToList()  ;
+               // anchAAUp = structor.anchor.GuideLine;
+               // anchPred = structor.anchor.GrasperPossibleLocation;
 
             }
             catch (Exception ex)
@@ -184,7 +175,7 @@ namespace Blistructor
 
         #region Additional
         // <Custom additional code>
-
+         /*
         public enum CuttingState
         {
             [Description("Cutting successful")]
@@ -202,19 +193,15 @@ namespace Blistructor
             [Description("Unknown")]
             CTR_UNSET = -1
         };
+        */
 
+        /*
         public class MultiBlister
         {
             private static readonly ILog log = LogManager.GetLogger("Main.Blistructor");
             public PolylineCurve mainOutline;
             public List<PolylineCurve> pillsss;
-            /*
-          private PolylineCurve mainOutline;
-          private PolylineCurve aaBBox;
-          private PolylineCurve maBBox;
-          private LineCurve aaGuideLine;
-          private LineCurve maGuideLine;
-                */
+
             private int loopTolerance = 5;
             public List<Blister> Queue;
             public List<Blister> Cutted;
@@ -723,6 +710,8 @@ namespace Blistructor
 
         }
 
+        */
+
         //    public List<Curve> EstimateCartesian()
         //    {
         //        //   public List<Point3d> estimateCartesian(){
@@ -749,8 +738,9 @@ namespace Blistructor
         //        return temp;
         //    }
         
-        public enum AnchorSite { Left = 0, Right = 1, Unset = 2};
-        public enum AnchorState { Active = 0, Inactive = 1, Cutted = 2 };
+       // public enum AnchorSite { Left = 0, Right = 1, Unset = 2};
+       // public enum AnchorState { Active = 0, Inactive = 1, Cutted = 2 };
+        /*
         public class AnchorPoint
         {
 
@@ -771,22 +761,10 @@ namespace Blistructor
                 orientation = site;
                 state = AnchorState.Active;
             }
-            /*
-            public JObject GetJSON()
-            {
-                JObject data = new JObject();
-                data.Add("PillIndex", this.id);
-                // Add Anchor Data <- to be implement.
-                data.Add("Anchor", null);
-                // Add Cutting Instruction
-                if (bestCuttingData != null) data.Add("CutInstruction", bestCuttingData.GetJSON());
-                else data.Add("CutInstruction", new JArray());
-                return data;
-            }
-            */
-
         }
+        */
 
+        /*
         public class Anchor
         {
             private static readonly ILog log = LogManager.GetLogger("Blistructor.Anchor");
@@ -900,13 +878,6 @@ namespace Blistructor
                   //  List<Curve> trimResult = new List<Curve>();
 
                     Tuple<List<Curve>, List<Curve>>  trimResult = Geometry.TrimWithRegion(GrasperPossibleLocation.Select(crv => (Curve)crv).ToList(), maxJawsCircle);
-                     /*
-                    foreach (LineCurve ln in GrasperPossibleLocation)
-                    {
-                        Tuple<List<Curve>, List<Curve>> result = Geometry.TrimWithRegion(ln, maxJawsCircle);
-                        if (result.Item1.Count > 0) trimResult.AddRange(result.Item1);
-                    }
-                    */
 
                     if (trimResult.Item1.Count == 0) return null;
                     List<Point3d> toEvaluate = new List<Point3d>(trimResult.Item1.Count);
@@ -1022,6 +993,8 @@ namespace Blistructor
             }
         }
 
+       */
+      
         /*
         public class CuttedBlister : Blister
         {
@@ -1032,6 +1005,7 @@ namespace Blistructor
         }
         */
 
+        /*
         public class Blister
         {
             private static readonly ILog log = LogManager.GetLogger("Main.Blister");
@@ -1206,17 +1180,7 @@ namespace Blistructor
                     return out_data;
                 }
             }
-            /*
-            public Point3d MinPoint
-            {
-                get { return minPoint; }
-            }
-
-            public LineCurve GuideLine
-            {
-                get { return guideLine; }
-            }
-            */
+                
 
             public int LeftCellsCount
             {
@@ -1414,14 +1378,6 @@ namespace Blistructor
             {
                
                 List<Blister> newBlisters = new List<Blister>();
-                /*
-                if (foundCell == null)
-                {
-                    log.Warn("No cutting data generated for whole blister.");
-
-                    return Tuple.Create<Blister, Blister, List<Blister>>(null, this, newBlisters);
-                }
-                */
                 // If on blister was only one cell, after cutting is status change to Alone, so just return it, without any leftover blisters. 
                 if (foundCellState == CutState.Alone)
                 {
@@ -1630,9 +1586,11 @@ namespace Blistructor
             #endregion
         }
 
-        public enum CellState { Queue = 0, Cutted = 1, Alone = 2 };
-        public enum CutState { Failed = 0, Cutted = 1, Alone = 2 };
+         */
+        //public enum CellState { Queue = 0, Cutted = 1, Alone = 2 };
+        //public enum CutState { Failed = 0, Cutted = 1, Alone = 2 };
 
+        /*
         public class Cell
         {
             private static readonly ILog log = LogManager.GetLogger("Blistructor.Cell");
@@ -1730,7 +1688,7 @@ namespace Blistructor
             public CellState State { get; set; }
 
             #endregion
-            /*
+            
             public List<LineCurve> GetTrimmedIsoRays()
             {
                 List<LineCurve> output = new List<LineCurve>();
@@ -1740,7 +1698,7 @@ namespace Blistructor
                 }
                 return output;
             }
-            */
+            
 
             public List<PolylineCurve> GetPaths()
             {
@@ -1790,7 +1748,7 @@ namespace Blistructor
 
             #endregion
 
-            /*
+            
             public void SetDistance(LineCurve guideLine)
             {
                 double t;
@@ -1804,7 +1762,7 @@ namespace Blistructor
                 //CornerDistance = distance_A + distance_B;
                 //CornerDistance = pillCenter.DistanceTo(guideLine.PointAtStart);
             }
-            */
+            
 
             public void AddConnectionData(List<Cell> cells, List<Curve> lines, List<Point3d> midPoints)
             {
@@ -2048,19 +2006,6 @@ namespace Blistructor
 
             public void PolygonSelector2()
             {
-                /*
-                List<PolylineCurve> output = new List<PolylineCurve>();
-                 List<CutData> selected = cuttingData.Where(x => x.Count == cuttingData[0].Count).ToList();
-                foreach(CutData cData in selected){
-                  output.Add(cData.Path);
-                 }
-                 Here some more filtering, if more polygons hase same number of cutting segments...
-                 Dummy get first...
-                 if (selected.Count > 0){
-                   bestCuttingData = selected[0];
-                 }
-                 return output;
-                */
             }
 
             public CutState TryCut(bool ommitAnchor, List<Curve> worldObstacles)
@@ -2437,7 +2382,9 @@ namespace Blistructor
                 return data;
             }
         }
+        */
 
+        /*
         public class CutData
         {
             private static readonly ILog log = LogManager.GetLogger("Blistructor.CutData");
@@ -2539,35 +2486,6 @@ namespace Blistructor
                 return true;
             }
 
-            /*
-            public void GenerateBladeFootPrint_old(Curve orientationGuideCurve)
-            {
-                log.Info("===GENERATE CUTTING FOOTPRINT===");
-                if (polygon == null || path == null) return;
-                //  log.Info("Data are ok.");
-                // Loop by all paths and generate Segments and IsoSegments
-                List<Line> segments = new List<Line>();
-                List<Line> isoSegments = new List<Line>();
-                foreach (PolylineCurve pline in Path)
-                {
-                    foreach (Line ln in pline.ToPolyline().GetSegments())
-                    {
-                        segments.Add(ln);
-                        LineCurve cIsoLn = Geometry.GetIsoLine(ln.PointAt(0.5), ln.UnitTangent, Setups.IsoRadius, obstacles);
-                       // LineCurve cIsoLn = new LineCurve(isoLn);
-                        Geometry.FlipIsoRays(orientationGuideCurve, cIsoLn);
-                        Line isoLn = cIsoLn.Line;
-                        if (isoLn == null) throw new InvalidOperationException("Computing IsoSegment failed during BladeFootPrint Generation.");
-                        isoSegments.Add(isoLn);
-                        bladeFootPrint.AddRange(GetKnifeprintPerSegment(ln, isoLn));
-                    }
-                    //segments.AddRange(pline.ToPolyline().GetSegments().ToList());
-                }
-                IsoSegments = isoSegments.Select(line => new LineCurve(line)).ToList();
-
-                log.Info(String.Format("Generated {0} Blade Footpronts.", bladeFootPrint.Count));
-            }
-            */
             public bool GenerateSegments()
             {
                 if (path == null) return false;
@@ -2739,6 +2657,9 @@ namespace Blistructor
             }
         }
 
+        */
+
+        /*
         static class Setups
         {
             // All stuff in mm.
@@ -2776,7 +2697,9 @@ namespace Blistructor
             public const double CollapseTolerance = 1.0; // if path segment is shorter then this, it will be collapsed
             public const double SnapDistance = 1.0; // if path segment is shorter then this, it will be collapsed
         }
+        */
 
+        /*
         static class Geometry
         {
             //TODO: SnapToPoints could not check only poilt-point realtion byt also point-cyrve... to investigate
@@ -3333,7 +3256,9 @@ namespace Blistructor
                 crv.Domain = new Interval(0.0, 1.0);
             }
         }
-
+        */
+       
+        
         public class Logger
         {
             private static readonly ILog log = LogManager.GetLogger("Blistructor.Logger");
@@ -3423,7 +3348,9 @@ namespace Blistructor
                 }
             }
         }
+        
 
+        /*
         public static class Conturer
         {
             public static List<List<int[]>> getContours(string pathToImage, double tolerance)
@@ -3457,6 +3384,7 @@ namespace Blistructor
             }
         }
 
+        */
         // </Custom additional code>
         #endregion
 

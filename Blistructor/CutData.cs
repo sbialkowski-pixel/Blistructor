@@ -6,57 +6,76 @@ using System.Threading.Tasks;
 
 using Rhino.Geometry;
 using Rhino.Geometry.Intersect;
+using Newtonsoft.Json.Linq;
+using log4net;
 
 namespace Blistructor
 {
     public class CutData
     {
-        // public List<PolylineCurve> Paths = new List<PolylineCurve>();
-        // public List<List<LineCurve>> IsoRays = new List<List<LineCurve>>();
-        // public List<PolylineCurve> Polygons = new List<PolylineCurve>();
-
-        private List<LineCurve> trimmedIsoRays;
-        private List<LineCurve> isoRays;
-        public PolylineCurve Path;
-        public PolylineCurve Polygon;
-        public PolylineCurve NewBlister;
+        private static readonly ILog log = LogManager.GetLogger("Blistructor.CutData");
+        private List<PolylineCurve> path;
+        private PolylineCurve polygon;
+        public List<PolylineCurve> BlisterLeftovers;
         public List<LineCurve> bladeFootPrint;
+        // public List<LineCurve> bladeFootPrint2;
+        public List<Curve> obstacles;
+        public List<Line> isoSegments;
+        public List<Line> segments;
 
         public CutData()
         {
-            TrimmedIsoRays = new List<LineCurve>();
-            IsoRays = new List<LineCurve>();
+            segments = new List<Line>();
+            isoSegments = new List<Line>();
             bladeFootPrint = new List<LineCurve>();
         }
 
-        public CutData(PolylineCurve polygon, PolylineCurve newBlister, PolylineCurve path)
+        private CutData(PolylineCurve polygon, List<PolylineCurve> path) : this()
         {
-            Path = path;
-            Polygon = polygon;
-            NewBlister = newBlister;
-            TrimmedIsoRays = new List<LineCurve>();
-            IsoRays = new List<LineCurve>();
-            bladeFootPrint = new List<LineCurve>();
+            this.path = path;
+            this.polygon = polygon;
         }
 
-        public double GetCuttingLength
+        public CutData(PolylineCurve polygon, List<PolylineCurve> path, PolylineCurve blisterLeftover) : this(polygon, path)
         {
-            get
-            {
-                return Path.ToPolyline().Length;
-            }
+            BlisterLeftovers = new List<PolylineCurve>() { blisterLeftover };
+            //GenerateBladeFootPrint();
         }
 
-        public int CuttingCount
+        public CutData(PolylineCurve polygon, List<PolylineCurve> path, List<PolylineCurve> blisterLeftovers) : this(polygon, path)
+        {
+            BlisterLeftovers = blisterLeftovers;
+            // GenerateBladeFootPrint();
+        }
+
+        public List<PolylineCurve> Path { get { return path; } }
+
+        public PolylineCurve Polygon { get { return polygon; } }
+
+        public List<Curve> Obstacles { set { obstacles = value; } }
+
+        public int EstimatedCuttingCount
         {
             get
             {
                 int count = 0;
-                foreach (Line line in Path.ToPolyline().GetSegments())
+                foreach (PolylineCurve pline in Path)
                 {
-                    count += GetCuttingPartsCount(line);
+                    foreach (Line line in pline.ToPolyline().GetSegments())
+                    {
+                        count += GetCuttingPartsCount(line);
+                    }
                 }
                 return count;
+            }
+        }
+
+        public int RealCuttingCount
+        {
+            get
+            {
+                if (bladeFootPrint == null) return -1;
+                return bladeFootPrint.Count;
             }
         }
 
@@ -64,100 +83,204 @@ namespace Blistructor
         {
             get
             {
-                return Polygon.PointCount - 1;
+                return polygon.PointCount - 1;
             }
         }
 
-        public List<LineCurve> TrimmedIsoRays
+        public List<LineCurve> IsoSegments
         {
-            set
-            {
-                trimmedIsoRays = value;
-            }
-            get
-            {
-                return trimmedIsoRays;
-            }
+            get { return isoSegments.Select(line => new LineCurve(line)).ToList(); }
+            set { isoSegments = value.Select(x => x.Line).ToList(); }
         }
 
-        public List<LineCurve> IsoRays
+        public List<LineCurve> Segments { get { return segments.Select(line => new LineCurve(line)).ToList(); } }
+
+
+        public bool GenerateBladeFootPrint()
         {
-            set
+            if (isoSegments == null || segments == null) return false;
+            if (!GenerateSegments()) return false;
+            //  log.Info("Data are ok.");
+            // Loop by all paths and generate Segments and IsoSegments
+            for (int i = 0; i < segments.Count; i++)
             {
-                isoRays = value;
+                List<LineCurve> footPrint = GetKnifeprintPerSegment(segments[i], isoSegments[i]);
+                if (footPrint.Count == 0) return false;
+                bladeFootPrint.AddRange(footPrint);
             }
-            get
-            {
-                return isoRays;
-            }
+            log.Info(String.Format("Generated {0} Blade Footpronts.", bladeFootPrint.Count));
+            return true;
         }
 
-        public bool Cuttable
+        public bool GenerateSegments()
         {
-            get
+            if (path == null) return false;
+            // Loop by all paths and generate Segments
+            segments = new List<Line>();
+            foreach (PolylineCurve pline in Path)
             {
-                if (isoRays.Count > 0) return true;
-                else return false;
-            }
-        }
-
-        public void GetInstructions()
-        {
-
-            if (Polygon != null && Path != null && trimmedIsoRays.Count > 0)
-            {
-                Polyline path = Path.ToPolyline();
-                if (path.SegmentCount > 0)
+                foreach (Line ln in pline.ToPolyline().GetSegments())
                 {
-                    Line[] segments = path.GetSegments();
-                    for (int i = 0; i < segments.Length; i++)
+                    segments.Add(ln);
+                }
+            }
+            return true;
+        }
+
+
+        public bool RecalculateIsoSegments(Curve orientationGuideCurve)
+        {
+            if (polygon == null || path == null) return false;
+            //  log.Info("Data are ok.");
+            // Loop by all paths and generate Segments and IsoSegments
+            segments = new List<Line>();
+            isoSegments = new List<Line>();
+            foreach (PolylineCurve pline in Path)
+            {
+                foreach (Line ln in pline.ToPolyline().GetSegments())
+                {
+                    segments.Add(ln);
+                    LineCurve cIsoLn = Geometry.GetIsoLine(ln.PointAt(0.5), ln.UnitTangent, Setups.IsoRadius, obstacles);
+                    if (cIsoLn == null) return false;
+                    Geometry.FlipIsoRays(orientationGuideCurve, cIsoLn);
+                    Line isoLn = cIsoLn.Line;
+                    if (isoLn == null) throw new InvalidOperationException("Computing IsoSegment failed during BladeFootPrint Generation.");
+                    isoSegments.Add(isoLn);
+                }
+            }
+            return true;
+        }
+
+        public List<LineCurve> GetKnifeprintPerSegment(Line segment, Line isoSegment)
+        {
+            List<Point3d> knifePts = new List<Point3d>();
+            List<LineCurve> knifeLines = new List<LineCurve>();
+            int cutCount = GetCuttingPartsCount(segment);
+            // Add Knife tolerance
+            segment.Extend(Setups.BladeTol, Setups.BladeTol);
+
+            List<double> lineT = new List<double>() { 0.0, 1.0 };
+            int segmentSide = -1; // id 0 -> From side is out, 1 -> To side is out, -1 -> none is out.
+
+            foreach (double t in lineT)
+            {
+                Point3d exSegmentPt = segment.PointAt(t);
+                // Check if extended point is still on isoSegment line.
+                Point3d testPt = isoSegment.ClosestPoint(exSegmentPt, true);
+                // if (testPt.DistanceTo(exSegmentPt) > Setups.GeneralTolerance) return knifeLines;
+                // Check if any side of the IsoSegment is out of blister...
+                double dist = exSegmentPt.DistanceTo(isoSegment.PointAt(t));
+                if (dist > Setups.IsoRadius / 2) segmentSide = (int)t;
+            }
+
+            if (segmentSide == 0)
+            {
+                segment.Flip();
+                isoSegment.Flip();
+            }
+
+            // If Middle
+            if (segmentSide == -1)
+            {
+                // If only one segment
+                if (cutCount == 1)
+                {
+                    Point3d cutStartPt = segment.From;
+                    Point3d cutEndPt = cutStartPt + (segment.UnitTangent * Setups.BladeLength);
+                    LineCurve cutPrint = new LineCurve(cutStartPt, cutEndPt);
+                    Point3d testPt = isoSegment.ClosestPoint(cutEndPt, true);
+                    double endDist = testPt.DistanceTo(cutEndPt);
+                    log.Info(String.Format("EndPointDist{0}", endDist));
+                    // Check if CutPrint is not out of isoSegment, if not thak it as blase posotion
+                    if (endDist < Setups.GeneralTolerance) knifeLines.Add(new LineCurve(cutStartPt, cutEndPt));
+                    // Blade posidion os out of possible location, apply fix, by moving it to the center.   
+                    else
                     {
-                        Line seg = segments[i];
-                        // First Segment. End point is on the blister Edge
-                        if (i < segments.Length - 1)
-                        {
-                            int parts = GetCuttingPartsCount(seg);
-                            Point3d cutStartPt = seg.To + (seg.UnitTangent * Setups.BladeTol);
-                            for (int j = 0; j < parts; j++)
-                            {
-                                Point3d cutEndPt = cutStartPt + (seg.UnitTangent * -Setups.BladeLength);
-                                Line cutPrint = new Line(cutStartPt, cutEndPt);
-                                bladeFootPrint.Add(new LineCurve(cutPrint));
-                                cutStartPt = cutEndPt + (seg.UnitTangent * Setups.BladeTol);
-                            }
-                        }
-
-                        // Last segment.
-                        if (i == segments.Length - 1)
-                        {
-                            int parts = GetCuttingPartsCount(seg);
-                            Point3d cutStartPt = seg.From - (seg.UnitTangent * Setups.BladeTol);
-                            for (int j = 0; j < parts; j++)
-                            {
-                                Point3d cutEndPt = cutStartPt + (seg.UnitTangent * Setups.BladeLength);
-                                Line cutPrint = new Line(cutStartPt, cutEndPt);
-                                bladeFootPrint.Add(new LineCurve(cutPrint));
-                                cutStartPt = cutEndPt - (seg.UnitTangent * Setups.BladeTol);
-                            }
-                        }
+                        // knifeLines.Add(new LineCurve(cutStartPt, cutEndPt));
+                        double startdDist = segment.From.DistanceTo(isoSegment.From);
+                        double diffDist = startdDist - endDist; // This should be positive...
+                        Vector3d translateVector = -segment.UnitTangent * (endDist + (diffDist / 2));
+                        cutPrint.Translate(translateVector);
+                        knifeLines.Add(new LineCurve(cutPrint));
                     }
+
                 }
-                else
+                //if more segments, try to distribute them evenly alogn isoSegment
+                else if (cutCount > 1)
                 {
-                    //Errror
+                    // SHot segment by half of the blade on both sides.
+                    segment.Extend(-Setups.BladeLength / 2, -Setups.BladeLength / 2);
+                    LineCurve exSegment = new LineCurve(segment);
+                    // Divide segment by parts
+                    double[] divT = exSegment.DivideByCount(cutCount - 1, true);
+                    knifePts.AddRange(divT.Select(t => exSegment.PointAt(t)).ToList());
+                    // Add bladePrints
+                    knifeLines.AddRange(knifePts.Select(pt => new LineCurve(pt - (segment.UnitTangent * Setups.BladeLength / 2), pt + (segment.UnitTangent * Setups.BladeLength / 2))).ToList());
                 }
             }
+            // If not Middle (assumprion, IsoSegments are very long on one side. No checking for coverage.
+            else
+            {
+                Point3d cutStartPt = segment.From;
+                for (int j = 0; j < cutCount; j++)
+                {
+                    Point3d cutEndPt = cutStartPt + (segment.UnitTangent * Setups.BladeLength);
+                    Line cutPrint = new Line(cutStartPt, cutEndPt);
+                    knifeLines.Add(new LineCurve(cutPrint));
+                    cutStartPt = cutEndPt - (segment.UnitTangent * Setups.BladeTol);
+                }
+            }
+            return knifeLines;
+
         }
 
-        public int GetCuttingPartsCount(Line line)
+        private int GetCuttingPartsCount(Line line)
         {
             return (int)Math.Ceiling(line.Length / (Setups.BladeLength - (2 * Setups.BladeTol)));
         }
 
         public double GetArea()
         {
-            AreaMassProperties prop = AreaMassProperties.Compute(Polygon);
+            AreaMassProperties prop = AreaMassProperties.Compute(polygon);
             return prop.Area;
         }
+
+        public double GetPerimeter()
+        {
+            return polygon.GetLength();
+        }
+
+        /// <summary>
+        /// Get last possition of blade.
+        /// </summary>
+        /// <returns>Point3d. Point3d(NaN,NaN,NaN) if there is no cutting data. </returns>
+        public Point3d GetLastKnifePossition()
+        {
+            if (bladeFootPrint == null) return new Point3d(double.NaN, double.NaN, double.NaN);
+            if (bladeFootPrint.Count == 0) return new Point3d(double.NaN, double.NaN, double.NaN);
+            return bladeFootPrint.Last().PointAtNormalizedLength(0.5);
+        }
+
+        public JArray GetJSON()
+        {
+            JArray instructionsArray = new JArray();
+            if (bladeFootPrint.Count == 0) return instructionsArray;
+            foreach (LineCurve line in bladeFootPrint)
+            {
+                //Angle
+                JObject cutData = new JObject();
+                double angle = Vector3d.VectorAngle(Vector3d.XAxis, line.Line.UnitTangent);
+                cutData.Add("Angle", angle);
+                //Point 
+                JArray pointArray = new JArray();
+                Point3d midPt = line.Line.PointAt(0.5);
+                pointArray.Add(midPt.X);
+                pointArray.Add(midPt.Y);
+                cutData.Add("Point", pointArray);
+                instructionsArray.Add(cutData);
+            }
+            return instructionsArray;
+        }
     }
+
 }

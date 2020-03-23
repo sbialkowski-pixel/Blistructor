@@ -76,17 +76,22 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <None Include="Blistructor.cs" />
-    <None Include="Cell.cs" />
-    <None Include="CutData.cs" />
-    <None Include="Geometry.cs" />
-    <None Include="GhWip - Copy.cs" />
-    <Compile Include="GhWip.cs" />
+    <Compile Include="MultiBlister.cs" />
+    <Compile Include="Cell.cs" />
+    <Compile Include="CutData.cs" />
+    <Compile Include="Geometry.cs" />
+    <Compile Include="Anchor.cs" />
+    <Compile Include="AnchorPoint.cs" />
+    <Compile Include="Blister.cs" />
+    <Compile Include="Conturer.cs" />
+    <Compile Include="Enums.cs" />
+    <Compile Include="Logger.cs" />
+    <Compile Include="MultiBlisterGH.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <None Include="log4net.config">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Include="Setups.cs" />
+    <Compile Include="Setups.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />
