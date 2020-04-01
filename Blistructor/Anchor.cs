@@ -31,7 +31,7 @@ namespace Blistructor
         {
             // Create Coartesin Limit Line
             Line tempLine = new Line(new Point3d(0, -Setups.BlisterCartesianDistance, 0), Vector3d.XAxis, 1.0);
-            tempLine.Extend(Setups.IsoRadius, Setups.IsoRadius);
+            tempLine.Extend(100, Setups.IsoRadius);
             cartesianLimitLine = new LineCurve(tempLine);
 
             // Get needed data
@@ -103,21 +103,29 @@ namespace Blistructor
             }
 
             anchors = GetJawsPoints();
+            log.Info(String.Format("Anchors found: {0}", anchors.Count));
+
         }
 
         //  public void Update
 
         public List<AnchorPoint> GetJawsPoints()
         {
+            List<AnchorPoint> jawPoints = new List<AnchorPoint>();
             List<AnchorPoint> extremePoints = GetExtremePoints();
-            if (extremePoints == null) return null;
+            log.Info(String.Format("extremePoints found: {0}", extremePoints.Count));
+            if (extremePoints == null) return jawPoints;
             Line spectrumLine = new Line(extremePoints[0].location, extremePoints[1].location);
-            if (spectrumLine.Length < Setups.CartesianMaxWidth && spectrumLine.Length > Setups.CartesianMinWidth) return extremePoints;
-
-            Point3d midPoint = spectrumLine.PointAt(0.5);
-            if (spectrumLine.Length > Setups.CartesianMaxWidth)
+            if (spectrumLine.Length < Setups.CartesianMaxWidth && spectrumLine.Length > Setups.CartesianMinWidth)
             {
-                NurbsCurve maxJawsCircle = new Circle(midPoint, Setups.CartesianMaxWidth / 2).ToNurbsCurve();
+                return extremePoints;
+            }
+            else if (spectrumLine.Length > Setups.CartesianMaxWidth)
+            {
+                log.Info("spectrumLine.Length > Setups.CartesianMaxWidth");
+
+                Point3d midPoint = spectrumLine.PointAt(0.5);
+                NurbsCurve maxJawsCircle = (new Circle(midPoint, Setups.CartesianMaxWidth / 2)).ToNurbsCurve();
                 //  List<Curve> trimResult = new List<Curve>();
 
                 Tuple<List<Curve>, List<Curve>> trimResult = Geometry.TrimWithRegion(GrasperPossibleLocation.Select(crv => (Curve)crv).ToList(), maxJawsCircle);
@@ -129,7 +137,10 @@ namespace Blistructor
                }
                */
 
-                if (trimResult.Item1.Count == 0) return null;
+                if (trimResult.Item1.Count == 0)
+                {
+                    return jawPoints;
+                }
                 List<Point3d> toEvaluate = new List<Point3d>(trimResult.Item1.Count);
                 foreach (Curve ln in trimResult.Item1)
                 {
@@ -140,13 +151,22 @@ namespace Blistructor
                 toEvaluate = toEvaluate.OrderBy(pt => pt.X).ToList();
                 Point3d leftJaw = toEvaluate.First();
                 Point3d rightJaw = toEvaluate.Last();
-                if (leftJaw.DistanceTo(rightJaw) < Setups.CartesianMinWidth) return null;
+                //TODO: leftJaw i rightJaw maja takie same cords....
+                log.Info(leftJaw.ToString());
+                log.Info(rightJaw.ToString());
+                if (leftJaw.DistanceTo(rightJaw) < Setups.CartesianMinWidth)
+                {
+                    return jawPoints;
+                }
                 return new List<AnchorPoint>() {
                         new AnchorPoint(leftJaw, AnchorSite.Left),
                         new AnchorPoint(rightJaw, AnchorSite.Right)
                     };
             }
-            else return null;
+            else
+            {
+                return jawPoints;
+            }
         }
 
         private List<AnchorPoint> GetExtremePoints()
@@ -168,6 +188,7 @@ namespace Blistructor
         /// <returns></returns>
         public bool ApplyAnchorOnBlister()
         {
+            if (anchors.Count == 0) return false;
             // NOTE: For loop by all queue blisters.
             foreach (Blister blister in mBlister.Queue)
             {
@@ -194,7 +215,6 @@ namespace Blistructor
         }
 
 
-        // TODO: -DONE?- Dla ostatniej tabletki wywala jakis null pointer...
         public void Update(Blister cuttedBlister)
         {
             Update(null, cuttedBlister.Cells[0].bestCuttingData.Polygon);
@@ -204,11 +224,22 @@ namespace Blistructor
         {
             if (polygon != null)
             {
-                Curve[] offset = polygon.Offset(Plane.WorldXY, Setups.CartesianThickness / 2, Setups.GeneralTolerance, CurveOffsetCornerStyle.Sharp);
+                // Simplify polygon
+                Curve simplePolygon = polygon;
+                simplePolygon.RemoveShortSegments(Setups.CollapseTolerance);
+
+                Curve[] offset = simplePolygon.Offset(Plane.WorldXY, Setups.CartesianThickness / 2, Setups.GeneralTolerance, CurveOffsetCornerStyle.Sharp);
                 if (offset.Length > 0)
                 {
+                    //    log.Warn(String.Format("Anchor Pred Line Update - Polygon Oreint {0}", polygon.ClosedCurveOrientation()));
+                    //log.Warn(String.Format("Anchor - Update Pred Line  - SimpOffset Len {0} | Polygon Len {1}", simpleOffset.GetLength(), polygon.GetLength()));
+
                     Tuple<List<Curve>, List<Curve>> result = Geometry.TrimWithRegion(GrasperPossibleLocation.Select(crv => (Curve)crv).ToList(), offset[0]);
                     GrasperPossibleLocation = result.Item2.Select(crv => (LineCurve)crv).ToList();
+                }
+                else
+                {
+                    log.Warn("Anchor Pred Line Update not possible. Offset return no result for polygon.");
                 }
             }
 

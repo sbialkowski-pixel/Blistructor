@@ -95,9 +95,10 @@ namespace Blistructor
             anchor = new Anchor(this);
             log.Debug(String.Format("New blistructor with {0} Queue blisters", Queue.Count));
             // World Obstacles
-            Line cartesianLimitLine = new Line(new Point3d(0, -Setups.BlisterCartesianDistance, 0), Vector3d.XAxis, 1.0);
-            cartesianLimitLine.Extend(Setups.IsoRadius, Setups.IsoRadius);
-            worldObstacles = new List<Curve>() { new LineCurve(cartesianLimitLine) };
+           // Line cartesianLimitLine = new Line(new Point3d(0, -Setups.BlisterCartesianDistance, 0), Vector3d.XAxis, 1.0);
+            //cartesianLimitLine.Extend(Setups.IsoRadius, Setups.IsoRadius);
+            
+           worldObstacles = new List<Curve>() { anchor.cartesianLimitLine };
 
         }
 
@@ -161,7 +162,7 @@ namespace Blistructor
             catch (Exception ex)
             {
                 status = CuttingState.CTR_OTHER_ERR;
-                log.Error("Main Error catcher", ex);
+                log.Error("PerformCut Error catcher", ex);
             }
 
             cuttingResult["Status"] = status.ToString();
@@ -219,7 +220,12 @@ namespace Blistructor
                     if (result.Item1 != null)
                     {
                         Cell cuttedCell = result.Item1.Cells[0];
-                        if (cuttedCell.Anchor.state == AnchorState.Inactive) anchor.Update(result.Item1);
+                        if (cuttedCell.Anchor.state == AnchorState.Inactive)
+                        {
+                            log.Info("Anchor - Update Pred Line");
+
+                            anchor.Update(result.Item1);
+                        }
                         if (cuttedCell.Anchor.state == AnchorState.Active && cuttedCell.State != CellState.Alone && CuttableCellsLeft == 2) anchor.FindNewAnchorAndApplyOnBlister(result.Item1);
                         log.Info("Adding new CutOut blister to Cutted list");
                         Cutted.Add(result.Item1);

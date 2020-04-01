@@ -529,7 +529,7 @@ namespace Blistructor
             return isoLines;
         }
 
-        private IEnumerable<IEnumerable<LineCurve>> GenerateIsoCurvesStage3a(int raysCount, double stepAngle)
+        private List<List<LineCurve>> GenerateIsoCurvesStage3a(int raysCount, double stepAngle)
         {
             List<List<LineCurve>> isoLines = new List<List<LineCurve>>(samplePoints.Count);
             for (int i = 0; i < samplePoints.Count; i++)
@@ -543,7 +543,6 @@ namespace Blistructor
                 //List<double>rotationAngles = Enumerable.Range(-raysCount, (2 * raysCount) + 1).Select(x => x* RhinoMath.ToRadians(stepAngle)).ToList();
                 List<LineCurve> currentIsoLines = new List<LineCurve>((2 * raysCount) + 1);
                 foreach (double angle in Enumerable.Range(0, (2 * raysCount) + 1))
-
                 {
                     if (!sum_direction.Rotate(stepAngleInRadians, Vector3d.ZAxis)) continue;
                     LineCurve isoLine = Geometry.GetIsoLine(samplePoints[i], sum_direction, Setups.IsoRadius, obstacles);
@@ -552,12 +551,8 @@ namespace Blistructor
                 }
                 if (currentIsoLines.Count == 0) continue;
                 isoLines.Add(currentIsoLines);
-                //sum_direction.Rotate(RhinoMath.ToRadians(stepAngle), Vector3d.ZAxis)
-                //LineCurve isoLine = Geometry.GetIsoLine(samplePoints[i], sum_direction, Setups.IsoRadius, obstacles);
-                // if (isoLine == null) continue;
-                //isoLines.Add(isoLine);
             }
-            return Combinators.Combinators.CartesianProduct(isoLines);
+            return (List<List<LineCurve>>)Combinators.Combinators.CartesianProduct(isoLines);
         }
 
         private List<List<LineCurve>> GenerateIsoCurvesStage4(int count, double radius)
@@ -775,7 +770,9 @@ namespace Blistructor
                 {
                     Polyline cutted_blister_region = null;
                     s_region.TryGetPolyline(out cutted_blister_region);
-                    cutted_blister_regions.Add(cutted_blister_region.ToPolylineCurve());
+                    PolylineCurve pl_cutted_blister_region = cutted_blister_region.ToPolylineCurve();
+                    Geometry.UnifyCurve(pl_cutted_blister_region);
+                    cutted_blister_regions.Add(pl_cutted_blister_region);
                 }
                 else return null;
             }
@@ -801,6 +798,7 @@ namespace Blistructor
             Line[] pill_region_segments = pill_region.GetSegments().OrderBy(line => line.Length).ToArray();
             if (pill_region_segments[0].Length > Setups.MinimumCutOutSize) return null;
             log.Debug("CutData created.");
+            Geometry.UnifyCurve(pill_region_Crv);
             return new CutData(pill_region_Crv, pathCrv, cutted_blister_regions);
 
         }

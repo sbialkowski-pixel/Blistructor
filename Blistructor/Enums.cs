@@ -22,6 +22,10 @@ namespace Blistructor
         CTR_ANCHOR_LOCATION_ERR = 4,
         [Description("Other Error. Check log file")]
         CTR_OTHER_ERR = 5,
+        [Description("No blister")]
+        CTR_NO_BLISTER  = 6,
+        [Description("Blister badly aligned.")]
+        CTR_WRONG_BLISTER_POSSITION = 7,
         [Description("Unknown")]
         CTR_UNSET = -1
     };

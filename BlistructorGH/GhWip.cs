@@ -16,7 +16,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 
-//using Blistructor;
+using Blistructor;
 
 
 using log4net;
@@ -25,9 +25,9 @@ using log4net.Core;
 using log4net.Filter;
 using log4net.Layout;
 using log4net.Repository.Hierarchy;
-/*
+
 using Newtonsoft.Json.Linq;
- */
+
 /*
 using Emgu.CV;
 using Emgu.CV.CvEnum;
@@ -92,42 +92,36 @@ namespace BlistructorGH
 
         #region Runscript
 
-        private void RunScript(string PillsPath, string BlisterPath, Point3d calibPt, int L1,int L2, ref object LeftOvers, ref object InitData, ref object CAState, ref object QAState, ref object CuttedData, ref object JSON, ref object UnfinishedCut, ref object anchAAUp, ref object anchMAUp, ref object anchPred)
+        private void RunScript(string PillsPath, string BlisterPath, Point3d calibPt, int L1,int L2, ref object LeftOvers, ref object InitData, ref object CAState, ref object QAState, ref object CuttedData, ref object JSON, ref object UnfinishedCut, ref object AnchorGuideLine, ref object JawPoints, ref object anchPred)
 
        // private void RunScript(List<Polyline> Pills, Polyline Blister, int cellId, int iter1, int iter2, ref object A, ref object B, ref object C, ref object D, ref object E, ref object F, ref object G, ref object H, ref object I, ref object AA)
         {
             // <Custom code>
-            string assPath = @"D:\PIXEL\Blistructor\Blistructor\bin\Release\Blistructor.dll";
-            var blistructorAssembly = Assembly.Load(File.ReadAllBytes(assPath));
-            var structorType = blistructorAssembly.GetType("Blistructor.MultiBlisterGH");
+           //string assPath = @"D:\PIXEL\Blistructor\Blistructor\bin\Release\Blistructor.dll";
+           //var blistructorAssembly = Assembly.Load(File.ReadAllBytes(assPath));
+           //var structorType = blistructorAssembly.GetType("Blistructor.MultiBlisterGH");
 
-
-            Print(structorType.ToString());
 
             ILog log = LogManager.GetLogger("Main");
             Logger.Setup();
-            //Logger.ClearAllLogFile();
+            Logger.ClearAllLogFile();
 
             log.Info("====NEW RUN====");
 
-            // TODO: -DONE-: Przejechanie wszystkich blistrów i sprawdzenie jak działa -> szukanie błedów
-            // TODO: -DONE-: Dodac sprawdzenie czy przed i po cieciu mam tyle samo tabletek. -> czy cały blister sie pociął. (ErrorType)
+
+            // TODO: -WIP-: Przejechanie wszystkich blistrów i sprawdzenie jak działa -> szukanie błedów
             // TODO: -DONE?-: Adaptacyje anchory -> Aktualizacja anchorów (ich przemieszczania) wraz z procesem ciecia np. przypadek blistra 19.
-            // TODO: -TO CHECK-: Adaptacyje anchory -> Czasem jak zostaje ostatni rzad tabletek, to wycina sie tabletka blisko anchora i resta wisi nietrzymana....
 
             // TODO: AdvancedCutting -> blister 19.
             // TODO: -DONE-: (Część bedzie w logach) Obsługa braku możliwości technicznych pociecia (Za ciasno, za skomplikowany, nie da sie wprowadzić noża, pocięty kawałek wiekszy niż 34mm..)
-            // TODO: -DONE-: (Bład wyswietlania) Brak BladeFootPrintów dla ostanich blistów oznaczonych jako anchor np jezeli dwa ostatnie trzeba rozciac. np. Blistr 31
             // TODO: -WIP-: Adaptacyjna kolejność ciecia - po każdej wycietej tabletce, nalezało by przesortowac cell tak aby wubierał najbliższe - Nadal kolejnosc ciecia jest do kitu ...
-            // TODO: -DONE-: BlisterFootPrint -> mądzej, bo teraz nie są brana pod uwage w ogóle Rays i ich możliwości tylko na pałe jest robiona 
-            // TODO: -TO CHECK-:Weryfikacja PolygonSelectora (patrz blister 6, dziwnie wybrał...) Jest Nowy 
             // TODO: -DONE???-: Generowanie JSONA, Obsługa wyjątków, lista errorów. struktura pliku
-            // TODO: Generowani punktów kartezjana, sprawdzanie rozstawu, właczenie tego do JSON'a
             // TODO: Kalibracja punktu 0,0
-            // TODO: -DONE-: Właczenie Conturera do Blistructora
             // TODO: "ładne" logowanie produkcyjne jak i debugowe.
             // TODO: Posprzątanie w klasach.
-
+            // TODO: PredAnchorLine nie updatuje sie w przypadku gdzi na końcu jest wiecej niż jeden blister...
+            // TODO: W przypadku Blstra 28 -> Tab10, linia ciecia nieszczeslicwi przecina blister 4 razy... wywala sie na tym cąła logika 
+            
             /*States:
              * CTR_SUCCESS -> Cutting successful.
              * CTR_TO_TIGHT -> Pills are to tight. Cutting aborted.
@@ -138,8 +132,8 @@ namespace BlistructorGH
 
             try
             {
-                dynamic structor = Activator.CreateInstance(structorType, L1, L2);
-                // MultiBlister structor = new MultiBlister(L1, L2);
+               //dynamic structor = Activator.CreateInstance(structorType, L1, L2);
+                MultiBlisterGH structor = new MultiBlisterGH(L1, L2);
 
 
 
@@ -151,16 +145,16 @@ namespace BlistructorGH
                     UnfinishedCut = structor.GetUnfinishedCutDataGH;
                    LeftOvers = structor.GetLeftOversGH;
                  }
-                 CuttedData = structor.GetCuttedPillDataGH;
-                 QAState = structor.GetQueuedAnchorStatus;
-                 CAState = structor.GetCuttedAnchorStatus;
-
-                 LeftOvers = structor.GetLeftOversGH;
+                CuttedData = structor.GetCuttedPillDataGH;
+                // QAState = structor.GetQueuedAnchorStatus;
+               //  CAState = structor.GetCuttedAnchorStatus;
+               
+               //  LeftOvers = structor.GetLeftOversGH;
                 //AA = structor.pillsss;
 
 
-                //anchMAUp = structor.anchor.GetJawsPoints().Select(aP => aP.location).ToList()  ;
-               // anchAAUp = structor.anchor.GuideLine;
+                JawPoints = structor.anchor.GetJawsPoints().Select(aP => aP.location).ToList()  ;
+                AnchorGuideLine = structor.anchor.GrasperPossibleLocation;
                // anchPred = structor.anchor.GrasperPossibleLocation;
 
             }

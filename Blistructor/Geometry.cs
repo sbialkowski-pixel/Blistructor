@@ -13,7 +13,7 @@ using GH_Voronoi = Grasshopper.Kernel.Geometry.Voronoi;
 
 namespace Blistructor
 {
-    static class Geometry
+    public static class Geometry
     {
         //TODO: SnapToPoints could not check only poilt-point realtion byt also point-cyrve... to investigate
         //public static PolylineCurve SnapToPoints_v2(PolylineCurve moving, PolylineCurve stationary, double tolerance)

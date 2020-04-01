@@ -215,9 +215,11 @@ namespace Blistructor
             get
             {
                 DataTree<Curve> out_data = new DataTree<Curve>();
+                if (Queue.Count == 0) return out_data;
                 //List<List<Curve>> out_data = new List<List<Curve>>();
                 for (int j = 0; j < Queue.Count; j++)
                 {
+                    if (Queue[j].Cells.Count == 0) continue;
                     for (int i = 0; i < Queue[j].Cells.Count; i++)
                     {
                         Cell cell = Queue[j].Cells[i];
