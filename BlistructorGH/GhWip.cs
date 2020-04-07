@@ -119,9 +119,9 @@ namespace BlistructorGH
             // TODO: Kalibracja punktu 0,0
             // TODO: "ładne" logowanie produkcyjne jak i debugowe.
             // TODO: Posprzątanie w klasach.
-            // TODO: PredAnchorLine nie updatuje sie w przypadku gdzi na końcu jest wiecej niż jeden blister...
+            // TODO: -DONE???-: PredAnchorLine nie updatuje sie w przypadku gdzi na końcu jest wiecej niż jeden blister...
             // TODO: W przypadku Blstra 28 -> Tab10, linia ciecia nieszczeslicwi przecina blister 4 razy... wywala sie na tym cąła logika 
-            
+
             /*States:
              * CTR_SUCCESS -> Cutting successful.
              * CTR_TO_TIGHT -> Pills are to tight. Cutting aborted.
@@ -938,7 +938,6 @@ namespace BlistructorGH
             }
 
 
-            // TODO: -DONE?- Dla ostatniej tabletki wywala jakis null pointer...
             public void Update(Blister cuttedBlister)
             {
                 Update(null, cuttedBlister.Cells[0].bestCuttingData.Polygon);

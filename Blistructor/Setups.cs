@@ -13,6 +13,7 @@ namespace Blistructor
         public const double Rotate = 0.021685;
 
         // GENERAL TOLERANCES
+        public const double MaxBlisterPossitionDeviation = 1.1;
         public const double GeneralTolerance = 0.0001;
         public const double CurveFitTolerance = 0.2;
         public const double CurveDistanceTolerance = 0.05;  // Curve tO polyline distance tolerance.

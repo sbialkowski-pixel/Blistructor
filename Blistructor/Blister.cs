@@ -338,9 +338,7 @@ namespace Blistructor
                 {
                     Tuple<Blister, Blister, List<Blister>> data = CuttedCellProcessing(currentCell, tryCutState, i);
                     if (data.Item1 == null && data.Item2 == null && data.Item3 == null)
-                    {
-                        //NOTE: Omija tabletke tóra jest ok do wyciecia i teni jakość z dupy. W zaziaku ze zmianami w  CuttedCellProcessing????    Żle sie ustawiaja statusy czy anchor jest aktywny czy nie.... dlatego....
-                        log.Info("Tutej!!!");
+                    { 
                         continue;
                     }
                     else
@@ -354,7 +352,6 @@ namespace Blistructor
                     continue;
                 }
             }
-            log.Info("Olaaaa!!!");
             // If nothing, try to cut anchored ones...
             log.Warn("No cutting data generated for whole blister. Try to find cutting data in anchored ...");
             //counter = 0;
@@ -392,16 +389,7 @@ namespace Blistructor
 
         private Tuple<Blister, Blister, List<Blister>> CuttedCellProcessing(Cell foundCell, CutState foundCellState, int locationIndex)
         {
-
             List<Blister> newBlisters = new List<Blister>();
-            /*
-            if (foundCell == null)
-            {
-                log.Warn("No cutting data generated for whole blister.");
-
-                return Tuple.Create<Blister, Blister, List<Blister>>(null, this, newBlisters);
-            }
-            */
             // If on blister was only one cell, after cutting is status change to Alone, so just return it, without any leftover blisters. 
             if (foundCellState == CutState.Alone)
             {
@@ -413,33 +401,90 @@ namespace Blistructor
 
             log.Info(String.Format("Cell {0}. That was NOT last cell on blister.", foundCell.id));
 
-            // Chceck if after cutting all parts hase anchor point, so none will fall of...
+            // TODO: Tutaj trzeba dodac moduł sprawdzajacy "integralność" BListra. Czy po wycieciu tabletki, 
+            // wszystkie tableki na pozostałym kawąłku maja ze sobą połaczenie (sprawdzic czy graf 9coonectionLione) jest cąłościa)
+            List<int> usedIds = new List<int>(cells.Count);
             foreach (PolylineCurve leftover in foundCell.bestCuttingData.BlisterLeftovers)
             {
-                bool hasActiveAnchor = false;
+                // Gather cell belongs to current leftover.
+                List<Cell> currentCells = new List<Cell>(cells.Count);
                 for (int i = 0; i < cells.Count; i++)
                 {
+                    // Dont check myself
                     if (i == locationIndex) continue;
-                    if (!InclusionTest(cells[i], leftover)) continue;
-                    if (cells[i].Anchor.state == AnchorState.Active)
+                    // Dont check already checked cell (it belong to oother leftover
+                    if (usedIds.Contains(i)) continue;
+                    if (InclusionTest(cells[i], leftover))
+                    {
+                        usedIds.Add(i);
+                        currentCells.Add(cells[i]);
+                    }
+                }
+                
+                // Check if all pills on one leftover has adjacent Cell. This is must have
+                if (currentCells.Count > 1)
+                {
+                    bool alonePill = false;
+                    foreach (Cell cell in currentCells)
+                    {
+                        log.Info(String.Format("AdjacentCellsCount -> {0}", cell.adjacentCells.Count));
+
+                        if (cell.adjacentCells.Count == 1)
+                        {
+                            if (cell.adjacentCells[0].id == foundCell.id)
+                            {
+                                alonePill = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (alonePill) return Tuple.Create<Blister, Blister, List<Blister>>(null, null, null);
+                }
+                
+                // Chceck if after cutting all parts has anchor point, so none pill will fall of...
+                bool hasActiveAnchor = false;
+                foreach (Cell cell in currentCells)
+                {
+                    if (cell.Anchor.state == AnchorState.Active)
                     {
                         hasActiveAnchor = true;
                         break;
                     }
                 }
                 log.Info(String.Format("hasActiveAnchor -> {0}", hasActiveAnchor));
+                if (!hasActiveAnchor) return Tuple.Create<Blister, Blister, List<Blister>>(null, null, null);
+            }
+            
+            /*  
+            foreach (PolylineCurve leftover in foundCell.bestCuttingData.BlisterLeftovers)
+            {
+                bool alonePill = false;
+                bool hasActiveAnchor = false;
+                for (int i = 0; i < cells.Count; i++)
+                {
+                    if (i == locationIndex) continue;
+                    if (!InclusionTest(cells[i], leftover)) continue;
+                    //Check for alone pill
+
+                    // Check for active anchor
+                    if (cells[i].Anchor.state == AnchorState.Active)
+                    {
+                        hasActiveAnchor = true;
+                        break;
+                    }
+                }
 
                 if (!hasActiveAnchor) return Tuple.Create<Blister, Blister, List<Blister>>(null, null, null);
 
             }
-
+            */
+           
             // Ok. If cell is not alone, and Anchor requerments are met. Set cell status as Cutted, and remove all connection with this cell.
             if (foundCellState == CutState.Cutted)
             {
                 foundCell.State = CellState.Cutted;
                 foundCell.RemoveConnectionData();
             }
-
 
             log.Info("Updating current blister outline. Creating cutout blister to store.");
 

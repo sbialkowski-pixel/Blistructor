@@ -519,7 +519,7 @@ namespace Blistructor
             double minArea = double.MaxValue;
             PolylineCurve outCurve = null;
 
-            for (double i = 0; i < 180; i++)
+            for (double i = 0; i < 180; i+=0.5)
             {
                 double radians = RhinoMath.ToRadians(i);
                 Curve currentCurve = crv.DuplicateCurve();

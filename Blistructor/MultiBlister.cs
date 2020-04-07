@@ -86,7 +86,6 @@ namespace Blistructor
             // Initialize Lists
             Queue = new List<Blister>();
             Cutted = new List<Blister>();
-            // 
 
             // Build initial blister
             Blister initialBlister = new Blister(Pills, Blister);
@@ -132,6 +131,7 @@ namespace Blistructor
             return cuttingResult;
             // return null;
         }
+        
         public JObject CutBlister(List<Polyline> pills, Polyline blister)
         {
             List<PolylineCurve> convPills = new List<PolylineCurve>();
@@ -151,7 +151,6 @@ namespace Blistructor
             // Pills and blister are already curve objects
             Initialise(pills, blister);
             cuttingResult["PillsDetected"] = pills.Count;
-
 
             try
             {
@@ -186,6 +185,8 @@ namespace Blistructor
 
         private CuttingState PerformCut(int mainLimit, int cellLimit)
         {
+            // Check if blister is correctly allign
+            if (!anchor.IsBlisterStraight(Setups.MaxBlisterPossitionDeviation)) return CuttingState.CTR_WRONG_BLISTER_POSSITION;
             log.Info(String.Format("=== Start Cutting ==="));
             int initialPillCount = Queue[0].Cells.Count;
             if (Queue[0].ToTight) return CuttingState.CTR_TO_TIGHT;
@@ -269,7 +270,6 @@ namespace Blistructor
             if (initialPillCount == Cutted.Count) return CuttingState.CTR_SUCCESS;
             else return CuttingState.CTR_FAILED;
         }
-
 
         private JObject PrepareEmptyJSON()
         {

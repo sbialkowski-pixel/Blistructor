@@ -29,7 +29,7 @@ namespace Blistructor
 
         public Anchor(MultiBlister mBlister)
         {
-            // Create Coartesin Limit Line
+            // Create Cartesian Limit Line
             Line tempLine = new Line(new Point3d(0, -Setups.BlisterCartesianDistance, 0), Vector3d.XAxis, 1.0);
             tempLine.Extend(100, Setups.IsoRadius);
             cartesianLimitLine = new LineCurve(tempLine);
@@ -257,6 +257,14 @@ namespace Blistructor
             Update(cuttedBlister);
             anchors = GetJawsPoints();
             ApplyAnchorOnBlister();
+        }
+
+        public bool IsBlisterStraight(double maxDeviation)
+        {
+            AreaMassProperties aaProp = AreaMassProperties.Compute(aaBBox);
+            AreaMassProperties maProp = AreaMassProperties.Compute(maBBox);
+            if ((aaProp.Area / maProp.Area) > maxDeviation) return false;
+            else return true;
         }
 
         public JObject GetJSON()
