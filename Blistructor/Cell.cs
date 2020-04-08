@@ -222,8 +222,6 @@ namespace Blistructor
             {
                 adjacentCells[i].RemoveConnectionData(id);
             }
-
-
         }
 
         /// <summary>
@@ -246,6 +244,10 @@ namespace Blistructor
             SortData();
         }
 
+        public List<int> GetAdjacentCellsIds()
+        {
+            return adjacentCells.Select(cell => cell.id).ToList();
+        }
         private void EstimateOrientationCircle()
         {
             double circle_radius = pill.GetBoundingBox(false).Diagonal.Length / 2;

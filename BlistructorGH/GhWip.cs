@@ -120,7 +120,7 @@ namespace BlistructorGH
             // TODO: "ładne" logowanie produkcyjne jak i debugowe.
             // TODO: Posprzątanie w klasach.
             // TODO: -DONE???-: PredAnchorLine nie updatuje sie w przypadku gdzi na końcu jest wiecej niż jeden blister...
-            // TODO: W przypadku Blstra 28 -> Tab10, linia ciecia nieszczeslicwi przecina blister 4 razy... wywala sie na tym cąła logika 
+            // TODO: -DONE- W przypadku Blstra 28 -> Tab10, linia ciecia nieszczeslicwi przecina blister 4 razy... wywala sie na tym cąła logika 
 
             /*States:
              * CTR_SUCCESS -> Cutting successful.
