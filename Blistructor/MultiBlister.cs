@@ -6,6 +6,27 @@ using Newtonsoft.Json.Linq;
 using Rhino.Geometry;
 using log4net;
 
+// TODO: -WIP-: Przejechanie wszystkich blistrów i sprawdzenie jak działa -> szukanie błedów
+// TODO: -DONE?-: Adaptacyje anchory -> Aktualizacja anchorów (ich przemieszczania) wraz z procesem ciecia np. przypadek blistra 19.
+
+// TODO: AdvancedCutting -> blister 19.
+// TODO: -DONE-: (Część bedzie w logach) Obsługa braku możliwości technicznych pociecia (Za ciasno, za skomplikowany, nie da sie wprowadzić noża, pocięty kawałek wiekszy niż 34mm..)
+// TODO: -WIP-: Adaptacyjna kolejność ciecia - po każdej wycietej tabletce, nalezało by przesortowac cell tak aby wubierał najbliższe - Nadal kolejnosc ciecia jest do kitu ...
+// TODO: -DONE???-: Generowanie JSONA, Obsługa wyjątków, lista errorów. struktura pliku
+// TODO: Kalibracja punktu 0,0
+// TODO: "ładne" logowanie produkcyjne jak i debugowe.
+// TODO: Posprzątanie w klasach.
+// TODO: -DONE???-: PredAnchorLine nie updatuje sie w przypadku gdzi na końcu jest wiecej niż jeden blister...
+// TODO: -DONE- W przypadku Blstra 28 -> Tab10, linia ciecia nieszczeslicwi przecina blister 4 razy... wywala sie na tym cąła logika 
+
+/*States:
+ * CTR_SUCCESS -> Cutting successful.
+ * CTR_TO_TIGHT -> Pills are to tight. Cutting aborted.
+ * CTR_ONE_PILL -> One pill on blister only. Nothing to do.
+ * CTR_FAILED -> Cutting Failed. Cannot Found cutting paths for all pills. Blister is to complicated or it is uncuttable.
+ * CTR_ANCHOR_LOCATION_ERR: Blister side to small to pick by both graspers or No place for graspers.
+ */
+
 namespace Blistructor
 { 
     public class MultiBlister
