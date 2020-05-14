@@ -2,7 +2,7 @@
 
 namespace Blistructor
 {
-    public enum AnchorSite { Left = 0, Right = 1, Unset = 2 };
+    public enum AnchorSite { JAW_1 = 0, JAW_2 = 1, Unset = 2 };
     public enum AnchorState { Active = 0, Inactive = 1, Cutted = 2 };
 
     public enum CellState { Queue = 0, Cutted = 1, Alone = 2 };

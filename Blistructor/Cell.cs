@@ -812,7 +812,7 @@ namespace Blistructor
             JObject data = new JObject();
             data.Add("pillIndex", this.id);
             // Add Anchor Data <- to be implement.
-            data.Add("anchor", Anchor.orientation.ToString());
+            data.Add("openJaw", Anchor.orientation.ToString().ToLower());
             // Add Cutting Instruction
             if (bestCuttingData != null) data.Add("cutInstruction", bestCuttingData.GetJSON(Jaw1_Local));
             else data.Add("cutInstruction", new JArray());

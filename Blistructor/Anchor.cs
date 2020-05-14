@@ -161,8 +161,8 @@ namespace Blistructor
                     return jawPoints;
                 }
                 return new List<AnchorPoint>() {
-                        new AnchorPoint(leftJaw, AnchorSite.Left),
-                        new AnchorPoint(rightJaw, AnchorSite.Right)
+                        new AnchorPoint(leftJaw, AnchorSite.JAW_1),
+                        new AnchorPoint(rightJaw, AnchorSite.JAW_2)
                     };
             }
             else
@@ -178,8 +178,8 @@ namespace Blistructor
             Point3d leftJaw = GrasperPossibleLocation.OrderBy(line => line.PointAtStart.X).Select(line => line.PointAtStart).First();
             Point3d rightJaw = GrasperPossibleLocation.OrderBy(line => line.PointAtStart.X).Select(line => line.PointAtEnd).Last();
             return new List<AnchorPoint>() {
-                        new AnchorPoint(leftJaw, AnchorSite.Left),
-                        new AnchorPoint(rightJaw, AnchorSite.Right)
+                        new AnchorPoint(leftJaw, AnchorSite.JAW_1),
+                        new AnchorPoint(rightJaw, AnchorSite.JAW_2)
                     };
         }
 

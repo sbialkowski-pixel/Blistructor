@@ -13,7 +13,6 @@ using log4net;
 // TODO: -DONE-: (Część bedzie w logach) Obsługa braku możliwości technicznych pociecia (Za ciasno, za skomplikowany, nie da sie wprowadzić noża, pocięty kawałek wiekszy niż 34mm..)
 // TODO: -WIP-: Adaptacyjna kolejność ciecia - po każdej wycietej tabletce, nalezało by przesortowac cell tak aby wubierał najbliższe - Nadal kolejnosc ciecia jest do kitu ...
 // TODO: -DONE???-: Generowanie JSONA, Obsługa wyjątków, lista errorów. struktura pliku
-// TODO: Kalibracja punktu 0,0
 // TODO: "ładne" logowanie produkcyjne jak i debugowe.
 // TODO: Posprzątanie w klasach.
 // TODO: -DONE???-: PredAnchorLine nie updatuje sie w przypadku gdzi na końcu jest wiecej niż jeden blister...
