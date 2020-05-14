@@ -25,10 +25,12 @@ namespace Blistructor
 
         public List<LineCurve> GrasperPossibleLocation;
         public List<AnchorPoint> anchors;
+        public List<Point3d> GlobalAnchors;
 
 
         public Anchor(MultiBlister mBlister)
         {
+            GlobalAnchors = new List<Point3d>(2);
             // Create Cartesian Limit Line
             Line tempLine = new Line(new Point3d(0, -Setups.BlisterCartesianDistance, 0), Vector3d.XAxis, 1.0);
             tempLine.Extend(100, Setups.IsoRadius);
@@ -181,7 +183,6 @@ namespace Blistructor
                     };
         }
 
-        // NOTE: TO TEST AND IMPLENT
         /// <summary>
         /// Check which Anchor belongs to which cell and reset other cells anchors. 
         /// </summary>
@@ -267,18 +268,82 @@ namespace Blistructor
             else return true;
         }
 
-        public JObject GetJSON()
+        public Point3d GlobalLocalCSTransform(Point3d point, Point3d csLoc, double csAngle)
         {
-            JObject anchorPoints = new JObject();
-            if (anchors.Count == 0) return anchorPoints;
+            Vector3d pt = point - csLoc;
+            double newX = pt.X * Math.Cos(csAngle) + pt.Y * Math.Sin(csAngle);
+            double newY = -pt.X * Math.Sin(csAngle) + pt.Y * Math.Cos(csAngle);
+            return new Point3d(newX, newY, 0);
+        }
+
+        public Point3d LocalGlobalCSTransform(Point3d point, Point3d csLoc, double csAngle)
+        {
+            //Vector3d pt = point - csLoc;
+            double newX = point.X * Math.Cos(csAngle) - point.Y * Math.Sin(csAngle);
+            double newY = point.X * Math.Sin(csAngle) + point.Y * Math.Cos(csAngle);
+            Point3d pt = new Point3d(newX, newY, 0);
+            return pt + csLoc;
+        }
+
+        public Vector3d CartesianWorkPickVector(Vector3d PivotJawVector, double pickAngle)
+        {
+            Point3d pt = GlobalLocalCSTransform((Point3d)PivotJawVector, new Point3d(0, 0, 0), pickAngle);
+            return (Vector3d)pt - PivotJawVector;
+        }
+
+        public Vector3d CartesianPickWorkVector(Vector3d PivotJawVector, double pickAngle)
+        {
+            Vector3d vec = CartesianWorkPickVector(PivotJawVector, pickAngle);
+            vec.Reverse();
+            return vec;
+        }
+
+        public Point3d CartesianGlobalJaw1L(Point3d localJaw1, Point3d blisterCSLocation, double blisterCSangle, Vector3d PivotJawVector)
+        {
+            Point3d globalJaw1 = LocalGlobalCSTransform(localJaw1, blisterCSLocation, blisterCSangle);
+            Vector3d correctionVector = CartesianWorkPickVector(PivotJawVector, -blisterCSangle);
+            return globalJaw1 - correctionVector;
+        }
+
+        public void computeGlobalAnchors()
+        {
+            // Compute Global location for JAW_1
+            Point3d blisterCS = new Point3d(Setups.BlisterGlobalX, Setups.BlisterGlobalY, 0);
+            Vector3d pivotJaw = new Vector3d(Setups.CartesianPivotJawVectorX, Setups.CartesianPivotJawVectorY, 0);
             foreach (AnchorPoint pt in anchors)
             {
-                JArray pointArray = new JArray();
-                pointArray.Add(pt.location.X);
-                pointArray.Add(pt.location.Y);
-                anchorPoints.Add(pt.orientation.ToString(), pointArray);
+                //NOTE: Zamiana X, Y, należy sprawdzić czy to jest napewno dobrze. Wg. moich danych i opracowanej logiki tak...
+                Point3d flipedPoint = new Point3d(anchors[0].location.Y, anchors[0].location.X, 0);
+                Point3d globalJawLocation = CartesianGlobalJaw1L(flipedPoint, blisterCS, Setups.CartesianPickModeAngle, pivotJaw);
+                GlobalAnchors.Add(globalJawLocation);
             }
-            return anchorPoints;
+        }
+
+    public JObject GetJSON()
+        {
+            JObject jawPoints = new JObject();
+            if (anchors.Count == 0) return jawPoints;
+            computeGlobalAnchors();
+            // JAW1 Stuff
+            JArray jaw1_PointArray = new JArray();
+            jaw1_PointArray.Add(GlobalAnchors[0].X);
+            jaw1_PointArray.Add(GlobalAnchors[0].Y);
+            jawPoints.Add("jaw_1", jaw1_PointArray);
+            // JAW2 Stuff
+            // Calculate distance between JAW1 and JAW2
+            // NOTE: Czy moze byc sytuacja ze mamy tylko 1 Anchor?
+            double distance = (anchors[0].location - anchors[1].location).Length;
+            jawPoints.Add("jaw_2", distance);
+
+            //foreach (AnchorPoint pt in anchors)
+            //{
+            //    JArray pointArray = new JArray();
+            //    pointArray.Add(pt.location.X);
+            //    pointArray.Add(pt.location.Y);
+            //    anchorPoints.Add(pt.orientation.ToString(), pointArray);
+            //}
+            //return anchorPoints;
+            return jawPoints;
         }
     }
 }

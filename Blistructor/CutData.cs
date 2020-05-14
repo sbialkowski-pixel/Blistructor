@@ -261,7 +261,16 @@ namespace Blistructor
             return bladeFootPrint.Last().PointAtNormalizedLength(0.5);
         }
 
-        public JArray GetJSON()
+        public Point3d GlobalCutCoordinates(Point3d localCoordinates, Point3d Jaw1_Local)
+        {
+            // A = (Point3d)KnifeCenterG - CutL + JawL;
+            Point3d knifeCenter = new Point3d(Setups.BladeGlobalX, Setups.BladeGlobalY, 0);
+            //NOTE: Zamiana X, Y, należy sprawdzić czy to jest napewno dobrze. Wg. moich danych i opracowanej logiki tak...
+            Point3d flipedLocalCoordinates = new Point3d(localCoordinates.Y, localCoordinates.X, 0);
+            return (Point3d)knifeCenter - flipedLocalCoordinates + Jaw1_Local;                                                                    
+        }
+
+        public JArray GetJSON(Point3d Jaw1_Local)
         {
             JArray instructionsArray = new JArray();
             if (bladeFootPrint.Count == 0) return instructionsArray;
@@ -269,14 +278,17 @@ namespace Blistructor
             {
                 //Angle
                 JObject cutData = new JObject();
-                double angle = Vector3d.VectorAngle(Vector3d.XAxis, line.Line.UnitTangent);
-                cutData.Add("Angle", angle);
+                // TODO: Tu moze byc potrzeba zmiany vectora z X na Y w zalzenosci gdzie jest 0 stopni noża
+                double angle = Vector3d.VectorAngle(Vector3d.XAxis, line.Line.UnitTangent)+ Setups.BladeRotationCalibration;
+                cutData.Add("angle", Rhino.RhinoMath.ToDegrees(angle));
                 //Point 
                 JArray pointArray = new JArray();
-                Point3d midPt = line.Line.PointAt(0.5);
-                pointArray.Add(midPt.X);
-                pointArray.Add(midPt.Y);
-                cutData.Add("Point", pointArray);
+                // Apply transformation to global
+                Point3d globalMidPt = GlobalCutCoordinates(line.Line.PointAt(0.5), Jaw1_Local);
+                // X o Y zamienione już GlobalCutCoordinates...
+                pointArray.Add(globalMidPt.X);
+                pointArray.Add(globalMidPt.Y);
+                cutData.Add("point", pointArray);
                 instructionsArray.Add(cutData);
             }
             return instructionsArray;

@@ -1,4 +1,5 @@
 ﻿using System;
+using Rhino.Geometry;
 
 namespace Blistructor
 {
@@ -19,19 +20,28 @@ namespace Blistructor
         public const double CurveDistanceTolerance = 0.05;  // Curve tO polyline distance tolerance.
         public const double IntersectionTolerance = 0.0001;
         public const double OverlapTolerance = 0.0001;
+        
         // BLADE STUFF
         public const double BladeLength = 44.0;
         public const double BladeTol = 2.0;
         public const double BladeWidth = 3.0;
+        public const double BladeGlobalX = 200.0;
+        public const double BladeGlobalY = 200.0;
+        public const double BladeRotationCalibration = Math.PI/2;
 
-        // CARTESIAN
+        // CARTESIAN/JAW
+        public const double CartesianPickModeAngle = Math.PI/6;
         public const double CartesianThickness = 5.0;
         public const double CartesianDepth = 3.0;
         public const double BlisterCartesianDistance = 3.0;
         public const double CartesianMaxWidth = 85.0;
         public const double CartesianMinWidth = 10.0;
-
+        public const double CartesianPivotJawVectorX = 109.375;
+        public const double CartesianPivotJawVectorY = 19.5;
         //OTHER
+
+        public const double BlisterGlobalX = 132.918028;
+        public const double BlisterGlobalY = 423.076051;
         public const double IsoRadius = 2000.0;
         public const double MinimumCutOutSize = 35.0;
 

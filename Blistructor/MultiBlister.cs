@@ -171,7 +171,7 @@ namespace Blistructor
 
             // Pills and blister are already curve objects
             Initialise(pills, blister);
-            cuttingResult["PillsDetected"] = pills.Count;
+            cuttingResult["pillsDetected"] = pills.Count;
 
             try
             {
@@ -185,8 +185,9 @@ namespace Blistructor
                 log.Error("PerformCut Error catcher", ex);
             }
 
-            cuttingResult["Status"] = status.ToString();
-            cuttingResult["PillsCutted"] = Cutted.Count;
+            cuttingResult["status"] = status.ToString();
+            cuttingResult["pillsCutted"] = Cutted.Count;
+            cuttingResult["jawsLocation"] = anchor.GetJSON();
             // If all alright, populate by cutting data
             if (status == CuttingState.CTR_SUCCESS)
             {
@@ -194,13 +195,11 @@ namespace Blistructor
                 JArray allCuttingInstruction = new JArray();
                 foreach (Blister bli in Cutted)
                 {
-                    allCuttingInstruction.Add(bli.Cells[0].GetJSON());
+                    // Pass to JesonCretors JAW_1 Local coordinate for proper global coordinates calculation...
+                    allCuttingInstruction.Add(bli.Cells[0].GetJSON(anchor.anchors[0].location));
                 }
-                cuttingResult["CuttingData"] = allCuttingInstruction;
+                cuttingResult["cuttingData"] = allCuttingInstruction;
             }
-            cuttingResult["AnchorLocation"] = anchor.GetJSON();
-
-
             return cuttingResult;
         }
 
@@ -295,11 +294,11 @@ namespace Blistructor
         private JObject PrepareEmptyJSON()
         {
             JObject data = new JObject();
-            data.Add("Status", null);
-            data.Add("PillsDetected", null);
-            data.Add("PillsCutted", null);
-            data.Add("AnchorLocation", null);
-            data.Add("CuttingData", new JArray());
+            data.Add("status", null);
+            data.Add("pillsDetected", null);
+            data.Add("pillsCutted", null);
+            data.Add("jawsLocation", null);
+            data.Add("cuttingData", new JArray());
             return data;
         }
 

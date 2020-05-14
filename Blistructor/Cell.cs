@@ -807,15 +807,15 @@ namespace Blistructor
 
         #endregion
 
-        public JObject GetJSON()
+        public JObject GetJSON(Point3d Jaw1_Local)
         {
             JObject data = new JObject();
-            data.Add("PillIndex", this.id);
+            data.Add("pillIndex", this.id);
             // Add Anchor Data <- to be implement.
-            data.Add("Anchor", Anchor.orientation.ToString());
+            data.Add("anchor", Anchor.orientation.ToString());
             // Add Cutting Instruction
-            if (bestCuttingData != null) data.Add("CutInstruction", bestCuttingData.GetJSON());
-            else data.Add("CutInstruction", new JArray());
+            if (bestCuttingData != null) data.Add("cutInstruction", bestCuttingData.GetJSON(Jaw1_Local));
+            else data.Add("cutInstruction", new JArray());
             return data;
         }
     }
