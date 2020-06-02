@@ -10,6 +10,11 @@ using log4net;
 // TODO: -DONE?-: Adaptacyje anchory -> Aktualizacja anchorów (ich przemieszczania) wraz z procesem ciecia np. przypadek blistra 19.
 
 // TODO: AdvancedCutting -> blister 19.
+
+//
+// TODO: Zle sie wyliczaja Anchor Pointy - trzeba dodac grasperPredLine na górze i na dole  i brac mina z obu extremalnych konców...
+// TODO: Setups trzeba zmianic na JSON'a
+
 // TODO: -DONE-: (Część bedzie w logach) Obsługa braku możliwości technicznych pociecia (Za ciasno, za skomplikowany, nie da sie wprowadzić noża, pocięty kawałek wiekszy niż 34mm..)
 // TODO: -WIP-: Adaptacyjna kolejność ciecia - po każdej wycietej tabletce, nalezało by przesortowac cell tak aby wubierał najbliższe - Nadal kolejnosc ciecia jest do kitu ...
 // TODO: -DONE???-: Generowanie JSONA, Obsługa wyjątków, lista errorów. struktura pliku

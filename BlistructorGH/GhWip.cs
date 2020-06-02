@@ -132,7 +132,7 @@ namespace BlistructorGH
                 //AA = structor.pillsss;
 
 
-                JawPoints = structor.anchor.GetJawsPoints().Select(aP => aP.location).ToList()  ;
+                JawPoints = structor.anchor.anchors.Select(aP => aP.location).ToList()  ;
                 AnchorGuideLine = structor.anchor.GrasperPossibleLocation;
                // anchPred = structor.anchor.GrasperPossibleLocation;
 

@@ -461,6 +461,31 @@ namespace Blistructor
             return temp_regions;
         }
 
+        //TODO: Dokonczyć reguralny voronoi i dodac jako stage 0 ciecia.
+        public static List<PolylineCurve> RegularVoronoi(List<Cell> cells, Polyline blister,  double tolerance = 0.05)
+        {
+            Grasshopper.Kernel.Geometry.Node2List n2l = new Grasshopper.Kernel.Geometry.Node2List();
+            List<Grasshopper.Kernel.Geometry.Node2> outline = new List<Grasshopper.Kernel.Geometry.Node2>();
+            foreach (Cell cell in cells)
+            {
+                n2l.Append(new Grasshopper.Kernel.Geometry.Node2(cell.PillCenter.X, cell.PillCenter.Y));
+            }
+
+            foreach (Point3d pt in blister)
+            {
+                outline.Add(new Grasshopper.Kernel.Geometry.Node2(pt.X, pt.Y));
+            }
+            GH_Delanuey.Connectivity del_con = GH_Delanuey.Solver.Solve_Connectivity(n2l, 0.0001, true);
+            List<GH_Voronoi.Cell2> voronoi = GH_Voronoi.Solver.Solve_Connectivity(n2l, del_con, outline);
+
+            List<PolylineCurve> output = new List<PolylineCurve>(voronoi.Count);
+            foreach (GH_Voronoi.Cell2 cell in voronoi)
+            {
+                output.Add(cell.ToPolyline().ToPolylineCurve());
+            }
+            return output;
+        }
+
         public static List<PolylineCurve> IrregularVoronoi(List<Cell> cells, Polyline blister, int resolution = 50, double tolerance = 0.05)
         {
             Grasshopper.Kernel.Geometry.Node2List n2l = new Grasshopper.Kernel.Geometry.Node2List();

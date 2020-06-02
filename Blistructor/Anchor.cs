@@ -24,6 +24,7 @@ namespace Blistructor
         //public LineCurve maUpperLimitLine;
 
         public List<LineCurve> GrasperPossibleLocation;
+
         public List<AnchorPoint> anchors;
         public List<Point3d> GlobalAnchors;
 
@@ -57,7 +58,7 @@ namespace Blistructor
             GuideLine.SetStartPoint(new Point3d(GuideLine.PointAtStart.X, 0, 0));
             GuideLine.SetEndPoint(new Point3d(GuideLine.PointAtEnd.X, 0, 0));
 
-            // Create initial predition Line
+            // Create initial predition Lines
             LineCurve fullPredLine = new LineCurve(GuideLine);
             fullPredLine.Translate(Vector3d.YAxis * Setups.CartesianDepth / 2);
 
@@ -66,8 +67,8 @@ namespace Blistructor
             List<double> limitedParamT = new List<double>(paramT.Length);
             foreach (double t in paramT)
             {
-                double parT;
-                if (mainOutline.ClosestPoint(GuideLine.PointAt(t), out parT, Setups.CartesianDepth / 2)) limitedParamT.Add(parT);
+                //double parT;
+                if (mainOutline.ClosestPoint(GuideLine.PointAt(t), out double parT, Setups.CartesianDepth / 2)) limitedParamT.Add(parT);
             }
             // Find Extreme points on Blister
             List<Point3d> extremePointsOnBlister = new List<Point3d>(){
@@ -321,6 +322,7 @@ namespace Blistructor
 
     public JObject GetJSON()
         {
+            anchors = GetJawsPoints();
             JObject jawPoints = new JObject();
             if (anchors.Count == 0) return jawPoints;
             computeGlobalAnchors();
@@ -332,7 +334,7 @@ namespace Blistructor
             // JAW2 Stuff
             // Calculate distance between JAW1 and JAW2
             // NOTE: Czy moze byc sytuacja ze mamy tylko 1 Anchor?
-            double distance = (anchors[0].location - anchors[1].location).Length;
+            double distance = Math.Abs((anchors[0].location - anchors[1].location).Length);
             jawPoints.Add("jaw_2", distance);
 
             //foreach (AnchorPoint pt in anchors)

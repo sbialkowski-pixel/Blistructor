@@ -357,7 +357,8 @@ namespace Blistructor
             cuttingData = new List<CutData>();
             // Stage I - naive Cutting
             // Get cutting Directions
-
+            //PolygonBuilder_v2(GenerateIsoCurvesStage0());
+            //log.Info(String.Format(">>>After STAGE_0: {0} cuttng possibilietes<<<", cuttingData.Count));
             PolygonBuilder_v2(GenerateIsoCurvesStage1());
             log.Info(String.Format(">>>After STAGE_1: {0} cuttng possibilietes<<<", cuttingData.Count));
             PolygonBuilder_v2(GenerateIsoCurvesStage2());
@@ -486,6 +487,21 @@ namespace Blistructor
         #region Polygon Builder Stuff
 
         // All methods will generat full Rays, without trimming to blister! PoligonBuilder is responsible for trimming.
+        private List<LineCurve> GenerateIsoCurvesStage0()
+        {
+
+            List<LineCurve> isoLines = new List<LineCurve>(samplePoints.Count);
+            for (int i = 0; i < samplePoints.Count; i++)
+            {
+                Vector3d direction = Vector3d.CrossProduct((connectionLines[i].PointAtEnd - connectionLines[i].PointAtStart), Vector3d.ZAxis);
+                //direction = StraigtenVector(direction);
+                LineCurve isoLine = Geometry.GetIsoLine(samplePoints[i], direction, Setups.IsoRadius, obstacles);
+                if (isoLine == null) continue;
+                isoLines.Add(isoLine);
+            }
+            return isoLines;
+        }
+
         private List<LineCurve> GenerateIsoCurvesStage1()
         {
 

@@ -267,7 +267,8 @@ namespace Blistructor
             Point3d knifeCenter = new Point3d(Setups.BladeGlobalX, Setups.BladeGlobalY, 0);
             //NOTE: Zamiana X, Y, należy sprawdzić czy to jest napewno dobrze. Wg. moich danych i opracowanej logiki tak...
             Point3d flipedLocalCoordinates = new Point3d(localCoordinates.Y, localCoordinates.X, 0);
-            return (Point3d)knifeCenter - flipedLocalCoordinates + Jaw1_Local;                                                                    
+            Point3d fliped_Jaw1 = new Point3d(Jaw1_Local.Y, Jaw1_Local.X, 0);
+            return (Point3d)knifeCenter - flipedLocalCoordinates + fliped_Jaw1;                                                                    
         }
 
         public JArray GetJSON(Point3d Jaw1_Local)
@@ -279,13 +280,16 @@ namespace Blistructor
                 //Angle
                 JObject cutData = new JObject();
                 // TODO: Tu moze byc potrzeba zmiany vectora z X na Y w zalzenosci gdzie jest 0 stopni noża
-                double angle = Vector3d.VectorAngle(Vector3d.XAxis, line.Line.UnitTangent)+ Setups.BladeRotationCalibration;
+                // YAxiz z wizaku z tym ze nastepuje zmiana koordynatów z X na y przy przejsciu z trybu PICK na WORK...
+                Vector3d lineVector = line.Line.UnitTangent;
+                lineVector.Y = -lineVector.Y;
+                double angle = Vector3d.VectorAngle(Vector3d.XAxis, lineVector, Plane.WorldXY)+ Setups.BladeRotationCalibration;
                 cutData.Add("angle", Rhino.RhinoMath.ToDegrees(angle));
                 //Point 
                 JArray pointArray = new JArray();
                 // Apply transformation to global
                 Point3d globalMidPt = GlobalCutCoordinates(line.Line.PointAt(0.5), Jaw1_Local);
-                // X o Y zamienione już GlobalCutCoordinates...
+                // X i Y zamienione już GlobalCutCoordinates...
                 pointArray.Add(globalMidPt.X);
                 pointArray.Add(globalMidPt.Y);
                 cutData.Add("point", pointArray);

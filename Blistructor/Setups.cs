@@ -25,14 +25,14 @@ namespace Blistructor
         public const double BladeLength = 44.0;
         public const double BladeTol = 2.0;
         public const double BladeWidth = 3.0;
-        public const double BladeGlobalX = 200.0;
-        public const double BladeGlobalY = 200.0;
-        public const double BladeRotationCalibration = Math.PI/2;
+        public const double BladeGlobalX = 204.5;
+        public const double BladeGlobalY = 199.0;
+        public const double BladeRotationCalibration = Math.PI / 2;
 
         // CARTESIAN/JAW
         public const double CartesianPickModeAngle = Math.PI/6;
-        public const double CartesianThickness = 5.0;
-        public const double CartesianDepth = 3.0;
+        public const double CartesianThickness = 6.0;
+        public const double CartesianDepth = 3.5;
         public const double BlisterCartesianDistance = 3.0;
         public const double CartesianMaxWidth = 85.0;
         public const double CartesianMinWidth = 10.0;
@@ -40,8 +40,8 @@ namespace Blistructor
         public const double CartesianPivotJawVectorY = 19.5;
         //OTHER
 
-        public const double BlisterGlobalX = 132.918028;
-        public const double BlisterGlobalY = 423.076051;
+        public const double BlisterGlobalX = 112.4;
+        public const double BlisterGlobalY = 422.1;
         public const double IsoRadius = 2000.0;
         public const double MinimumCutOutSize = 35.0;
 
