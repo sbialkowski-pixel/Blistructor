@@ -332,6 +332,12 @@ namespace Blistructor
             return Tuple.Create(inside, outside);
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="crv"></param>
+        /// <param name="region"></param>
+        /// <returns>Tuple <Inside, Outside></returns>
         public static Tuple<List<Curve>, List<Curve>> TrimWithRegion(List<Curve> crv, Curve region)
         {
             List<Curve> inside = new List<Curve>();

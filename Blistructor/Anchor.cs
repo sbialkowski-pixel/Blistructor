@@ -24,7 +24,6 @@ namespace Blistructor
         //public LineCurve maUpperLimitLine;
 
         public List<LineCurve> GrasperPossibleLocation;
-
         public List<AnchorPoint> anchors;
         public List<Point3d> GlobalAnchors;
 
@@ -99,8 +98,8 @@ namespace Blistructor
                 if (ln.Length < Setups.CartesianThickness) continue;
                 ln.Extend(-Setups.CartesianThickness / 2, -Setups.CartesianThickness / 2);
                 LineCurve cln = new LineCurve(ln);
-                //move it back to mid position
-                cln.Translate(Vector3d.YAxis * -Setups.CartesianDepth / 2);
+                //move it to 0 position
+                cln.Translate(Vector3d.YAxis * -Setups.CartesianDepth);
                 // Gather 
                 GrasperPossibleLocation.Add(cln);
             }
@@ -116,34 +115,32 @@ namespace Blistructor
         {
             List<AnchorPoint> jawPoints = new List<AnchorPoint>();
             List<AnchorPoint> extremePoints = GetExtremePoints();
-            log.Info(String.Format("extremePoints found: {0}", extremePoints.Count));
+            //log.Info(String.Format("extremePoints found: {0}", extremePoints.Count));
             if (extremePoints == null) return jawPoints;
+            // Create line connectng extreme points
             Line spectrumLine = new Line(extremePoints[0].location, extremePoints[1].location);
+            // If line length is within MinMax Cartesian Width, just get this points
             if (spectrumLine.Length < Setups.CartesianMaxWidth && spectrumLine.Length > Setups.CartesianMinWidth)
             {
                 return extremePoints;
             }
+            // If not..
             else if (spectrumLine.Length > Setups.CartesianMaxWidth)
             {
-                log.Info("spectrumLine.Length > Setups.CartesianMaxWidth");
+                //log.Info("spectrumLine.Length > Setups.CartesianMaxWidth");
 
+                // Create circle with MaxWidth diameter in teh center of spectrum line
                 Point3d midPoint = spectrumLine.PointAt(0.5);
                 NurbsCurve maxJawsCircle = (new Circle(midPoint, Setups.CartesianMaxWidth / 2)).ToNurbsCurve();
-                //  List<Curve> trimResult = new List<Curve>();
 
+                // Trim GrasperPossibleLocation byt this circle.
                 Tuple<List<Curve>, List<Curve>> trimResult = Geometry.TrimWithRegion(GrasperPossibleLocation.Select(crv => (Curve)crv).ToList(), maxJawsCircle);
-                /*
-               foreach (LineCurve ln in GrasperPossibleLocation)
-               {
-                   Tuple<List<Curve>, List<Curve>> result = Geometry.TrimWithRegion(ln, maxJawsCircle);
-                   if (result.Item1.Count > 0) trimResult.AddRange(result.Item1);
-               }
-               */
-
+                // If nothing inside return empty list
                 if (trimResult.Item1.Count == 0)
                 {
                     return jawPoints;
                 }
+                // Check which point in GrasperPossibleLocation lines insied circle is closest to circle
                 List<Point3d> toEvaluate = new List<Point3d>(trimResult.Item1.Count);
                 foreach (Curve ln in trimResult.Item1)
                 {
@@ -151,21 +148,25 @@ namespace Blistructor
                     ln.ClosestPoints(maxJawsCircle, out pt, out pt2);
                     toEvaluate.Add(pt);
                 }
+                // Get this points....
                 toEvaluate = toEvaluate.OrderBy(pt => pt.X).ToList();
                 Point3d leftJaw = toEvaluate.First();
                 Point3d rightJaw = toEvaluate.Last();
                 //TODO: leftJaw i rightJaw maja takie same cords....
-                log.Info(leftJaw.ToString());
-                log.Info(rightJaw.ToString());
+                //log.Info(leftJaw.ToString());
+                //log.Info(rightJaw.ToString());
+                // If new points are closer than MinWidth, return empty list
                 if (leftJaw.DistanceTo(rightJaw) < Setups.CartesianMinWidth)
                 {
                     return jawPoints;
                 }
+                // Get JawPoints...
                 return new List<AnchorPoint>() {
                         new AnchorPoint(leftJaw, AnchorSite.JAW_1),
                         new AnchorPoint(rightJaw, AnchorSite.JAW_2)
                     };
             }
+            //Return empty list...
             else
             {
                 return jawPoints;
@@ -216,12 +217,50 @@ namespace Blistructor
             return true;
         }
 
+        private void moveGrasperPossibleLocation(double factor)
+        {
+            GrasperPossibleLocation.ForEach(line => line.Translate(Vector3d.YAxis * factor));
+        }
 
         public void Update(Blister cuttedBlister)
         {
-            Update(null, cuttedBlister.Cells[0].bestCuttingData.Polygon);
+            //Update(null, cuttedBlister.Cells[0].bestCuttingData.Polygon);
+            Update(cuttedBlister.Cells[0].bestCuttingData.Polygon);
         }
 
+        public void Update(PolylineCurve polygon)
+        {        
+            // Simplify polygon
+            Curve simplePolygon = polygon;
+            simplePolygon.RemoveShortSegments(Setups.CollapseTolerance);
+            // Offset by half BladeWidth
+            Curve[] offset = simplePolygon.Offset(Plane.WorldXY, Setups.BladeWidth / 2, Setups.GeneralTolerance, CurveOffsetCornerStyle.Sharp);
+            if (offset.Length == 1)
+            {
+                //log.Info(String.Format("offset Length: {0}", offset.Length));
+                Curve rightMove = (Curve)offset[0].Duplicate();
+                rightMove.Translate(Vector3d.XAxis * Setups.CartesianThickness / 2);
+                Curve leftMove = (Curve)offset[0].Duplicate();
+                leftMove.Translate(-Vector3d.XAxis * Setups.CartesianThickness / 2);
+                Curve[] unitedCurve = Curve.CreateBooleanUnion(new Curve[] { rightMove, offset[0], leftMove }, Setups.GeneralTolerance);
+                if (unitedCurve.Length == 1)
+                {
+                    //log.Info(String.Format("unitedCurve Length: {0}", unitedCurve.Length));
+                    // Assuming GrasperPossibleLocation is in the 0 possition...
+                    // First make upper. Move halfway up, trim
+                    moveGrasperPossibleLocation(Setups.CartesianDepthLow);
+                    Tuple<List<Curve>, List<Curve>> result = Geometry.TrimWithRegion(GrasperPossibleLocation.Select(crv => (Curve)crv).ToList(), unitedCurve[0]);
+                    GrasperPossibleLocation = result.Item2.Select(crv => (LineCurve)crv).ToList();
+                    // Move fullway down, trim
+                    moveGrasperPossibleLocation(-Setups.CartesianDepthLow);
+                    result = Geometry.TrimWithRegion(GrasperPossibleLocation.Select(crv => (Curve)crv).ToList(), unitedCurve[0]);
+                    GrasperPossibleLocation = result.Item2.Select(crv => (LineCurve)crv).ToList();
+                    // Put it back on place...
+                    //moveGrasperPossibleLocation(Setups.CartesianDepthLow * 0.5);
+                }
+
+            }
+        }
         public void Update(PolylineCurve path, PolylineCurve polygon)
         {
             if (polygon != null)
@@ -314,7 +353,7 @@ namespace Blistructor
             foreach (AnchorPoint pt in anchors)
             {
                 //NOTE: Zamiana X, Y, należy sprawdzić czy to jest napewno dobrze. Wg. moich danych i opracowanej logiki tak...
-                Point3d flipedPoint = new Point3d(anchors[0].location.Y, anchors[0].location.X, 0);
+                Point3d flipedPoint = new Point3d(0, anchors[0].location.X, 0);
                 Point3d globalJawLocation = CartesianGlobalJaw1L(flipedPoint, blisterCS, Setups.CartesianPickModeAngle, pivotJaw);
                 GlobalAnchors.Add(globalJawLocation);
             }

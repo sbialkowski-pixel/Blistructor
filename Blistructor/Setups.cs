@@ -31,9 +31,10 @@ namespace Blistructor
 
         // CARTESIAN/JAW
         public const double CartesianPickModeAngle = Math.PI/6;
-        public const double CartesianThickness = 6.0;
-        public const double CartesianDepth = 3.5;
-        public const double BlisterCartesianDistance = 3.0;
+        public const double CartesianThickness = 5.5;
+        public const double CartesianDepth = 3.0;
+        public const double CartesianDepthLow = 5.5;
+        public const double BlisterCartesianDistance = 3.5;
         public const double CartesianMaxWidth = 85.0;
         public const double CartesianMinWidth = 10.0;
         public const double CartesianPivotJawVectorX = 109.375;

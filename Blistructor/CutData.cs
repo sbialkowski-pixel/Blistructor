@@ -267,7 +267,7 @@ namespace Blistructor
             Point3d knifeCenter = new Point3d(Setups.BladeGlobalX, Setups.BladeGlobalY, 0);
             //NOTE: Zamiana X, Y, należy sprawdzić czy to jest napewno dobrze. Wg. moich danych i opracowanej logiki tak...
             Point3d flipedLocalCoordinates = new Point3d(localCoordinates.Y, localCoordinates.X, 0);
-            Point3d fliped_Jaw1 = new Point3d(Jaw1_Local.Y, Jaw1_Local.X, 0);
+            Point3d fliped_Jaw1 = new Point3d(0 , Jaw1_Local.X, 0);
             return (Point3d)knifeCenter - flipedLocalCoordinates + fliped_Jaw1;                                                                    
         }
 
