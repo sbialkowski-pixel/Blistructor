@@ -2,13 +2,23 @@
 using System.Collections.Generic;
 using System.Linq;
 
-using Rhino;
-using Rhino.Geometry;
-using Rhino.Geometry.Intersect;
-using Grasshopper.Kernel.Types;
+//using Rhino;
+//using Rhino.Geometry;
+//using Rhino.Geometry.Intersect;
 
-using GH_Delanuey = Grasshopper.Kernel.Geometry.Delaunay;
-using GH_Voronoi = Grasshopper.Kernel.Geometry.Voronoi;
+using Pixel;
+using Pixel.Geometry;
+using Pixel.Geometry.Intersect;
+
+//using Grasshopper.Kernel.Types;
+
+using Diagrams;
+//using Voronoi = Diagrams.Voronoi;
+//using Delaunay = Diagrams.Delaunay;
+
+
+//using GH_Delanuey = Grasshopper.Kernel.Geometry.Delaunay;
+//using GH_Voronoi = Grasshopper.Kernel.Geometry.Voronoi;
 
 
 namespace Blistructor
@@ -172,7 +182,8 @@ namespace Blistructor
             Array.Sort(tA, points);
             return points;
         }
-
+        
+        /*
         public static Polyline ConvexHull(List<Point3d> pts)
         {
             List<GH_Point> po = new List<GH_Point>();
@@ -182,6 +193,7 @@ namespace Blistructor
             }
             return Grasshopper.Kernel.Geometry.ConvexHull.Solver.ComputeHull(po);
         }
+        */
 
         public static List<CurveIntersections> CurveCurveIntersection(Curve baseCrv, List<Curve> otherCrv)
         {
@@ -470,22 +482,22 @@ namespace Blistructor
         //TODO: Dokonczyć reguralny voronoi i dodac jako stage 0 ciecia.
         public static List<PolylineCurve> RegularVoronoi(List<Cell> cells, Polyline blister,  double tolerance = 0.05)
         {
-            Grasshopper.Kernel.Geometry.Node2List n2l = new Grasshopper.Kernel.Geometry.Node2List();
-            List<Grasshopper.Kernel.Geometry.Node2> outline = new List<Grasshopper.Kernel.Geometry.Node2>();
+            Diagrams.Node2List n2l = new Diagrams.Node2List();
+            List < Diagrams.Node2 > outline = new List<Diagrams.Node2>();
             foreach (Cell cell in cells)
             {
-                n2l.Append(new Grasshopper.Kernel.Geometry.Node2(cell.PillCenter.X, cell.PillCenter.Y));
+                n2l.Append(new Diagrams.Node2(cell.PillCenter.X, cell.PillCenter.Y));
             }
 
             foreach (Point3d pt in blister)
             {
-                outline.Add(new Grasshopper.Kernel.Geometry.Node2(pt.X, pt.Y));
+                outline.Add(new Diagrams.Node2(pt.X, pt.Y));
             }
-            GH_Delanuey.Connectivity del_con = GH_Delanuey.Solver.Solve_Connectivity(n2l, 0.0001, true);
-            List<GH_Voronoi.Cell2> voronoi = GH_Voronoi.Solver.Solve_Connectivity(n2l, del_con, outline);
+            Diagrams.Delaunay.Connectivity del_con = Diagrams.Delaunay.Solver.Solve_Connectivity(n2l, 0.0001, true);
+            List<Diagrams.Voronoi.Cell2> voronoi = Diagrams.Voronoi.Solver.Solve_Connectivity(n2l, del_con, outline);
 
             List<PolylineCurve> output = new List<PolylineCurve>(voronoi.Count);
-            foreach (GH_Voronoi.Cell2 cell in voronoi)
+            foreach (Diagrams.Voronoi.Cell2 cell in voronoi)
             {
                 output.Add(cell.ToPolyline().ToPolylineCurve());
             }
@@ -494,25 +506,25 @@ namespace Blistructor
 
         public static List<PolylineCurve> IrregularVoronoi(List<Cell> cells, Polyline blister, int resolution = 50, double tolerance = 0.05)
         {
-            Grasshopper.Kernel.Geometry.Node2List n2l = new Grasshopper.Kernel.Geometry.Node2List();
-            List<Grasshopper.Kernel.Geometry.Node2> outline = new List<Grasshopper.Kernel.Geometry.Node2>();
+            Diagrams.Node2List n2l = new Diagrams.Node2List();
+            List<Diagrams.Node2> outline = new List<Diagrams.Node2>();
             foreach (Cell cell in cells)
             {
                 Point3d[] pts;
                 cell.pill.DivideByCount(resolution, false, out pts);
                 foreach (Point3d pt in pts)
                 {
-                    n2l.Append(new Grasshopper.Kernel.Geometry.Node2(pt.X, pt.Y));
+                    n2l.Append(new Diagrams.Node2(pt.X, pt.Y));
                 }
             }
 
             foreach (Point3d pt in blister)
             {
-                outline.Add(new Grasshopper.Kernel.Geometry.Node2(pt.X, pt.Y));
+                outline.Add(new Diagrams.Node2(pt.X, pt.Y));
             }
 
-            GH_Delanuey.Connectivity del_con = GH_Delanuey.Solver.Solve_Connectivity(n2l, 0.0001, true);
-            List<GH_Voronoi.Cell2> voronoi = GH_Voronoi.Solver.Solve_Connectivity(n2l, del_con, outline);
+            Diagrams.Delaunay.Connectivity del_con = Diagrams.Delaunay.Solver.Solve_Connectivity(n2l, 0.0001, true);
+            List < Diagrams.Voronoi.Cell2 > voronoi = Diagrams.Voronoi.Solver.Solve_Connectivity(n2l, del_con, outline);
 
             List<PolylineCurve> vCells = new List<PolylineCurve>();
             for (int i = 0; i < cells.Count; i++)
@@ -525,7 +537,7 @@ namespace Blistructor
                     Point3d[] vert = voronoi[glob_index].ToPolyline().ToArray();
                     foreach (Point3d pt in vert)
                     {
-                        PointContainment result = cells[i].pill.Contains(pt, Rhino.Geometry.Plane.WorldXY, 0.0001);
+                        PointContainment result = cells[i].pill.Contains(pt, Pixel.Geometry.Plane.WorldXY, 0.0001);
                         if (result == PointContainment.Outside)
                         {
                             pts.Add(pt);

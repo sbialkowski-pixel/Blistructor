@@ -28,6 +28,9 @@ using log4net.Repository.Hierarchy;
 
 using Newtonsoft.Json.Linq;
 
+using RhGeo = Rhino.Geometry;
+using PixGeo = Pixel.Geometry;
+
 /*
 using Emgu.CV;
 using Emgu.CV.CvEnum;

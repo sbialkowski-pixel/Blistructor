@@ -1,11 +1,13 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
-using Rhino.Geometry;
+using RhGeo = Rhino.Geometry;
+using PixGeo = Pixel.Geometry;
 
 using Grasshopper;
 using Grasshopper.Kernel.Data;
+using Blistructor;
 
-namespace Blistructor
+namespace BlistructorGH
 {
     public class MultiBlisterGH : MultiBlister
     {
@@ -16,11 +18,11 @@ namespace Blistructor
 
         #region GH - PROPERTIES
 
-        public DataTree<Curve> GetCuttedPillDataGH
+        public DataTree<RhGeo.Curve> GetCuttedPillDataGH
         {
             get
             {
-                DataTree<Curve> out_data = new DataTree<Curve>();
+                DataTree<RhGeo.Curve> out_data = new DataTree<RhGeo.Curve>();
                 //List<List<Curve>> out_data = new List<List<Curve>>();
                 for (int i = 0; i < Cutted.Count; i++)
                 {
@@ -36,13 +38,13 @@ namespace Blistructor
                     out_data.AddRange(cuttedBlister.GetCuttingPath(), new GH_Path(i, 1, 1));
                     out_data.AddRange(cuttedBlister.GetIsoRays(), new GH_Path(i, 1, 2));
                     if (cuttedCell.cuttingData != null) out_data.AddRange(cuttedCell.cuttingData.Select(cData => cData.Polygon), new GH_Path(i, 1, 3));
-                    else out_data.AddRange(new List<Curve>(), new GH_Path(i, 1, 3));
+                    else out_data.AddRange(new List<RhGeo.Curve>(), new GH_Path(i, 1, 3));
                     // Cell Data
                     out_data.AddRange(cuttedBlister.GetPills(false), new GH_Path(i, 2, 0));
                     out_data.AddRange(cuttedCell.connectionLines, new GH_Path(i, 2, 1));
                     out_data.AddRange(cuttedCell.proxLines, new GH_Path(i, 2, 2));
                     if (cuttedCell.cuttingData != null) out_data.AddRange(cuttedCell.obstacles, new GH_Path(i, 2, 3));
-                    else out_data.AddRange(new List<Curve>(), new GH_Path(i, 2, 3));
+                    else out_data.AddRange(new List<RhGeo.Curve>(), new GH_Path(i, 2, 3));
                     out_data.Add(cuttedCell.voronoi, new GH_Path(i, 2, 4));
                 }
                 return out_data;
@@ -79,11 +81,11 @@ namespace Blistructor
             }
         }
 
-        public DataTree<PolylineCurve> GetPillsGH
+        public DataTree<RhGeo.PolylineCurve> GetPillsGH
         {
             get
             {
-                DataTree<PolylineCurve> out_data = new DataTree<PolylineCurve>();
+                DataTree<RhGeo.PolylineCurve> out_data = new DataTree<RhGeo.PolylineCurve>();
                 //List<List<Curve>> out_data = new List<List<Curve>>();
                 for (int i = 0; i < Cutted.Count; i++)
                 {
@@ -94,11 +96,11 @@ namespace Blistructor
             }
         }
 
-        public DataTree<PolylineCurve> GetAllCuttingPolygonsGH
+        public DataTree<RhGeo.PolylineCurve> GetAllCuttingPolygonsGH
         {
             get
             {
-                DataTree<PolylineCurve> out_data = new DataTree<PolylineCurve>();
+                DataTree<RhGeo.PolylineCurve> out_data = new DataTree<RhGeo.PolylineCurve>();
                 //List<List<Curve>> out_data = new List<List<Curve>>();
                 for (int i = 0; i < Cutted.Count; i++)
                 {
@@ -111,11 +113,11 @@ namespace Blistructor
             }
         }
 
-        public DataTree<Curve> GetCuttingLinesGH
+        public DataTree<RhGeo.Curve> GetCuttingLinesGH
         {
             get
             {
-                DataTree<Curve> out_data = new DataTree<Curve>();
+                DataTree<RhGeo.Curve> out_data = new DataTree<RhGeo.Curve>();
                 //List<List<Curve>> out_data = new List<List<Curve>>();
                 for (int i = 0; i < Cutted.Count; i++)
                 {
@@ -126,11 +128,11 @@ namespace Blistructor
             }
         }
 
-        public DataTree<PolylineCurve> GetPathGH
+        public DataTree<RhGeo.PolylineCurve> GetPathGH
         {
             get
             {
-                DataTree<PolylineCurve> out_data = new DataTree<PolylineCurve>();
+                DataTree<RhGeo.PolylineCurve> out_data = new DataTree<RhGeo.PolylineCurve>();
                 //List<List<Curve>> out_data = new List<List<Curve>>();
                 for (int i = 0; i < Cutted.Count; i++)
                 {
@@ -141,11 +143,11 @@ namespace Blistructor
             }
         }
 
-        public DataTree<LineCurve> GetRaysGH
+        public DataTree<RhGeo.LineCurve> GetRaysGH
         {
             get
             {
-                DataTree<LineCurve> out_data = new DataTree<LineCurve>();
+                DataTree<RhGeo.LineCurve> out_data = new DataTree<RhGeo.LineCurve>();
                 //List<List<Curve>> out_data = new List<List<Curve>>();
                 for (int i = 0; i < Cutted.Count; i++)
                 {
@@ -156,11 +158,11 @@ namespace Blistructor
             }
         }
 
-        public DataTree<PolylineCurve> GetLeftOversGH
+        public DataTree<RhGeo.PolylineCurve> GetLeftOversGH
         {
             get
             {
-                DataTree<PolylineCurve> out_data = new DataTree<PolylineCurve>();
+                DataTree<RhGeo.PolylineCurve> out_data = new DataTree<RhGeo.PolylineCurve>();
                 //List<List<Curve>> out_data = new List<List<Curve>>();
                 for (int i = 0; i < Queue.Count; i++)
                 {
@@ -171,11 +173,11 @@ namespace Blistructor
             }
         }
 
-        public DataTree<Curve> GetObstaclesGH
+        public DataTree<RhGeo.Curve> GetObstaclesGH
         {
             get
             {
-                DataTree<Curve> out_data = new DataTree<Curve>();
+                DataTree<RhGeo.Curve> out_data = new DataTree<RhGeo.Curve>();
                 //List<List<Curve>> out_data = new List<List<Curve>>();
                 for (int i = 0; i < Cutted.Count; i++)
                 {
@@ -187,11 +189,11 @@ namespace Blistructor
             }
         }
 
-        public DataTree<Curve> GetUnfinishedCutDataGH
+        public DataTree<RhGeo.Curve> GetUnfinishedCutDataGH
         {
             get
             {
-                DataTree<Curve> out_data = new DataTree<Curve>();
+                DataTree<RhGeo.Curve> out_data = new DataTree<RhGeo.Curve>();
                 //List<List<Curve>> out_data = new List<List<Curve>>();
                 for (int i = 0; i < Queue[0].Cells.Count; i++)
                 {
@@ -210,11 +212,11 @@ namespace Blistructor
             }
         }
 
-        public DataTree<Curve> GetQueuePillDataGH
+        public DataTree<RhGeo.Curve> GetQueuePillDataGH
         {
             get
             {
-                DataTree<Curve> out_data = new DataTree<Curve>();
+                DataTree<RhGeo.Curve> out_data = new DataTree<RhGeo.Curve>();
                 if (Queue.Count == 0) return out_data;
                 //List<List<Curve>> out_data = new List<List<Curve>>();
                 for (int j = 0; j < Queue.Count; j++)
