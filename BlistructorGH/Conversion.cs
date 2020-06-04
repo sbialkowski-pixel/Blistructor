@@ -1,50 +1,46 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Linq;
 using RhGeo = Rhino.Geometry;
 using PixGeo = Pixel.Geometry;
-using Emgu.CV.OCR;
+
 
 namespace BlistructorGH
 {
     public static class Convert
     {
 
-        public static RhGeo.Point3d ToPix(PixGeo.Point3d pt) 
+        public static RhGeo.Point3d ToRh(PixGeo.Point3d pt) 
         {
             return new RhGeo.Point3d(pt.X, pt.Y, pt.Z);
         }
 
-        public static RhGeo.PolylineCurve ToPix(PixGeo.Curve crv)
+        public static RhGeo.PolylineCurve ToRh(PixGeo.Curve crv)
         {
             PixGeo.Polyline pline;
             crv.TryGetPolyline(out pline);
-            return new RhGeo.PolylineCurve(pline.Select(x => Convert.ToPix(x)).ToList());
+            return new RhGeo.PolylineCurve(pline.Select(x => Convert.ToRh(x)).ToList());
         }
 
-        public static RhGeo.Line ToPix(PixGeo.Line ln)
+        public static RhGeo.Line ToRh(PixGeo.Line ln)
         {
-            return new RhGeo.Line(Convert.ToPix(ln.From), Convert.ToPix(ln.To));
+            return new RhGeo.Line(Convert.ToRh(ln.From), Convert.ToRh(ln.To));
         }
-        public static RhGeo.LineCurve ToPix(PixGeo.LineCurve crv)
+        public static RhGeo.LineCurve ToRh(PixGeo.LineCurve crv)
         {
-            return new RhGeo.LineCurve(Convert.ToPix(crv.Line));
+            return new RhGeo.LineCurve(Convert.ToRh(crv.Line));
         }
 
-        public static RhGeo.Polyline ToPix(PixGeo.Polyline pline)
+        public static RhGeo.Polyline ToRh(PixGeo.Polyline pline)
         {
             RhGeo.Polyline output = new RhGeo.Polyline();
             foreach(PixGeo.Point3d pt in pline)
             {
-                output.Add(Convert.ToPix(pt));
+                output.Add(Convert.ToRh(pt));
             }
             return output;
         }
-        public static RhGeo.PolylineCurve ToPix(PixGeo.PolylineCurve pline)
+        public static RhGeo.PolylineCurve ToRh(PixGeo.PolylineCurve pline)
         {
-            return new RhGeo.PolylineCurve(pline.ToPolyline().Select(x => Convert.ToPix(x)).ToList());
+            return new RhGeo.PolylineCurve(pline.ToPolyline().Select(x => Convert.ToRh(x)).ToList());
         }
 
     }

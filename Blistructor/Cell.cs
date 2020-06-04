@@ -558,7 +558,7 @@ namespace Blistructor
                 Vector3d direction2 = Vector3d.CrossProduct((connectionLines[i].PointAtEnd - connectionLines[i].PointAtStart), Vector3d.ZAxis);
                 //Vector3d sum_direction = StraigtenVector(direction + direction2);
                 Vector3d sum_direction = direction + direction2;
-                double stepAngleInRadians = RhinoMath.ToRadians(stepAngle);
+                double stepAngleInRadians = PixelMath.ToRadians(stepAngle);
                 if (!sum_direction.Rotate(-raysCount * stepAngleInRadians, Vector3d.ZAxis)) continue;
                 //List<double>rotationAngles = Enumerable.Range(-raysCount, (2 * raysCount) + 1).Select(x => x* RhinoMath.ToRadians(stepAngle)).ToList();
                 List<LineCurve> currentIsoLines = new List<LineCurve>((2 * raysCount) + 1);

@@ -6,16 +6,19 @@ MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Blistructor", "Blistructor\Blistructor.csproj", "{5DD72BA5-2145-4A9C-B8B0-E2946DFF838F}"
 	ProjectSection(ProjectDependencies) = postProject
 		{4EC0214D-4D21-433F-9AC8-155C323D4A82} = {4EC0214D-4D21-433F-9AC8-155C323D4A82}
+		{2E78AAC8-B552-47F7-A646-497E4CB37536} = {2E78AAC8-B552-47F7-A646-497E4CB37536}
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BlistructorGH", "BlistructorGH\BlistructorGH.csproj", "{FAE0E2D2-BCB2-446A-B3D3-7DB9C3B24FAB}"
 	ProjectSection(ProjectDependencies) = postProject
+		{4EC0214D-4D21-433F-9AC8-155C323D4A82} = {4EC0214D-4D21-433F-9AC8-155C323D4A82}
 		{5DD72BA5-2145-4A9C-B8B0-E2946DFF838F} = {5DD72BA5-2145-4A9C-B8B0-E2946DFF838F}
+		{2E78AAC8-B552-47F7-A646-497E4CB37536} = {2E78AAC8-B552-47F7-A646-497E4CB37536}
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Combinators", "..\Combinators\Combinators\Combinators.csproj", "{4EC0214D-4D21-433F-9AC8-155C323D4A82}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Diagrams", "Voronoi\Diagrams.csproj", "{2E78AAC8-B552-47F7-A646-497E4CB37536}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Diagrams", "Diagrams\Diagrams.csproj", "{2E78AAC8-B552-47F7-A646-497E4CB37536}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

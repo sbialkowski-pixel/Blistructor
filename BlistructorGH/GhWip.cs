@@ -18,6 +18,7 @@ using System.Reflection;
 
 using Blistructor;
 
+using BlistructorGH;
 
 using log4net;
 using log4net.Appender;
@@ -135,9 +136,9 @@ namespace BlistructorGH
                 //AA = structor.pillsss;
 
 
-                JawPoints = structor.anchor.anchors.Select(aP => aP.location).ToList()  ;
-                AnchorGuideLine = structor.anchor.GrasperPossibleLocation;
-               // anchPred = structor.anchor.GrasperPossibleLocation;
+                JawPoints = structor.anchor.anchors.Select(aP => BlistructorGH.Convert.ToRh(aP.location)).ToList()  ;
+                AnchorGuideLine = structor.anchor.GrasperPossibleLocation.Select(crv => BlistructorGH.Convert.ToRh(crv)).ToList();
+
 
             }
             catch (Exception ex)

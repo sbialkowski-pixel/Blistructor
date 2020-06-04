@@ -493,8 +493,9 @@ namespace Blistructor
             {
                 outline.Add(new Diagrams.Node2(pt.X, pt.Y));
             }
-            Diagrams.Delaunay.Connectivity del_con = Diagrams.Delaunay.Solver.Solve_Connectivity(n2l, 0.0001, true);
-            List<Diagrams.Voronoi.Cell2> voronoi = Diagrams.Voronoi.Solver.Solve_Connectivity(n2l, del_con, outline);
+            List<Diagrams.Voronoi.Cell2> voronoi = Diagrams.Voronoi.Solver.Solve_BruteForce(n2l, outline);
+            //Diagrams.Delaunay.Connectivity del_con = Diagrams.Delaunay.Solver.Solve_Connectivity(n2l, 0.0001, true);
+           // List<Diagrams.Voronoi.Cell2> voronoi = Diagrams.Voronoi.Solver.Solve_Connectivity(n2l, del_con, outline);
 
             List<PolylineCurve> output = new List<PolylineCurve>(voronoi.Count);
             foreach (Diagrams.Voronoi.Cell2 cell in voronoi)
@@ -564,7 +565,7 @@ namespace Blistructor
 
             for (double i = 0; i < 180; i+=0.5)
             {
-                double radians = RhinoMath.ToRadians(i);
+                double radians = PixelMath.ToRadians(i);
                 Curve currentCurve = crv.DuplicateCurve();
                 currentCurve.Rotate(radians, Vector3d.ZAxis, centre);
                 BoundingBox box = currentCurve.GetBoundingBox(false);

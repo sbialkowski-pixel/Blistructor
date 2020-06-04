@@ -283,7 +283,7 @@ namespace Blistructor
                 Vector3d lineVector = line.Line.UnitTangent;
                 lineVector.Y = -lineVector.Y;
                 double angle = Vector3d.VectorAngle(Vector3d.XAxis, lineVector, Plane.WorldXY)+ Setups.BladeRotationCalibration;
-                cutData.Add("angle", Rhino.RhinoMath.ToDegrees(angle));
+                cutData.Add("angle", Pixel.PixelMath.ToDegrees(angle));
                 //Point 
                 JArray pointArray = new JArray();
                 // Apply transformation to global
