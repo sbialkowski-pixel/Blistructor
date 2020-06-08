@@ -38,13 +38,7 @@ namespace Blistructor
         private static readonly ILog log = LogManager.GetLogger("Main.Blistructor");
         public PolylineCurve mainOutline;
         public List<PolylineCurve> pillsss;
-        /*
-      private PolylineCurve mainOutline;
-      private PolylineCurve aaBBox;
-      private PolylineCurve maBBox;
-      private LineCurve aaGuideLine;
-      private LineCurve maGuideLine;
-            */
+
         private int loopTolerance = 5;
         public List<Blister> Queue;
         public List<Blister> Cutted;
@@ -53,6 +47,14 @@ namespace Blistructor
         public List<Curve> worldObstacles;
         int cellLimit;
         int mainLimit;
+
+        public MultiBlister()
+        {
+            cellLimit = -1;
+            mainLimit = -1;
+            Queue = new List<Blister>();
+            Cutted = new List<Blister>();
+        }
 
         public MultiBlister(int Limit1, int Limit2)
         {

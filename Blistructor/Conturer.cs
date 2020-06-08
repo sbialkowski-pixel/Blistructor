@@ -6,15 +6,29 @@ using Emgu.CV;
 using Emgu.CV.CvEnum;
 using Emgu.CV.Structure;
 using Emgu.CV.Util;
+using System.Drawing.Imaging;
+using System.Drawing;
+using System.IO;
 
 namespace Blistructor
 {
     public static class Conturer
     {
+        public static List<List<int[]>> getContours(byte[] imageData, double tolerance)
+        {
+            Bitmap bmp = new Bitmap(new MemoryStream(imageData));
+            Image<Gray, Byte> img = new Image<Gray, byte>(bmp);
+            return getContours(img, tolerance);
+        }
+
         public static List<List<int[]>> getContours(string pathToImage, double tolerance)
         {
             Image<Gray, Byte> img = new Image<Gray, byte>(pathToImage);
-            UMat uimage = new UMat();
+            return getContours(img, tolerance);
+        }
+
+        private static List<List<int[]>> getContours(Image<Gray, Byte> img, double tolerance)
+        {
             VectorOfVectorOfPoint contours = new VectorOfVectorOfPoint();
             CvInvoke.FindContours(img, contours, null, RetrType.List, ChainApproxMethod.LinkRuns);
             List<List<int[]>> allPoints = new List<List<int[]>>();

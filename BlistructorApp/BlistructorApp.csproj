@@ -4,16 +4,16 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{2E78AAC8-B552-47F7-A646-497E4CB37536}</ProjectGuid>
-    <OutputType>Library</OutputType>
-    <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Diagrams</RootNamespace>
-    <AssemblyName>Diagrams</AssemblyName>
+    <ProjectGuid>{036B6351-0334-46F5-A9DB-5C28095CA741}</ProjectGuid>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>BlistructorApp</RootNamespace>
+    <AssemblyName>BlistructorApp</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
@@ -23,6 +23,7 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PlatformTarget>x64</PlatformTarget>
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\Release\</OutputPath>
@@ -31,8 +32,18 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Blistructor">
+      <HintPath>..\Blistructor\bin\Release\Blistructor.dll</HintPath>
+    </Reference>
+    <Reference Include="log4net">
+      <HintPath>..\Blistructor\bin\Release\log4net.dll</HintPath>
+    </Reference>
+    <Reference Include="Newtonsoft.Json, Version=9.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\Blistructor\bin\Release\Newtonsoft.Json.dll</HintPath>
+    </Reference>
     <Reference Include="PixelCommon">
-      <HintPath>..\..\PixelCommon\bin\Release\PixelCommon.dll</HintPath>
+      <HintPath>..\Blistructor\bin\Release\PixelCommon.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -44,38 +55,19 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Circle2.cs" />
-    <Compile Include="Containment.cs" />
-    <Compile Include="ConvexHull\Solver.cs" />
-    <Compile Include="Delaunay\Connectivity.cs" />
-    <Compile Include="Delaunay\Edge.cs" />
-    <Compile Include="Delaunay\EdgeList.cs" />
-    <Compile Include="Delaunay\Face.cs" />
-    <Compile Include="Delaunay\FaceEx.cs" />
-    <Compile Include="Delaunay\FaceExList.cs" />
-    <Compile Include="Delaunay\Solver.cs" />
-    <Compile Include="Line2.cs" />
-    <Compile Include="LineCircleX.cs" />
-    <Compile Include="LineX.cs" />
-    <Compile Include="Node2.cs" />
-    <Compile Include="Node2Leaf.cs" />
-    <Compile Include="Node2List.cs" />
-    <Compile Include="Node2Proximity.cs" />
-    <Compile Include="Node2Tree.cs" />
-    <Compile Include="Parallax.cs" />
-    <Compile Include="Side2.cs" />
-    <Compile Include="Vec2.cs" />
-    <Compile Include="Voronoi\Cell2.cs" />
-    <Compile Include="Voronoi\Solver.cs" />
+    <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <AdditionalFiles Include="pxcommonrdk_c.dll">
+    <None Include="App.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="pxcommonrdk_c.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </AdditionalFiles>
-    <AdditionalFiles Include="pxcommon_c.dll">
+    </Content>
+    <Content Include="pxcommon_c.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </AdditionalFiles>
+    </Content>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
