@@ -1,5 +1,8 @@
-﻿//using Rhino.Geometry;
-using Pixel.Geometry;
+﻿#if PIXEL
+using Pixel;
+#else
+using Rhino.Geometry;
+#endif
 
 namespace Blistructor
 {

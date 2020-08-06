@@ -2,9 +2,13 @@
 using System.Collections.Generic;
 using System.Linq;
 
+#if PIXEL
+using Pixel;
 using Pixel.Geometry;
-
-//using Rhino.Geometry;
+#else
+using Rhino;
+using Rhino.Geometry;
+#endif
 using log4net;
 using Newtonsoft.Json.Linq;
 

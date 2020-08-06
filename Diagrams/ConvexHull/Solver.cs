@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using Pixel.Geometry;
+using Rhino.Geometry;
+//using Pixel.Geometry;  
 
 
 namespace Diagrams.ConvexHull

@@ -2,8 +2,13 @@
 using System.Collections.Generic;
 using System.Linq;
 
-//using Rhino.Geometry;
+#if PIXEL
 using Pixel.Geometry;
+using ExtraMath = Pixel.PixelMath;
+#else
+using Rhino.Geometry;
+using ExtraMath = Rhino.RhinoMath;
+#endif
 
 using Newtonsoft.Json.Linq;
 using log4net;
@@ -283,7 +288,7 @@ namespace Blistructor
                 Vector3d lineVector = line.Line.UnitTangent;
                 lineVector.Y = -lineVector.Y;
                 double angle = Vector3d.VectorAngle(Vector3d.XAxis, lineVector, Plane.WorldXY)+ Setups.BladeRotationCalibration;
-                cutData.Add("angle", Pixel.PixelMath.ToDegrees(angle));
+                cutData.Add("angle", ExtraMath.ToDegrees(angle));
                 //Point 
                 JArray pointArray = new JArray();
                 // Apply transformation to global

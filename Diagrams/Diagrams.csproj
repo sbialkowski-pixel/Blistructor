@@ -31,8 +31,8 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="PixelCommon">
-      <HintPath>..\..\PixelCommon\bin\Release\PixelCommon.dll</HintPath>
+    <Reference Include="Rhino3dm">
+      <HintPath>..\..\rhino3dm\src\dotnet\Release\Rhino3dm.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />

@@ -2,11 +2,13 @@
 using System.Collections.Generic;
 using System.Linq;
 using log4net;
-
+#if PIXEL
 using Pixel.Geometry;
 using Pixel.Geometry.Intersect;
-//using Rhino.Geometry;
-//using Rhino.Geometry.Intersect;
+#else
+using Rhino.Geometry;
+using Rhino.Geometry.Intersect;
+#endif
 using Newtonsoft.Json.Linq;
 
 namespace Blistructor

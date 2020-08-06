@@ -21,6 +21,9 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Diagrams", "Diagrams\Diagrams.csproj", "{2E78AAC8-B552-47F7-A646-497E4CB37536}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BlistructorApp", "BlistructorApp\BlistructorApp.csproj", "{036B6351-0334-46F5-A9DB-5C28095CA741}"
+	ProjectSection(ProjectDependencies) = postProject
+		{5DD72BA5-2145-4A9C-B8B0-E2946DFF838F} = {5DD72BA5-2145-4A9C-B8B0-E2946DFF838F}
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

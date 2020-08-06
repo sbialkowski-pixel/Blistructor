@@ -2,13 +2,17 @@
 using System.Collections.Generic;
 using System.Linq;
 
+#if PIXEL
 using Pixel;
 using Pixel.Geometry;
 using Pixel.Geometry.Intersect;
-
-//using Rhino;
-//using Rhino.Geometry;
-//using Rhino.Geometry.Intersect;
+using ExtraMath = Pixel.PixelMath;
+#else
+using Rhino;
+using Rhino.Geometry;
+using Rhino.Geometry.Intersect;
+using ExtraMath = Rhino.RhinoMath;
+#endif
 
 using log4net;
 using Newtonsoft.Json.Linq;
@@ -558,7 +562,7 @@ namespace Blistructor
                 Vector3d direction2 = Vector3d.CrossProduct((connectionLines[i].PointAtEnd - connectionLines[i].PointAtStart), Vector3d.ZAxis);
                 //Vector3d sum_direction = StraigtenVector(direction + direction2);
                 Vector3d sum_direction = direction + direction2;
-                double stepAngleInRadians = PixelMath.ToRadians(stepAngle);
+                double stepAngleInRadians = ExtraMath.ToRadians(stepAngle);
                 if (!sum_direction.Rotate(-raysCount * stepAngleInRadians, Vector3d.ZAxis)) continue;
                 //List<double>rotationAngles = Enumerable.Range(-raysCount, (2 * raysCount) + 1).Select(x => x* RhinoMath.ToRadians(stepAngle)).ToList();
                 List<LineCurve> currentIsoLines = new List<LineCurve>((2 * raysCount) + 1);

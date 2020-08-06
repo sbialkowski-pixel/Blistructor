@@ -1,24 +1,21 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-
-//using Rhino;
-//using Rhino.Geometry;
-//using Rhino.Geometry.Intersect;
-
-using Pixel;
+#if PIXEL
+ using Pixel;
 using Pixel.Geometry;
 using Pixel.Geometry.Intersect;
-
-//using Grasshopper.Kernel.Types;
+using ExtraMath = Pixel.PixelMath;
+#else
+using Rhino;
+using Rhino.Geometry;
+using Rhino.Geometry.Intersect;
+using ExtraMath = Rhino.RhinoMath;
+#endif
 
 using Diagrams;
 //using Voronoi = Diagrams.Voronoi;
 //using Delaunay = Diagrams.Delaunay;
-
-
-//using GH_Delanuey = Grasshopper.Kernel.Geometry.Delaunay;
-//using GH_Voronoi = Grasshopper.Kernel.Geometry.Voronoi;
 
 
 namespace Blistructor
@@ -65,7 +62,9 @@ namespace Blistructor
 
         public static void FlipIsoRays(Curve guideCrv, LineCurve crv)
         {
-            Curve temp = crv.Extend(CurveEnd.Both, 10000, CurveExtensionStyle.Line);
+            Curve temp = crv.Extend(CurveEnd.Both, 10000);
+
+            //Curve temp = crv.Extend(CurveEnd.Both, 10000, CurveExtensionStyle.Line); <- proper Rhino Method, Above my edit.
             LineCurve extended = new LineCurve(temp.PointAtStart, temp.PointAtEnd);
             Point3d guidePt, crvPt;
             if (guideCrv.ClosestPoints(extended, out guidePt, out crvPt))
@@ -538,7 +537,7 @@ namespace Blistructor
                     Point3d[] vert = voronoi[glob_index].ToPolyline().ToArray();
                     foreach (Point3d pt in vert)
                     {
-                        PointContainment result = cells[i].pill.Contains(pt, Pixel.Geometry.Plane.WorldXY, 0.0001);
+                        PointContainment result = cells[i].pill.Contains(pt, Plane.WorldXY, 0.0001);
                         if (result == PointContainment.Outside)
                         {
                             pts.Add(pt);
@@ -565,7 +564,7 @@ namespace Blistructor
 
             for (double i = 0; i < 180; i+=0.5)
             {
-                double radians = PixelMath.ToRadians(i);
+                double radians = ExtraMath.ToRadians(i);
                 Curve currentCurve = crv.DuplicateCurve();
                 currentCurve.Rotate(radians, Vector3d.ZAxis, centre);
                 BoundingBox box = currentCurve.GetBoundingBox(false);

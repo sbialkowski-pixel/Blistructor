@@ -2,8 +2,11 @@
 using System.Collections.Generic;
 using System.Linq;
 using Newtonsoft.Json.Linq;
+#if PIXEL
 using Pixel.Geometry;
-//using Rhino.Geometry;
+#else
+using Rhino.Geometry;
+#endif
 using log4net;
 
 // TODO: -WIP-: Przejechanie wszystkich blistrów i sprawdzenie jak działa -> szukanie błedów
@@ -77,7 +80,7 @@ namespace Blistructor
             }
         }
 
-        #region PROPERTIES   
+#region PROPERTIES   
 
         public List<PolylineCurve> GetCuttedPolygons
         {
@@ -106,7 +109,7 @@ namespace Blistructor
             }
         }
 
-        #endregion
+#endregion
 
         private void Initialise(List<PolylineCurve> Pills, PolylineCurve Blister)
         {
