@@ -596,14 +596,14 @@ namespace Blistructor
 
         public bool InclusionTest(Curve testCurve)
         {
-            RegionContainment test = Curve.PlanarClosedCurveRelationship(Outline, testCurve, Plane.WorldXY, Setups.OverlapTolerance);
+            RegionContainment test = Curve.PlanarClosedCurveRelationship(Outline, testCurve);
             if (test == RegionContainment.BInsideA) return true;
             else return false;
         }
 
         public bool InclusionTest(Curve testCurve, Curve Region)
         {
-            RegionContainment test = Curve.PlanarClosedCurveRelationship(Region, testCurve, Plane.WorldXY, Setups.OverlapTolerance);
+            RegionContainment test = Curve.PlanarClosedCurveRelationship(Region, testCurve);
             if (test == RegionContainment.BInsideA) return true;
             else return false;
         }

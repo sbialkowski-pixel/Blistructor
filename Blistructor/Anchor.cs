@@ -240,16 +240,16 @@ namespace Blistructor
             Curve simplePolygon = polygon;
             simplePolygon.RemoveShortSegments(Setups.CollapseTolerance);
             // Offset by half BladeWidth
-            Curve[] offset = simplePolygon.Offset(Plane.WorldXY, Setups.BladeWidth / 2, Setups.GeneralTolerance, CurveOffsetCornerStyle.Sharp);
-            if (offset.Length == 1)
+            Curve offset = simplePolygon.Offset(Plane.WorldXY, Setups.BladeWidth / 2);
+            if (offset != null)
             {
                 //log.Info(String.Format("offset Length: {0}", offset.Length));
-                Curve rightMove = (Curve)offset[0].Duplicate();
+                Curve rightMove = (Curve)offset.Duplicate();
                 rightMove.Translate(Vector3d.XAxis * Setups.CartesianThickness / 2);
-                Curve leftMove = (Curve)offset[0].Duplicate();
+                Curve leftMove = (Curve)offset.Duplicate();
                 leftMove.Translate(-Vector3d.XAxis * Setups.CartesianThickness / 2);
-                Curve[] unitedCurve = Curve.CreateBooleanUnion(new Curve[] { rightMove, offset[0], leftMove }, Setups.GeneralTolerance);
-                if (unitedCurve.Length == 1)
+                List<Curve> unitedCurve = Curve.CreateBooleanUnion(new List<Curve>() { rightMove, offset, leftMove });
+                if (unitedCurve.Count == 1)
                 {
                     //log.Info(String.Format("unitedCurve Length: {0}", unitedCurve.Length));
                     // Assuming GrasperPossibleLocation is in the 0 possition...
@@ -275,13 +275,15 @@ namespace Blistructor
                 Curve simplePolygon = polygon;
                 simplePolygon.RemoveShortSegments(Setups.CollapseTolerance);
 
-                Curve[] offset = simplePolygon.Offset(Plane.WorldXY, Setups.CartesianThickness / 2, Setups.GeneralTolerance, CurveOffsetCornerStyle.Sharp);
-                if (offset.Length > 0)
+                Curve offset = simplePolygon.Offset(Plane.WorldXY, Setups.CartesianThickness / 2);
+
+                //Curve[] offset = simplePolygon.Offset(Plane.WorldXY, Setups.CartesianThickness / 2, Setups.GeneralTolerance, CurveOffsetCornerStyle.Sharp);
+                if (offset != null)
                 {
                     //    log.Warn(String.Format("Anchor Pred Line Update - Polygon Oreint {0}", polygon.ClosedCurveOrientation()));
                     //log.Warn(String.Format("Anchor - Update Pred Line  - SimpOffset Len {0} | Polygon Len {1}", simpleOffset.GetLength(), polygon.GetLength()));
 
-                    Tuple<List<Curve>, List<Curve>> result = Geometry.TrimWithRegion(GrasperPossibleLocation.Select(crv => (Curve)crv).ToList(), offset[0]);
+                    Tuple<List<Curve>, List<Curve>> result = Geometry.TrimWithRegion(GrasperPossibleLocation.Select(crv => (Curve)crv).ToList(), offset);
                     GrasperPossibleLocation = result.Item2.Select(crv => (LineCurve)crv).ToList();
                 }
                 else

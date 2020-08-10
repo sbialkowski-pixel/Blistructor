@@ -72,20 +72,15 @@ namespace Blistructor
             pillProp = AreaMassProperties.Compute(pill);
 
             // Create pill offset
-            Curve[] ofCur = pill.Offset(Plane.WorldXY, Setups.BladeWidth / 2, 0.001, CurveOffsetCornerStyle.Sharp);
+            Curve ofCur = pill.Offset(Plane.WorldXY, Setups.BladeWidth / 2);
             if (ofCur == null)
             {
                 log.Error("Incorrect pill offseting");
                 throw new InvalidOperationException("Incorrect pill offseting");
             }
-            if (ofCur.Length == 1)
+            else 
             {
-                pillOffset = (PolylineCurve)ofCur[0];
-            }
-            else
-            {
-                log.Error("Incorrect pill offseting");
-                throw new InvalidOperationException();
+                pillOffset = (PolylineCurve)ofCur;
             }
         }
 
@@ -788,7 +783,7 @@ namespace Blistructor
             foreach (Curve s_region in splited_blister)
             {
                 if (!s_region.IsValid || !s_region.IsClosed) continue;
-                RegionContainment test = Curve.PlanarClosedCurveRelationship(s_region, pill, Plane.WorldXY, Setups.GeneralTolerance);
+                RegionContainment test = Curve.PlanarClosedCurveRelationship(s_region, pill);
                 if (test == RegionContainment.BInsideA) s_region.TryGetPolyline(out pill_region);
                 else if (test == RegionContainment.Disjoint)
                 {
@@ -808,7 +803,7 @@ namespace Blistructor
             foreach (Cell cell in blister.Cells)
             {
                 if (cell.id == this.id) continue;
-                RegionContainment test = Curve.PlanarClosedCurveRelationship(cell.pillOffset, pill_region_curve, Plane.WorldXY, Setups.GeneralTolerance);
+                RegionContainment test = Curve.PlanarClosedCurveRelationship(cell.pillOffset, pill_region_curve);
                 if (test == RegionContainment.AInsideB)
                 {
                     log.Debug("More then one pill in cutout region. CutData creation failed.");

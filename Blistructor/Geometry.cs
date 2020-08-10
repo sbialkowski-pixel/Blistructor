@@ -458,7 +458,7 @@ namespace Blistructor
                     {
                         foreach (Curve _region in choped_region)
                         {
-                            Curve[] c_inter = Curve.CreateBooleanIntersection(_region, region, Setups.GeneralTolerance);
+                            List<Curve> c_inter = Curve.CreateBooleanIntersection(_region, region);
                             foreach (Curve inter_curve in c_inter)
                             {
                                 current_temp_regions.Add(inter_curve);
@@ -584,11 +584,11 @@ namespace Blistructor
         {
 
             List<Curve> Outline = new List<Curve>();
-            Curve[] offser_1 = crv.Offset(Plane.WorldXY, thickness, Setups.GeneralTolerance, CurveOffsetCornerStyle.Sharp);
-            if (offser_1.Length == 1) Outline.Add(offser_1[0]);
+            Curve offser_1 = crv.Offset(Plane.WorldXY, thickness);
+            if (offser_1 != null) Outline.Add(offser_1);
             else return null;
-            Curve[] offser_2 = crv.Offset(Plane.WorldXY, -thickness, Setups.GeneralTolerance, CurveOffsetCornerStyle.Sharp);
-            if (offser_2.Length == 1) Outline.Add(offser_2[0]);
+            Curve offser_2 = crv.Offset(Plane.WorldXY, -thickness);
+            if (offser_2 != null) Outline.Add(offser_2);
             else return null;
 
             if (Outline.Count != 2) return null;
