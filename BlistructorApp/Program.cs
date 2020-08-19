@@ -17,14 +17,17 @@ namespace BlistructorApp
         static void Main(string[] args)
         {
             string PillsPath = Path.GetFullPath(args[0]);
-            string BlisterPath = Path.GetFullPath(args[0]);
+            string BlisterPath = Path.GetFullPath(args[1]);
             Console.WriteLine("PillsPath: " + PillsPath);
             Console.WriteLine("BlisterPath: " + BlisterPath);
             if (File.Exists(PillsPath) && File.Exists(BlisterPath))
             {
                 MultiBlister structor = new MultiBlister();
                 var JSON = structor.CutBlister(PillsPath, BlisterPath);
-                Console.WriteLine(JSON);
+                
+                if (JSON != null) Console.WriteLine(JSON.ToString());
+                else Console.WriteLine("Empty JSON ");
+                Console.ReadKey();
             }
             else
                 Console.WriteLine("path doesn't exist");

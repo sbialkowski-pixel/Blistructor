@@ -142,17 +142,19 @@ namespace Blistructor
 
             // process pills
             List<PolylineCurve> outPills = new List<PolylineCurve>();
-            foreach (Curve crv in pills)
+            foreach (PolylineCurve crv in pills)
             {
-                NurbsCurve nCrv = (NurbsCurve)crv;
-                Curve fitCurve = nCrv.Fit(3, Setups.CurveFitTolerance, 0.0);
-                outPills.Add(fitCurve.ToPolyline(Setups.CurveDistanceTolerance, 0.0, 0.05, 1000.0));
+                outPills.Add(SimplifyContours(crv));
+
+              //NurbsCurve nCrv = (NurbsCurve)crv;
+              //  Curve fitCurve = nCrv.Fit(3, Setups.CurveFitTolerance, 0.0);
+              //  outPills.Add(fitCurve.ToPolyline(Setups.CurveDistanceTolerance, 0.0, 0.05, 1000.0));
             }
 
-            NurbsCurve bliNCrv = (NurbsCurve)blisters[0];
-            Curve fitBliCurve = bliNCrv.Fit(3, Setups.CurveFitTolerance, 0.0);
-            PolylineCurve blister = fitBliCurve.ToPolyline(Setups.CurveDistanceTolerance, 0.0, 0.05, 1000.0);
-
+            //NurbsCurve bliNCrv = (NurbsCurve)blisters[0];
+            //Curve fitBliCurve = bliNCrv.Fit(3, Setups.CurveFitTolerance, 0.0);
+            //PolylineCurve blister = fitBliCurve.ToPolyline(Setups.CurveDistanceTolerance, 0.0, 0.05, 1000.0);
+            PolylineCurve blister = SimplifyContours((PolylineCurve)blisters[0]);
             // TO remove
             mainOutline = blister;
             pillsss = outPills;
@@ -311,6 +313,15 @@ namespace Blistructor
             return data;
         }
 
+        private PolylineCurve SimplifyContours(PolylineCurve curve)
+        {
+            Polyline reduced = Geometry.DouglasPeuckerReduce(curve.ToPolyline(), 0.2);
+            Point3d[] points;
+            double[] param = reduced.ToPolylineCurve().DivideByLength( 2.0, true, out points);
+            return (new Polyline(points)).ToPolylineCurve();
+
+        }
+
         private List<Curve> GetContursBasedOnBinaryImage(string imagePath, double tol)
         {
             List<List<int[]>> allPoints = Conturer.getContours(imagePath, tol);
@@ -325,8 +336,8 @@ namespace Blistructor
                 }
                 pLine.Add(pLine.First);
                 PolylineCurve ppLine = pLine.ToPolylineCurve();
-
-                finalContours.Add((Curve)ppLine.Rebuild(pLine.Count, 3, true));
+                finalContours.Add(ppLine);
+              //  finalContours.Add((Curve)ppLine.Rebuild(pLine.Count, 3, true));
             }
             return finalContours;
         }

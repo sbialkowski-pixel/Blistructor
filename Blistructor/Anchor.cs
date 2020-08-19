@@ -310,9 +310,7 @@ namespace Blistructor
 
         public bool IsBlisterStraight(double maxDeviation)
         {
-            AreaMassProperties aaProp = AreaMassProperties.Compute(aaBBox);
-            AreaMassProperties maProp = AreaMassProperties.Compute(maBBox);
-            if ((aaProp.Area / maProp.Area) > maxDeviation) return false;
+            if ((aaBBox.Area() / maBBox.Area()) > maxDeviation) return false;
             else return true;
         }
 

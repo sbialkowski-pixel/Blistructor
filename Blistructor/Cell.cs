@@ -40,7 +40,10 @@ namespace Blistructor
         public PolylineCurve pill;
         public PolylineCurve pillOffset;
 
-        private AreaMassProperties pillProp;
+
+        private Point3d pillCenter;
+
+        //private AreaMassProperties pillProp;
 
         // Connection and Adjacent Stuff
         public Curve voronoi;
@@ -69,7 +72,8 @@ namespace Blistructor
 
             Anchor = new AnchorPoint();
 
-            pillProp = AreaMassProperties.Compute(pill);
+            pillCenter = pill.ToPolyline().CenterPoint();
+         // pillProp = AreaMassProperties.Compute(pill);
 
             // Create pill offset
             Curve ofCur = pill.Offset(Plane.WorldXY, Setups.BladeWidth / 2);
@@ -87,7 +91,9 @@ namespace Blistructor
         #region PROPERTIES
         public Point3d PillCenter
         {
-            get { return pillProp.Centroid; }
+            //get { return pillProp.Centroid; } //
+            get { return pillCenter; } //
+            
         }
 
         public Blister Blister
@@ -211,7 +217,7 @@ namespace Blistructor
                 {
                     LineCurve proxLine = new LineCurve(ptA, ptB);
                     proxLines.Add(proxLine);
-                    Point3d samplePoint = proxLine.PointAtNormalizedLength(0.5);
+                    Point3d samplePoint = proxLine.Line.PointAt(0.5);   //PointAtNormalizedLength(0.5);
                     samplePoints.Add(samplePoint);
                 }
             }

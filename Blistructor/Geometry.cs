@@ -140,7 +140,9 @@ namespace Blistructor
                 bool unique = true;
                 for (int j = i + 1; j < crvs.Count; j++)
                 {
-                    if (GeometryBase.GeometryEquals(crvs[i], crvs[j]))
+                    if (crvs[i].ToNurbsCurve().EpsilonEquals(crvs[j].ToNurbsCurve(), Setups.GeneralTolerance)) 
+
+                    // if (GeometryBase.GeometryEquals(crvs[i], crvs[j]))
                     {
                         unique = false;
                     }
@@ -180,6 +182,15 @@ namespace Blistructor
             }
             Array.Sort(tA, points);
             return points;
+        }
+        
+       
+        public static Circle FitCircle(List<Point3d> points)
+        {
+            Polyline pline = new Polyline(points);
+            Point3d center = pline.CenterPoint();
+            double radius = (double)points.Select(pt => pt.DistanceTo(center)).Sum() / (double)points.Count;
+            return new Circle(center, radius);
         }
         
         /*
@@ -467,7 +478,7 @@ namespace Blistructor
                     }
                     else
                     {
-                        if (region.Contains(AreaMassProperties.Compute(current_region).Centroid, Plane.WorldXY, Setups.GeneralTolerance) == PointContainment.Inside)
+                        if (region.Contains(current_region.CenterPoint(), Plane.WorldXY, Setups.GeneralTolerance) == PointContainment.Inside)
                         {
                             current_temp_regions.Add(current_region);
                         }
@@ -545,8 +556,9 @@ namespace Blistructor
                     }
                 }
 
-                Circle fitCirc;
-                Circle.TryFitCircleToPoints(pts, out fitCirc);
+               // Circle fitCirc;
+               // Circle.TryFitCircleToPoints(pts, out fitCirc);
+                Circle fitCirc = Geometry.FitCircle(pts);
                 Polyline poly = new Polyline(SortPtsAlongCurve(Point3d.CullDuplicates(pts, 0.0001), fitCirc.ToNurbsCurve()));
                 poly.Add(poly[0]);
                 poly.ReduceSegments(tolerance);
@@ -558,7 +570,8 @@ namespace Blistructor
 
         public static PolylineCurve MinimumAreaRectangleBF(Curve crv)
         {
-            Point3d centre = AreaMassProperties.Compute(crv).Centroid;
+
+            Point3d centre = ((PolylineCurve)crv).ToPolyline().CenterPoint();
             double minArea = double.MaxValue;
             PolylineCurve outCurve = null;
 
@@ -577,6 +590,7 @@ namespace Blistructor
                     outCurve = r;
                 }
             }
+           // outCurve.ToPolyline()
             return outCurve;
         }
 
@@ -612,6 +626,126 @@ namespace Blistructor
             }
             crv.Domain = new Interval(0.0, 1.0);
         }
+
+        #region Douglas-Peucker Reduce 
+        public const double EPSILON = 1.2e-12;
+        /// <summary>
+        /// "Reduces" a set of line segments by removing points that are too far away. Does not modify the input list; returns
+        /// a new list with the points removed.
+        /// The image says it better than I could ever describe: http://upload.wikimedia.org/wikipedia/commons/3/30/Douglas-Peucker_animated.gif
+        /// The wiki article: http://en.wikipedia.org/wiki/Ramer%E2%80%93Douglas%E2%80%93Peucker_algorithm
+        /// Based on:  http://www.codeproject.com/Articles/18936/A-Csharp-Implementation-of-Douglas-Peucker-Line-Ap
+        /// </summary>
+        /// <param name="pts">Points to reduce</param>
+        /// <param name="error">Maximum distance of a point to a line. Low values (~2-4) work well for mouse/touchscreen data.</param>
+        /// <returns>A new list containing only the points needed to approximate the curve.</returns>
+        public static Polyline DouglasPeuckerReduce(Polyline pLine, double error)
+        {
+
+            List<Point3d> pts = pLine.ToList();
+            if (pts == null) throw new ArgumentNullException("pts");
+            pts = RemoveDuplicates(pts);
+            if (pts.Count < 3)
+                return new Polyline(pts);
+            List<int> keepIndex = new List<int>(Math.Max(pts.Count / 2, 16));
+            keepIndex.Add(0);
+            keepIndex.Add(pts.Count - 1);
+            DouglasPeuckerRecursive(pts, error, 0, pts.Count - 1, keepIndex);
+            keepIndex.Sort();
+            //List<Vector3d> res = new List<Vector3d>(keepIndex.Count);
+            // ReSharper disable once LoopCanBeConvertedToQuery
+            Polyline outLine = new Polyline(keepIndex.Count);
+
+            foreach (int idx in keepIndex)
+                outLine.Add(pts[idx]);
+            return outLine;
+        }
+
+        /// <summary>
+        /// Removes any repeated points (that is, one point extremely close to the previous one). The same point can
+        /// appear multiple times just not right after one another. This does not modify the input list. If no repeats
+        /// were found, it returns the input list; otherwise it creates a new list with the repeats removed.
+        /// </summary>
+        /// <param name="pts">Initial list of points.</param>
+        /// <returns>Either pts (if no duplicates were found), or a new list containing pts with duplicates removed.</returns>
+        public static List<Point3d> RemoveDuplicates(List<Point3d> pts)
+        {
+            if (pts.Count < 2)
+                return pts;
+
+            // Common case -- no duplicates, so just return the source list
+            Point3d prev = pts[0];
+            int len = pts.Count;
+            int nDup = 0;
+            for (int i = 1; i < len; i++)
+            {
+                Point3d cur = pts[i];
+                if (EqualsOrClose(prev, cur))
+                    nDup++;
+                else
+                    prev = cur;
+            }
+
+            if (nDup == 0)
+                return pts;
+            else
+            {
+                // Create a copy without them
+                List<Point3d> dst = new List<Point3d>(len - nDup);
+                prev = pts[0];
+                dst.Add(prev);
+                for (int i = 1; i < len; i++)
+                {
+                    Point3d cur = pts[i];
+                    if (!EqualsOrClose(prev, cur))
+                    {
+                        dst.Add(cur);
+                        prev = cur;
+                    }
+                }
+                return dst;
+            }
+        }
+
+        public static bool EqualsOrClose(Point3d v1, Point3d v2)
+        {
+            return v1.DistanceToSquared(v2) < EPSILON;
+        }
+
+        private static void DouglasPeuckerRecursive(List<Point3d> pts, double error, int first, int last, List<int> keepIndex)
+        {
+            int nPts = last - first + 1;
+            if (nPts < 3)
+                return;
+
+            Point3d a = pts[first];
+            Point3d b = pts[last];
+            double abDist = a.DistanceTo(b);
+            double aCrossB = a.X * b.Y - b.X * a.Y;
+            double maxDist = error;
+            int split = 0;
+            for (int i = first + 1; i < last - 1; i++)
+            {
+                Point3d p = pts[i];
+                Line ab = new Line(a, b);
+                double pDist = ab.DistanceTo(p, true);
+
+                if (pDist > maxDist)
+                {
+                    maxDist = pDist;
+                    split = i;
+                }
+            }
+
+            if (split != 0)
+            {
+                keepIndex.Add(split);
+                DouglasPeuckerRecursive(pts, error, first, split, keepIndex);
+                DouglasPeuckerRecursive(pts, error, split, last, keepIndex);
+            }
+        }
+        #endregion
+
     }
 
 }
