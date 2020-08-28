@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 
 #if PIXEL
-using Pixel;
-using Pixel.Geometry;
+using Pixel.Rhino;
+using Pixel.Rhino.Geometry;
 #else
 using Rhino;
 using Rhino.Geometry;
@@ -65,7 +65,7 @@ namespace Blistructor
 
             // Create initial predition Lines
             LineCurve fullPredLine = new LineCurve(GuideLine);
-            fullPredLine.Translate(Vector3d.YAxis * Setups.CartesianDepth / 2);
+            fullPredLine.Translate(Vector3d.YAxis * Setups.JawDepth / 2);
 
             // Find limits based on Blister Shape
             double[] paramT = GuideLine.DivideByCount(50, true);
@@ -73,7 +73,7 @@ namespace Blistructor
             foreach (double t in paramT)
             {
                 //double parT;
-                if (mainOutline.ClosestPoint(GuideLine.PointAt(t), out double parT, Setups.CartesianDepth / 2)) limitedParamT.Add(parT);
+                if (mainOutline.ClosestPoint(GuideLine.PointAt(t), out double parT, Setups.JawDepth / 2)) limitedParamT.Add(parT);
             }
             // Find Extreme points on Blister
             List<Point3d> extremePointsOnBlister = new List<Point3d>(){
@@ -93,7 +93,7 @@ namespace Blistructor
             // Shrink curve on both sides by half of Grasper width.
 
             // Move temporaly predLine to the upper position, too chceck intersection with pills.
-            fullPredLine.Translate(Vector3d.YAxis * Setups.CartesianDepth / 2);
+            fullPredLine.Translate(Vector3d.YAxis * Setups.JawDepth / 2);
             // NOTE: Check intersection with pills (Or maybe with pillsOffset. Rethink problem)
             Tuple<List<Curve>, List<Curve>> trimResult = Geometry.TrimWithRegions(fullPredLine, mBlister.Queue[0].GetPills(false));
             // Gather all parts outsite (not in pills) shrink curve on both sides by half of Grasper width and move it back to mid position 
@@ -101,11 +101,11 @@ namespace Blistructor
             {
                 // Shrink pieces on both sides by half of Grasper width.
                 Line ln = ((LineCurve)crv).Line;
-                if (ln.Length < Setups.CartesianThickness) continue;
-                ln.Extend(-Setups.CartesianThickness / 2, -Setups.CartesianThickness / 2);
+                if (ln.Length < Setups.JawWidth) continue;
+                ln.Extend(-Setups.JawWidth / 2, -Setups.JawWidth / 2);
                 LineCurve cln = new LineCurve(ln);
                 //move it to 0 position
-                cln.Translate(Vector3d.YAxis * -Setups.CartesianDepth);
+                cln.Translate(Vector3d.YAxis * -Setups.JawDepth);
                 // Gather 
                 GrasperPossibleLocation.Add(cln);
             }
@@ -245,24 +245,24 @@ namespace Blistructor
             {
                 //log.Info(String.Format("offset Length: {0}", offset.Length));
                 Curve rightMove = (Curve)offset.Duplicate();
-                rightMove.Translate(Vector3d.XAxis * Setups.CartesianThickness / 2);
+                rightMove.Translate(Vector3d.XAxis * Setups.JawWidth / 2);
                 Curve leftMove = (Curve)offset.Duplicate();
-                leftMove.Translate(-Vector3d.XAxis * Setups.CartesianThickness / 2);
+                leftMove.Translate(-Vector3d.XAxis * Setups.JawWidth / 2);
                 List<Curve> unitedCurve = Curve.CreateBooleanUnion(new List<Curve>() { rightMove, offset, leftMove });
                 if (unitedCurve.Count == 1)
                 {
                     //log.Info(String.Format("unitedCurve Length: {0}", unitedCurve.Length));
                     // Assuming GrasperPossibleLocation is in the 0 possition...
                     // First make upper. Move halfway up, trim
-                    moveGrasperPossibleLocation(Setups.CartesianDepthLow);
+                    moveGrasperPossibleLocation(Setups.JawDepth);
                     Tuple<List<Curve>, List<Curve>> result = Geometry.TrimWithRegion(GrasperPossibleLocation.Select(crv => (Curve)crv).ToList(), unitedCurve[0]);
                     GrasperPossibleLocation = result.Item2.Select(crv => (LineCurve)crv).ToList();
                     // Move fullway down, trim
-                    moveGrasperPossibleLocation(-Setups.CartesianDepthLow);
+                    moveGrasperPossibleLocation(-Setups.JawDepth);
                     result = Geometry.TrimWithRegion(GrasperPossibleLocation.Select(crv => (Curve)crv).ToList(), unitedCurve[0]);
                     GrasperPossibleLocation = result.Item2.Select(crv => (LineCurve)crv).ToList();
                     // Put it back on place...
-                    //moveGrasperPossibleLocation(Setups.CartesianDepthLow * 0.5);
+                    //moveGrasperPossibleLocation(Setups.JawDepthLow * 0.5);
                 }
 
             }
@@ -275,9 +275,9 @@ namespace Blistructor
                 Curve simplePolygon = polygon;
                 simplePolygon.RemoveShortSegments(Setups.CollapseTolerance);
 
-                Curve offset = simplePolygon.Offset(Plane.WorldXY, Setups.CartesianThickness / 2);
+                Curve offset = simplePolygon.Offset(Plane.WorldXY, Setups.JawWidth / 2);
 
-                //Curve[] offset = simplePolygon.Offset(Plane.WorldXY, Setups.CartesianThickness / 2, Setups.GeneralTolerance, CurveOffsetCornerStyle.Sharp);
+                //Curve[] offset = simplePolygon.Offset(Plane.WorldXY, Setups.JawWidth / 2, Setups.GeneralTolerance, CurveOffsetCornerStyle.Sharp);
                 if (offset != null)
                 {
                     //    log.Warn(String.Format("Anchor Pred Line Update - Polygon Oreint {0}", polygon.ClosedCurveOrientation()));
@@ -294,7 +294,7 @@ namespace Blistructor
 
             if (path != null)
             {
-                PolylineCurve pathOutline = Geometry.PolylineThicken(path, Setups.BladeWidth / 2 + Setups.CartesianThickness / 2);
+                PolylineCurve pathOutline = Geometry.PolylineThicken(path, Setups.BladeWidth / 2 + Setups.JawWidth / 2);
                 Tuple<List<Curve>, List<Curve>> result = Geometry.TrimWithRegion(GrasperPossibleLocation.Select(crv => (Curve)crv).ToList(), pathOutline);
                 GrasperPossibleLocation = result.Item2.Select(crv => (LineCurve)crv).ToList();
             }

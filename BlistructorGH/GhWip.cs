@@ -791,7 +791,7 @@ namespace BlistructorGH
 
                 // Create initial predition Line
                 LineCurve fullPredLine = new LineCurve(GuideLine);
-                fullPredLine.Translate(Vector3d.YAxis * Setups.CartesianDepth / 2);
+                fullPredLine.Translate(Vector3d.YAxis * Setups.JawDepth / 2);
 
                 // Find limits based on Blister Shape
                 double[] paramT = GuideLine.DivideByCount(50, true);
@@ -799,7 +799,7 @@ namespace BlistructorGH
                 foreach (double t in paramT)
                 {
                     double parT;
-                    if (mainOutline.ClosestPoint(GuideLine.PointAt(t), out parT, Setups.CartesianDepth / 2)) limitedParamT.Add(parT);
+                    if (mainOutline.ClosestPoint(GuideLine.PointAt(t), out parT, Setups.JawDepth / 2)) limitedParamT.Add(parT);
                 }
                 // Find Extreme points on Blister
                 List<Point3d> extremePointsOnBlister = new List<Point3d>(){
@@ -819,7 +819,7 @@ namespace BlistructorGH
                 // Shrink curve on both sides by half of Grasper width.
 
                 // Move temporaly predLine to the upper position, too chceck intersection with pills.
-                fullPredLine.Translate(Vector3d.YAxis * Setups.CartesianDepth / 2);
+                fullPredLine.Translate(Vector3d.YAxis * Setups.JawDepth / 2);
                 // NOTE: Check intersection with pills (Or maybe with pillsOffset. Rethink problem)
                 Tuple<List<Curve>, List<Curve>> trimResult = Geometry.TrimWithRegions(fullPredLine, mBlister.Queue[0].GetPills(false));
                 // Gather all parts outsite (not in pills) shrink curve on both sides by half of Grasper width and move it back to mid position 
@@ -827,11 +827,11 @@ namespace BlistructorGH
                 {
                     // Shrink pieces on both sides by half of Grasper width.
                     Line ln = ((LineCurve)crv).Line;
-                    if (ln.Length < Setups.CartesianThickness) continue;
-                    ln.Extend(-Setups.CartesianThickness / 2, -Setups.CartesianThickness / 2);
+                    if (ln.Length < Setups.JawWidth) continue;
+                    ln.Extend(-Setups.JawWidth / 2, -Setups.JawWidth / 2);
                     LineCurve cln = new LineCurve(ln);
                     //move it back to mid position
-                    cln.Translate(Vector3d.YAxis * -Setups.CartesianDepth / 2);
+                    cln.Translate(Vector3d.YAxis * -Setups.JawDepth / 2);
                     // Gather 
                     GrasperPossibleLocation.Add(cln);
                 }
@@ -930,7 +930,7 @@ namespace BlistructorGH
             {
                  if (polygon != null)
                 {
-                   Curve[] offset = polygon.Offset(Plane.WorldXY, Setups.CartesianThickness / 2, Setups.GeneralTolerance, CurveOffsetCornerStyle.Sharp);
+                   Curve[] offset = polygon.Offset(Plane.WorldXY, Setups.JawWidth / 2, Setups.GeneralTolerance, CurveOffsetCornerStyle.Sharp);
                     if (offset.Length > 0)
                     {
                         Tuple<List<Curve>, List<Curve>> result = Geometry.TrimWithRegion(GrasperPossibleLocation.Select(crv => (Curve)crv).ToList(), offset[0]);
@@ -940,7 +940,7 @@ namespace BlistructorGH
 
                 if (path != null)
                 {
-                    PolylineCurve pathOutline = Geometry.PolylineThicken(path, Setups.BladeWidth / 2 + Setups.CartesianThickness / 2);
+                    PolylineCurve pathOutline = Geometry.PolylineThicken(path, Setups.BladeWidth / 2 + Setups.JawWidth / 2);
                     Tuple<List<Curve>,List<Curve>> result= Geometry.TrimWithRegion(GrasperPossibleLocation.Select(crv => (Curve)crv).ToList(), pathOutline);
                     GrasperPossibleLocation = result.Item2.Select(crv => (LineCurve)crv ).ToList();
                 }
@@ -2658,8 +2658,8 @@ namespace BlistructorGH
             public const double BladeWidth = 3.0;
             
             // CARTESIAN
-            public const double CartesianThickness = 5.0;
-            public const double CartesianDepth = 3.0;
+            public const double JawWidth = 5.0;
+            public const double JawDepth = 3.0;
             public const double BlisterCartesianDistance = 3.0;
             public const double CartesianMaxWidth = 85.0;
             public const double CartesianMinWidth = 10.0;

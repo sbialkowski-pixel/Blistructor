@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 
 #if PIXEL
-using Pixel.Geometry;
-using ExtraMath = Pixel.PixelMath;
+using Pixel.Rhino.Geometry;
+using ExtraMath = Pixel.Rhino.RhinoMath;
 #else
 using Rhino.Geometry;
 using ExtraMath = Rhino.RhinoMath;
@@ -245,8 +245,7 @@ namespace Blistructor
 
         public double GetArea()
         {
-            AreaMassProperties prop = AreaMassProperties.Compute(polygon);
-            return prop.Area;
+            return polygon.Area();
         }
 
         public double GetPerimeter()
@@ -287,6 +286,8 @@ namespace Blistructor
                 // YAxiz z wizaku z tym ze nastepuje zmiana koordynatów z X na y przy przejsciu z trybu PICK na WORK...
                 Vector3d lineVector = line.Line.UnitTangent;
                 lineVector.Y = -lineVector.Y;
+
+
                 double angle = Vector3d.VectorAngle(Vector3d.XAxis, lineVector, Plane.WorldXY)+ Setups.BladeRotationCalibration;
                 cutData.Add("angle", ExtraMath.ToDegrees(angle));
                 //Point 

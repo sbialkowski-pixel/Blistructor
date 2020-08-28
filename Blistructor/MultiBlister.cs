@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Newtonsoft.Json.Linq;
 #if PIXEL
-using Pixel.Geometry;
+using Pixel.Rhino.Geometry;
 #else
 using Rhino.Geometry;
 #endif
@@ -35,7 +35,7 @@ using log4net;
  */
 
 namespace Blistructor
-{ 
+{
     public class MultiBlister
     {
         private static readonly ILog log = LogManager.GetLogger("Main.Blistructor");
@@ -80,7 +80,7 @@ namespace Blistructor
             }
         }
 
-#region PROPERTIES   
+        #region PROPERTIES   
 
         public List<PolylineCurve> GetCuttedPolygons
         {
@@ -109,10 +109,13 @@ namespace Blistructor
             }
         }
 
-#endregion
+        #endregion
 
         private void Initialise(List<PolylineCurve> Pills, PolylineCurve Blister)
         {
+            // Init Logger
+            Logger.Setup();
+
             // Initialize Lists
             Queue = new List<Blister>();
             Cutted = new List<Blister>();
@@ -124,10 +127,10 @@ namespace Blistructor
             anchor = new Anchor(this);
             log.Debug(String.Format("New blistructor with {0} Queue blisters", Queue.Count));
             // World Obstacles
-           // Line cartesianLimitLine = new Line(new Point3d(0, -Setups.BlisterCartesianDistance, 0), Vector3d.XAxis, 1.0);
+            // Line cartesianLimitLine = new Line(new Point3d(0, -Setups.BlisterCartesianDistance, 0), Vector3d.XAxis, 1.0);
             //cartesianLimitLine.Extend(Setups.IsoRadius, Setups.IsoRadius);
-            
-           worldObstacles = new List<Curve>() { anchor.cartesianLimitLine };
+
+            worldObstacles = new List<Curve>() { anchor.cartesianLimitLine };
 
         }
 
@@ -144,17 +147,17 @@ namespace Blistructor
             List<PolylineCurve> outPills = new List<PolylineCurve>();
             foreach (PolylineCurve crv in pills)
             {
-                outPills.Add(SimplifyContours(crv));
+                outPills.Add(SimplifyContours2(crv));
 
-              //NurbsCurve nCrv = (NurbsCurve)crv;
-              //  Curve fitCurve = nCrv.Fit(3, Setups.CurveFitTolerance, 0.0);
-              //  outPills.Add(fitCurve.ToPolyline(Setups.CurveDistanceTolerance, 0.0, 0.05, 1000.0));
+                //NurbsCurve nCrv = (NurbsCurve)crv;
+                //  Curve fitCurve = nCrv.Fit(3, Setups.CurveFitTolerance, 0.0);
+                //  outPills.Add(fitCurve.ToPolyline(Setups.CurveDistanceTolerance, 0.0, 0.05, 1000.0));
             }
 
             //NurbsCurve bliNCrv = (NurbsCurve)blisters[0];
             //Curve fitBliCurve = bliNCrv.Fit(3, Setups.CurveFitTolerance, 0.0);
             //PolylineCurve blister = fitBliCurve.ToPolyline(Setups.CurveDistanceTolerance, 0.0, 0.05, 1000.0);
-            PolylineCurve blister = SimplifyContours((PolylineCurve)blisters[0]);
+            PolylineCurve blister = SimplifyContours2((PolylineCurve)blisters[0]);
             // TO remove
             mainOutline = blister;
             pillsss = outPills;
@@ -163,7 +166,7 @@ namespace Blistructor
             return cuttingResult;
             // return null;
         }
-        
+
         public JObject CutBlister(List<Polyline> pills, Polyline blister)
         {
             List<PolylineCurve> convPills = new List<PolylineCurve>();
@@ -317,10 +320,20 @@ namespace Blistructor
         {
             Polyline reduced = Geometry.DouglasPeuckerReduce(curve.ToPolyline(), 0.2);
             Point3d[] points;
-            double[] param = reduced.ToPolylineCurve().DivideByLength( 2.0, true, out points);
+            double[] param = reduced.ToPolylineCurve().DivideByLength(2.0, true, out points);
             return (new Polyline(points)).ToPolylineCurve();
 
         }
+
+        private PolylineCurve SimplifyContours2(PolylineCurve curve)
+        {
+            Polyline pline = curve.ToPolyline();
+            pline.Smooth(1.0);
+            pline.DeleteShortSegments(Setups.CurveReduceTolerance);
+            pline.MergeColinearSegments(Setups.ColinearTolerance, true);
+            return pline.ToPolylineCurve();
+        }
+
 
         private List<Curve> GetContursBasedOnBinaryImage(string imagePath, double tol)
         {
@@ -337,7 +350,7 @@ namespace Blistructor
                 pLine.Add(pLine.First);
                 PolylineCurve ppLine = pLine.ToPolylineCurve();
                 finalContours.Add(ppLine);
-              //  finalContours.Add((Curve)ppLine.Rebuild(pLine.Count, 3, true));
+                //  finalContours.Add((Curve)ppLine.Rebuild(pLine.Count, 3, true));
             }
             return finalContours;
         }

@@ -2,10 +2,10 @@
 using System.Collections.Generic;
 using System.Linq;
 #if PIXEL
- using Pixel;
-using Pixel.Geometry;
-using Pixel.Geometry.Intersect;
-using ExtraMath = Pixel.PixelMath;
+using Pixel.Rhino;
+using Pixel.Rhino.Geometry;
+using Pixel.Rhino.Geometry.Intersect;
+using ExtraMath = Pixel.Rhino.RhinoMath;
 #else
 using Rhino;
 using Rhino.Geometry;
@@ -96,7 +96,7 @@ namespace Blistructor
                 SortedList<double, Point3d> interData = new SortedList<double, Point3d>();
                 for (int obId = 0; obId < obstacles.Count; obId++)
                 {
-                    CurveIntersections inter = Intersection.CurveCurve(obstacles[obId], ray, Setups.IntersectionTolerance, Setups.OverlapTolerance);
+                    List<IntersectionEvent> inter = Intersection.CurveCurve(obstacles[obId], ray, Setups.IntersectionTolerance);
                     if (inter.Count > 0)
                     {
                         foreach (IntersectionEvent cross in inter)
@@ -138,15 +138,23 @@ namespace Blistructor
             for (int i = 0; i < crvs.Count; i++)
             {
                 bool unique = true;
+                NurbsCurve baseCurve = crvs[i].ToNurbsCurve();
                 for (int j = i + 1; j < crvs.Count; j++)
                 {
-                    if (crvs[i].ToNurbsCurve().EpsilonEquals(crvs[j].ToNurbsCurve(), Setups.GeneralTolerance)) 
-
-                    // if (GeometryBase.GeometryEquals(crvs[i], crvs[j]))
+                    NurbsCurve testCurve = crvs[j].ToNurbsCurve();
+                    if (baseCurve.EpsilonEquals(testCurve, 0.01))
                     {
                         unique = false;
+                        break;
+                    }
+                    testCurve.Reverse();
+                    if (baseCurve.EpsilonEquals(testCurve, 1))
+                    {
+                        unique = false;
+                        break;
                     }
                 }
+                // if (GeometryBase.GeometryEquals(crvs[i], crvs[j]))
                 if (unique)
                 {
                     uniqueCurves.Add(crvs[i]);
@@ -205,12 +213,12 @@ namespace Blistructor
         }
         */
 
-        public static List<CurveIntersections> CurveCurveIntersection(Curve baseCrv, List<Curve> otherCrv)
+        public static List<List<IntersectionEvent>> CurveCurveIntersection(Curve baseCrv, List<Curve> otherCrv)
         {
-            List<CurveIntersections> allIntersections = new List<CurveIntersections>(otherCrv.Count);
+            List<List<IntersectionEvent>> allIntersections = new List<List<IntersectionEvent>>(otherCrv.Count);
             for (int i = 0; i < otherCrv.Count; i++)
             {
-                CurveIntersections inter = Intersection.CurveCurve(baseCrv, otherCrv[i], Setups.IntersectionTolerance, Setups.OverlapTolerance);
+                List<IntersectionEvent> inter = Intersection.CurveCurve(baseCrv, otherCrv[i], Setups.IntersectionTolerance);
                 if (inter.Count > 0)
                 {
                     allIntersections.Add(inter);
@@ -219,29 +227,29 @@ namespace Blistructor
             return allIntersections;
         }
 
-        public static List<List<CurveIntersections>> CurveCurveIntersection(List<Curve> baseCrv, List<Curve> otherCrv)
+        public static List<List<List<IntersectionEvent>>> CurveCurveIntersection(List<Curve> baseCrv, List<Curve> otherCrv)
         {
-            List<List<CurveIntersections>> allIntersections = new List<List<CurveIntersections>>(baseCrv.Count);
+            List<List< List<IntersectionEvent>>> allIntersections = new List<List<List<IntersectionEvent>>>(baseCrv.Count);
             for (int i = 0; i < baseCrv.Count; i++)
             {
-                List<CurveIntersections> currentInter = new List<CurveIntersections>(otherCrv.Count);
+                List<List<IntersectionEvent>> currentInter = new List<List<IntersectionEvent>>(otherCrv.Count);
                 for (int j = 0; j < otherCrv.Count; j++)
                 {
-                    currentInter.Add(Intersection.CurveCurve(baseCrv[i], otherCrv[j], Setups.IntersectionTolerance, Setups.OverlapTolerance));
+                    currentInter.Add(Intersection.CurveCurve(baseCrv[i], otherCrv[j], Setups.IntersectionTolerance));
                 }
                 allIntersections.Add(currentInter);
             }
             return allIntersections;
         }
 
-        public static List<CurveIntersections> MultipleCurveIntersection(List<Curve> curves)
+        public static List<List<IntersectionEvent>> MultipleCurveIntersection(List<Curve> curves)
         {
-            List<CurveIntersections> allIntersections = new List<CurveIntersections>();
+            List<List<IntersectionEvent>> allIntersections = new List<List<IntersectionEvent>>();
             for (int i = 0; i < curves.Count; i++)
             {
                 for (int j = i + 1; j < curves.Count; j++)
                 {
-                    CurveIntersections inter = Intersection.CurveCurve(curves[i], curves[j], Setups.IntersectionTolerance, Setups.OverlapTolerance);
+                    List<IntersectionEvent> inter = Intersection.CurveCurve(curves[i], curves[j], Setups.IntersectionTolerance);
                     if (inter.Count > 0)
                     {
                         allIntersections.Add(inter);
@@ -255,7 +263,7 @@ namespace Blistructor
         {
             List<Curve> inside = new List<Curve>();
             List<Curve> outside = new List<Curve>();
-            CurveIntersections inter = Intersection.CurveCurve(crv, region, 0.001, 0.001);
+            List<IntersectionEvent> inter = Intersection.CurveCurve(crv, region, Setups.IntersectionTolerance);
             if (inter.Count > 0)
             {
                 List<double> t_param = new List<double>();
@@ -295,14 +303,14 @@ namespace Blistructor
             }
             return Tuple.Create(inside, outside);
         }
-
+                                                                      
         public static Tuple<List<Curve>, List<Curve>> TrimWithRegions(Curve crv, List<Curve> regions)
         {
             List<Curve> inside = new List<Curve>();
             List<Curve> outside = new List<Curve>();
-            List<CurveIntersections> inter = CurveCurveIntersection(crv, regions);
+            List<List<IntersectionEvent>> inter = CurveCurveIntersection(crv, regions);
             SortedList<double, Point3d> data = new SortedList<double, Point3d>();
-            foreach (CurveIntersections crvInter in inter)
+            foreach (List<IntersectionEvent> crvInter in inter)
             {
                 foreach (IntersectionEvent inEv in crvInter)
                 {
@@ -391,7 +399,7 @@ namespace Blistructor
         {
             List<double> region_t_params = new List<double>();
             List<double> splitter_t_params = new List<double>();
-            CurveIntersections intersection = Intersection.CurveCurve(splittingCurve, region, Setups.IntersectionTolerance, Setups.OverlapTolerance);
+            List<IntersectionEvent> intersection = Intersection.CurveCurve(splittingCurve, region, Setups.IntersectionTolerance);
             if (!region.IsClosed)
             {
                 return null;

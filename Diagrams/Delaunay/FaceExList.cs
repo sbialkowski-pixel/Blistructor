@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 using Rhino.Geometry;
-//using Pixel.Geometry;
+//using Pixel.Rhino.Geometry;
 
 namespace Diagrams.Delaunay
 {

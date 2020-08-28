@@ -25,7 +25,7 @@ namespace Blistructor
             hierarchy.Root.Level = Level.Info;
 
             PatternLayout patternLayout = new PatternLayout();
-            patternLayout.ConversionPattern = "%5level %logger.%M - %message%newline";
+            patternLayout.ConversionPattern = "%5level %d{ yyyy-MM-dd HH:mm:ss} %logger.%M - %message%newline";
             patternLayout.ActivateOptions();
 
             //FileAppender - Debug
@@ -34,7 +34,7 @@ namespace Blistructor
             debug_roller.File = @"D:\PIXEL\Blistructor\debug_cutter.log";
             debug_roller.Layout = patternLayout;
             var levelFilter = new LevelRangeFilter();
-            levelFilter.LevelMin = Level.Debug;
+            levelFilter.LevelMin = Level.Info;
             debug_roller.AddFilter(levelFilter);
             //debug_roller.MaxSizeRollBackups = 5;
             //debug_roller.MaximumFileSize = "10MB";
@@ -61,7 +61,7 @@ namespace Blistructor
 
 
             // Add to root
-            // hierarchy.Root.AddAppender(debug_roller);
+            hierarchy.Root.AddAppender(debug_roller);
             hierarchy.Root.AddAppender(prod_roller);
             //hierarchy.Root.Appenders[0].L
 

@@ -1,12 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.IO;
 
 #if PIXEL
-using Pixel;
-using Pixel.Geometry;
-using Pixel.Geometry.Intersect;
-using ExtraMath = Pixel.PixelMath;
+using Pixel.Rhino;
+using Pixel.Rhino.FileIO;
+using Pixel.Rhino.Geometry;
+using Pixel.Rhino.Geometry.Intersect;
+using ExtraMath = Pixel.Rhino.RhinoMath;
 #else
 using Rhino;
 using Rhino.Geometry;
@@ -18,6 +20,7 @@ using log4net;
 using Newtonsoft.Json.Linq;
 
 using Combinators;
+using Pixel.Rhino.DocObjects;
 
 namespace Blistructor
 {
@@ -42,8 +45,6 @@ namespace Blistructor
 
 
         private Point3d pillCenter;
-
-        //private AreaMassProperties pillProp;
 
         // Connection and Adjacent Stuff
         public Curve voronoi;
@@ -73,8 +74,7 @@ namespace Blistructor
             Anchor = new AnchorPoint();
 
             pillCenter = pill.ToPolyline().CenterPoint();
-         // pillProp = AreaMassProperties.Compute(pill);
-
+  
             // Create pill offset
             Curve ofCur = pill.Offset(Plane.WorldXY, Setups.BladeWidth / 2);
             if (ofCur == null)
@@ -326,9 +326,10 @@ namespace Blistructor
             return Geometry.RemoveDuplicateCurves(limiters);
         }
 
+
         public List<Curve> BuildObstacles_v2(List<Curve> worldObstacles)
         {
-
+            // TODO: Adding All Pils Offsets as obstaces...
             List<Curve> limiters = new List<Curve> { pillOffset };
             if (worldObstacles != null) limiters.AddRange(worldObstacles);
             Dictionary<int, Curve> uniqueCellsOffset = new Dictionary<int, Curve>();
@@ -654,6 +655,17 @@ namespace Blistructor
         /// <param name="rays"></param>
         private void PolygonBuilder_v2(List<LineCurve> rays)
         {
+           /*
+            String path = String.Format("D:\\PIXEL\\Blistructor\\DebugModels\\PolygonBuilder_Rays_{0}.3dm", id);
+            File3dm file = new File3dm();
+            if (File.Exists(path)) { 
+               file = File3dm.Read(path); 
+                file.Objects.AddCurve(blister.Outline);
+                file.Objects.AddCurve(pillOffset);
+                this.obstacles.ForEach(crv => file.Objects.AddCurve(crv)) ;
+            }
+            */
+            // file.Dump();
             // Trim incomming rays and build current working full ray aray.
             List<LineCurve> trimedRays = new List<LineCurve>(rays.Count);
             List<LineCurve> fullRays = new List<LineCurve>(rays.Count);
@@ -663,9 +675,12 @@ namespace Blistructor
                 if (trimed_ray == null) continue;
                 trimedRays.Add(trimed_ray);
                 fullRays.Add(ray);
+              //  file.Objects.AddCurve(trimed_ray);
+               // file.Objects.AddLine(ray.Line);
             }
             if (trimedRays.Count != rays.Count) log.Warn("After trimming there is less rays!");
 
+        
 
             List<int> raysIndicies = Enumerable.Range(0, trimedRays.Count).ToList();
 
@@ -684,23 +699,26 @@ namespace Blistructor
                     currentTimmedIsoRays.Add(trimedRays[combinationIndex]);
                     currentFullIsoRays.Add(fullRays[combinationIndex]);
                     pLinecurrentTimmedIsoRays.Add(new PolylineCurve(new List<Point3d>() { trimedRays[combinationIndex].Line.From, trimedRays[combinationIndex].Line.To }));
+
                 }
 
                 log.Debug(String.Format("STAGE 1: Checking {0} rays.", currentTimmedIsoRays.Count));
                 List<CutData> localCutData = new List<CutData>(2);
                 // STAGE 1: Check if each ray in combination, can cut sucessfully blister.
-
+              
                 // Convert LineCurve to PolylineCurve....
-
-                localCutData.Add(VerifyPath(pLinecurrentTimmedIsoRays));
-                log.Debug("STAGE 1: Pass.");
+                CutData afterVerificationSeperate = VerifyPath(pLinecurrentTimmedIsoRays);
+                localCutData.Add(afterVerificationSeperate);
+                log.Debug(String.Format("STAGE 1: Pass. {0}", afterVerificationSeperate != null ? "Cut FOUND" : "Cut NOT found"));
                 //log.Debug(String.Format("RAYS KURWA : {0}", combinations[combId].Count));
                 // STAGE 2: Looking for 1 (ONE) continouse cutpath...
                 // Generate Continouse Path, If there is one curve in combination, PathBuilder will return that curve, so it can be checked.
                 PolylineCurve curveToCheck = PathBuilder(currentTimmedIsoRays);
+                
                 // If PathBuilder retun any curve... (ONE)
                 if (curveToCheck != null)
                 {
+                  //  file.Objects.AddCurve(curveToCheck);
                     // Remove very short segments
                     Polyline pLineToCheck = curveToCheck.ToPolyline();
                     //pLineToCheck.DeleteShortSegments(Setups.CollapseTolerance);
@@ -708,8 +726,10 @@ namespace Blistructor
                     curveToCheck = pLineToCheck.ToPolylineCurve();
                     //curveToCheck = Geometry.SnapToPoints(curveToCheck, blister.Outline, Setups.SnapDistance);
                     // NOTE: straighten parts of curve????
-                    localCutData.Add(VerifyPath(curveToCheck));
-                    log.Debug("STAGE 2: Pass.");
+                    CutData afterVerificationJoined = VerifyPath(curveToCheck);
+            
+                    localCutData.Add(afterVerificationJoined);
+                    log.Debug(String.Format("STAGE 2: Pass. {0}", afterVerificationSeperate != null ? "Cut FOUND" : "Cut NOT found"));
                 }
 
 
@@ -722,6 +742,7 @@ namespace Blistructor
                     cuttingData.Add(cutData);
                 }
             }
+           // file.Write(path, 6);
         }
 
         /// <summary>
@@ -736,10 +757,10 @@ namespace Blistructor
             if (cutters.Count > 1)
             {
                 // Perform intersectiona based on combination array.
-                List<CurveIntersections> intersectionsData = new List<CurveIntersections>();
+                List<List<IntersectionEvent>> intersectionsData = new List<List<IntersectionEvent>>();
                 for (int interId = 1; interId < cutters.Count; interId++)
                 {
-                    CurveIntersections inter = Intersection.CurveCurve(cutters[interId - 1], cutters[interId], Setups.IntersectionTolerance, Setups.OverlapTolerance);
+                    List<IntersectionEvent> inter = Intersection.CurveCurve(cutters[interId - 1], cutters[interId], Setups.IntersectionTolerance);
                     // If no intersection, at any curve, break all testing process
                     if (inter.Count == 0) break;
                     //If exist, Store it
@@ -772,6 +793,16 @@ namespace Blistructor
         }
         private CutData VerifyPath(List<PolylineCurve> pathCrv)
         {
+            /*
+            String path = String.Format("D:\\PIXEL\\Blistructor\\DebugModels\\VerifyPath_{0}.3dm", id);
+            File3dm file = new File3dm();
+            if (File.Exists(path))
+            {
+                file = File3dm.Read(path);
+            }
+            */
+
+
             log.Debug(string.Format("Verify path. Segments: {0}", pathCrv.Count));
             if (pathCrv == null) return null;
             // Check if this curves creates closed polygon with blister edge.
@@ -779,6 +810,9 @@ namespace Blistructor
             List<Curve> splited_blister = Geometry.SplitRegion(blister.Outline, splitters);
             // If after split there is less then 2 region it means nothing was cutted and bliseter stays unchanged
             if (splited_blister == null) return null;
+            //splitters.ForEach(crv => file.Objects.AddCurve(crv));
+            //splited_blister.ForEach(crv => file.Objects.AddCurve(crv));
+           // file.Write(path, 6);
             if (splited_blister.Count < 2) return null;
 
             log.Debug(string.Format("Blister splitited onto {0} parts", splited_blister.Count));

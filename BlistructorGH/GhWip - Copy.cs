@@ -1216,8 +1216,8 @@ namespace BlistructorWip
 
             public double GetArea()
             {
-                AreaMassProperties prop = AreaMassProperties.Compute(Polygon);
-                return prop.Area;
+               // AreaMassProperties prop = AreaMassProperties.Compute(Polygon);
+                return prop.Area();
             }
 
             public double GetPerimeter()

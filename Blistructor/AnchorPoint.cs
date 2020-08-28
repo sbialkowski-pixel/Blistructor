@@ -1,5 +1,5 @@
 ﻿#if PIXEL
-using Pixel;
+using Pixel.Rhino.Geometry;
 #else
 using Rhino.Geometry;
 #endif

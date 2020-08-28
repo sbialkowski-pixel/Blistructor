@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using log4net;
 #if PIXEL
-using Pixel.Geometry;
-using Pixel.Geometry.Intersect;
+using Pixel.Rhino.Geometry;
+using Pixel.Rhino.Geometry.Intersect;
 #else
 using Rhino.Geometry;
 using Rhino.Geometry.Intersect;
@@ -619,7 +619,7 @@ namespace Blistructor
             {
                 for (int j = i + 1; j < cells.Count; j++)
                 {
-                    CurveIntersections inter = Intersection.CurveCurve(cells[i].pillOffset, cells[j].pillOffset, Setups.IntersectionTolerance, Setups.OverlapTolerance);
+                    List<IntersectionEvent> inter = Intersection.CurveCurve(cells[i].pillOffset, cells[j].pillOffset, Setups.IntersectionTolerance);
                     if (inter.Count > 0)
                     {
                         return true;
@@ -648,13 +648,18 @@ namespace Blistructor
                     // If proxCell is cut out or cutCell is same as proxCell, next cell...
                     if (proxCell.State == CellState.Cutted || proxCell.id == currentCell.id) continue;
                     // log.Debug(String.Format("Checking cell: {0}", currentCell.id));
-                    LineCurve line = new LineCurve(currentCell.PillCenter, proxCell.PillCenter);
-                    Point3d midPoint = line.PointAtNormalizedLength(0.5);
+                    Line line = new Line(currentCell.PillCenter, proxCell.PillCenter);
+                    Point3d midPoint = line.PointAt(0.5);
                     double t;
+                 //   bool closeStatus = currentCell.voronoi.ClosestPoint(midPoint, out t);
+                  // double dist = currentCell.voronoi.PointAt(t).DistanceTo(midPoint);
+                  //  log.Debug(String.Format("Distance: {0}", dist));
+                    //  bool closeStatus = currentCell.voronoi.ClosestPoint(midPoint, out t, 2.000);
                     if (currentCell.voronoi.ClosestPoint(midPoint, out t, 2.000))
                     {
+                       // log.Debug(String.Format("Checking cell: {0}", currentCell.id));
                         currenAdjacentCells.Add(proxCell);
-                        currentConnectionLines.Add(line);
+                        currentConnectionLines.Add(new LineCurve(line));
                         currentMidPoints.Add(midPoint);
                     }
                 }
