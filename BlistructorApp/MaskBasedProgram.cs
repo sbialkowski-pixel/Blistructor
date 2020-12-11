@@ -12,7 +12,7 @@ using Blistructor;
 
 namespace BlistructorApp
 {
-    class Program
+    class MaskBasedProgram
     {
         static void Main(string[] args)
         {
@@ -30,11 +30,7 @@ namespace BlistructorApp
                 Console.ReadKey();
             }
             else
-                Console.WriteLine("path doesn't exist");
-
-
-
-           
+                Console.WriteLine("path doesn't exist");           
         }
     }
 }

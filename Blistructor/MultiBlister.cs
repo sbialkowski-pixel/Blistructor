@@ -45,7 +45,10 @@ namespace Blistructor
         private int loopTolerance = 5;
         public List<Blister> Queue;
         public List<Blister> Cutted;
-        public Point3d knifeLastPoint = new Point3d();
+
+        private JObject cuttingResult;
+
+        //  public Point3d knifeLastPoint = new Point3d();
         public Anchor anchor;
         public List<Curve> worldObstacles;
         int cellLimit;
@@ -57,6 +60,7 @@ namespace Blistructor
             mainLimit = -1;
             Queue = new List<Blister>();
             Cutted = new List<Blister>();
+            cuttingResult = PrepareEmptyJSON();
         }
 
         public MultiBlister(int Limit1, int Limit2)
@@ -65,6 +69,7 @@ namespace Blistructor
             mainLimit = Limit1;
             Queue = new List<Blister>();
             Cutted = new List<Blister>();
+            cuttingResult = PrepareEmptyJSON();
         }
 
         public int CuttableCellsLeft
@@ -109,9 +114,12 @@ namespace Blistructor
             }
         }
 
+        public JObject GetLastCutting { get{ return cuttingResult;}}
+
+
         #endregion
 
-        private void Initialise(List<PolylineCurve> Pills, PolylineCurve Blister)
+        private void InitialiseNewCut()
         {
             // Init Logger
             Logger.Setup();
@@ -120,12 +128,17 @@ namespace Blistructor
             Queue = new List<Blister>();
             Cutted = new List<Blister>();
 
-            // Build initial blister
+            cuttingResult = PrepareEmptyJSON();
+        }
+
+        private void InitialiseNewBlister(List<PolylineCurve> Pills, PolylineCurve Blister)
+        {
             Blister initialBlister = new Blister(Pills, Blister);
             initialBlister.SortCellsByCoordinates(true);
             Queue.Add(initialBlister);
             anchor = new Anchor(this);
             log.Debug(String.Format("New blistructor with {0} Queue blisters", Queue.Count));
+            
             // World Obstacles
             // Line cartesianLimitLine = new Line(new Point3d(0, -Setups.BlisterCartesianDistance, 0), Vector3d.XAxis, 1.0);
             //cartesianLimitLine.Extend(Setups.IsoRadius, Setups.IsoRadius);
@@ -134,8 +147,21 @@ namespace Blistructor
 
         }
 
+        public JObject CutBlister(string JSON)
+        {
+            InitialiseNewCut();
+            Dictionary<string, string> jsonCategoryMap = new Dictionary<string, string>();
+            jsonCategoryMap.Add("blister", "blister");
+            jsonCategoryMap.Add("pill", "tabletka");
+
+            // Item1 -> Blister, Item2 -> Pills
+            Tuple<Polyline, List<Polyline>> pLines = GetContursBasedOnJSON(JSON, jsonCategoryMap);
+            return CutBlisterWorker(pLines.Item2, pLines.Item1);
+        }
+
         public JObject CutBlister(string pillsMask, string blisterMask)
         {
+            InitialiseNewCut();
             // Do Contuter stuff here for pills and blister then    CutBlister(pills, blister)
             List<Curve> pills = GetContursBasedOnBinaryImage(pillsMask, 0.0);
             List<Curve> blisters = GetContursBasedOnBinaryImage(blisterMask, 0.0); // This should be 1 element list....
@@ -162,36 +188,40 @@ namespace Blistructor
             mainOutline = blister;
             pillsss = outPills;
 
-            JObject cuttingResult = CutBlister(outPills, blister);
+            JObject cuttingResult = CutBlisterWorker(outPills, blister);
             return cuttingResult;
             // return null;
         }
 
         public JObject CutBlister(List<Polyline> pills, Polyline blister)
         {
-            List<PolylineCurve> convPills = new List<PolylineCurve>();
-            foreach (Polyline pline in pills)
-            {
-                convPills.Add(pline.ToPolylineCurve());
-            }
-            return CutBlister(convPills, blister.ToPolylineCurve());
+            InitialiseNewCut();
+            return CutBlisterWorker(pills, blister);
         }
-
+        
         public JObject CutBlister(List<PolylineCurve> pills, PolylineCurve blister)
         {
-            // Prepare basic stuff
-            JObject cuttingResult = PrepareEmptyJSON();
+            InitialiseNewCut();
+            return CutBlisterWorker(pills, blister);
+        }
+
+        private JObject CutBlisterWorker(List<Polyline> pills, Polyline blister)
+        {
+            return CutBlisterWorker(pills.Select(pline => pline.ToPolylineCurve()).ToList() , blister.ToPolylineCurve());
+        }
+
+        private JObject CutBlisterWorker(List<PolylineCurve> pills, PolylineCurve blister)
+        {
+   
             CuttingState status = CuttingState.CTR_UNSET;
 
             // Pills and blister are already curve objects
-            Initialise(pills, blister);
+            InitialiseNewBlister(pills, blister);
             cuttingResult["pillsDetected"] = pills.Count;
 
             try
             {
                 status = PerformCut(mainLimit, cellLimit);
-
-                // status = CuttingState.CTR_UNSET;
             }
             catch (Exception ex)
             {
@@ -305,10 +335,32 @@ namespace Blistructor
             else return CuttingState.CTR_FAILED;
         }
 
+        private JObject PrepareStatus(CuttingState stateCode, string message)
+        {
+            JObject data = new JObject();
+            data.Add("code", stateCode.ToString());
+            data.Add("message", message);
+            data.Add("notHandleException", new JObject());
+            return data;
+        }
+        private JObject PrepareStatus(CuttingState stateCode, string message, Exception ex)
+        {
+            JObject data = PrepareStatus(stateCode, message);
+            data.Add("code", stateCode.ToString());
+            data.Add("message", message);
+
+            JObject error_data = new JObject();
+            error_data.Add("message", ex.Message);
+            error_data.Add("stackTrace", ex.StackTrace);
+            data["notHandleException"] = error_data;
+            return data;
+        }
+
+
         private JObject PrepareEmptyJSON()
         {
             JObject data = new JObject();
-            data.Add("status", null);
+            data.Add("status", new JObject());
             data.Add("pillsDetected", null);
             data.Add("pillsCutted", null);
             data.Add("jawsLocation", null);
@@ -334,6 +386,56 @@ namespace Blistructor
             return pline.ToPolylineCurve();
         }
 
+        public Tuple<Polyline, List<Polyline>> GetContursBasedOnJSON(string json, Dictionary<string, string> jsonCategoryMap)
+        {
+            JArray data = JArray.Parse(json);
+            if (data.Count == 0)
+            {
+                log.Error(String.Format("JSON - Input JSON contains no data, or data are not Array type"));
+                return null;
+            }
+
+            List<Polyline> pills = new List<Polyline>();
+            List<Polyline> blister = new List<Polyline>();
+
+            foreach (JObject obj_data in data)
+            {
+                JArray contours = (JArray)obj_data["contours"];
+                // If more the one contours or zero per category, return error;
+                if (contours.Count != 1)
+                {
+                    log.Error(String.Format("JSON - Found {0} contours per object. Only one contour per object allowed", contours.Count));
+                    return null;
+                } 
+                // Get contour and create Polyline
+                JArray points = (JArray)contours[0];
+                Polyline pline = new Polyline(points.Count);
+                foreach (JArray cont_data in points)
+                {
+                    pline.Add((double)cont_data[0], (double)cont_data[1], 0);
+                }
+                // Check if Polyline is closed
+                if (!pline.IsClosed)
+                {
+                    log.Error(String.Format("JSON - Polyline is not closed. Inccorect contour data."));
+                    return null;
+                }
+                if ((string)obj_data["category"] == jsonCategoryMap["pill"]) pills.Add(pline);
+                else if ((string)obj_data["category"] == jsonCategoryMap["blister"]) blister.Add(pline);
+                else {
+                    string message = String.Format("JSON - Incorrect category for countour"); 
+                    log.Error(message);
+                    PrepareStatus(CuttingState.CTR_OTHER_ERR, message);
+                    return null; }
+            }
+
+            if (blister.Count != 1) {
+                string message = String.Format("JSON - {0} blister objects found! Need just one object.", blister.Count);
+                log.Error(message);
+                PrepareStatus(CuttingState.CTR_OTHER_ERR, message);
+                return null; }
+            return Tuple.Create(blister[0], pills);
+        }
 
         private List<Curve> GetContursBasedOnBinaryImage(string imagePath, double tol)
         {
@@ -366,7 +468,5 @@ namespace Blistructor
                 crv.Rotate(Setups.Rotate, Vector3d.ZAxis, new Point3d(0, 0, 0));
             }
         }
-
-
     }
 }
