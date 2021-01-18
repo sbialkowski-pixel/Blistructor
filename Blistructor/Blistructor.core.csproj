@@ -1,39 +1,35 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Common Stuff -->
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
+    <TargetFrameworks>netstandard2.0;net45</TargetFrameworks>
+    <DefineConstants>TRACE PIXEL</DefineConstants>
     <OutputType>Library</OutputType>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <AssemblyName>Blistructor</AssemblyName>
+    <RootNamespace>Blistructor</RootNamespace>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug_Accupro5|AnyCPU' ">
-    <DebugSymbols>true</DebugSymbols>
-    <Optimize>false</Optimize>
-    <DefineConstants>TRACE;DEBUG;PIXEL</DefineConstants>
-    <PlatformTarget>x64</PlatformTarget>
-  </PropertyGroup>
+  
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <DefineConstants>TRACE;PIXEL</DefineConstants>
-    <PlatformTarget>x64</PlatformTarget>
-    <DebugSymbols>true</DebugSymbols>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug_Valtap|AnyCPU'">
-    <DebugSymbols>true</DebugSymbols>
-    <DefineConstants>TRACE;DEBUG;PIXEL</DefineConstants>
-    <PlatformTarget>x64</PlatformTarget>
-    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release_JSON|AnyCPU'">
-    <DebugSymbols>true</DebugSymbols>
-    <OutputPath>bin\Release_JSON\</OutputPath>
-    <DefineConstants>TRACE;PIXEL</DefineConstants>
+    <OutputPath>Release\</OutputPath>
     <Optimize>true</Optimize>
-    <PlatformTarget>x64</PlatformTarget>
-    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+    <!--PlatformTarget>x64</PlatformTarget-->
   </PropertyGroup>
+  
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <OutputPath>Debug\</OutputPath>
+    <DebugSymbols>true</DebugSymbols>
+  </PropertyGroup>
+  
   <ItemGroup>
-    <Reference Include="Rhino3dm">
-      <HintPath>..\..\rhino3dm\src\dotnet\Release\Rhino3dm.dll</HintPath>
-    </Reference>
+    <Compile Remove="bin_old\**" />
+    <Compile Remove="obj_old\**" />
+    <EmbeddedResource Remove="bin_old\**" />
+    <EmbeddedResource Remove="obj_old\**" />
+    <None Remove="bin_old\**" />
+    <None Remove="obj_old\**" />
   </ItemGroup>
+
   <ItemGroup>
     <None Update="log4net.config">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
@@ -42,12 +38,56 @@
   <ItemGroup>
     <Content Include="ReadMe.txt" />
   </ItemGroup>
+  
   <ItemGroup>
-    <PackageReference Include="EMGU.CV" Version="4.1.1.3497" />
-    <PackageReference Include="log4net" Version="2.0.8" />
-    <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
+    <PackageReference Include="log4net" Version="2.0.12" />
     <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
-    <PackageReference Include="System.Data.DataSetExtensions" Version="4.5.0" />
-    <PackageReference Include="ZedGraph" Version="5.1.7" />
+    <!--PackageReference Include="Microsoft.CSharp" Version="4.7.0" /-->
+    <!--PackageReference Include="System.Data.DataSetExtensions" Version="4.5.0" /-->
+  </ItemGroup>
+  
+  <!-- .NET Standard 2.0 references, compilation flags and build options -->
+  <ItemGroup Condition="$(TargetFramework.StartsWith('netstandard'))">
+    <Reference Include="Rhino3dm">
+      <HintPath>..\..\rhino3dm\src\dotnet\Release\netstandard2.0\Rhino3dm.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!-- .NET 4.5 references, compilation flags and build options -->
+  <ItemGroup Condition="$(TargetFramework.StartsWith('net4'))">
+    <Reference Include="Rhino3dm">
+      <HintPath>..\..\rhino3dm\src\dotnet\Release\net45\Rhino3dm.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+  
+  <!-- Native c++ lib inclusion -->
+  <ItemGroup Condition="exists('..\..\rhino3dm\src\build\windows\win64\Release\librhino3dm_native.dll')">
+    <None Include="..\..\rhino3dm\src\build\windows\win64\Release\librhino3dm_native.dll">
+      <PackagePath>runtimes\win-x64\native</PackagePath>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Pack>true</Pack>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup Condition="exists('..\..\rhino3dm\src\build\macos\Release\librhino3dm_native.dylib')">
+    <None Include="..\..\rhino3dm\src\build\macos\Release\librhino3dm_native.dylib">
+      <PackagePath>runtimes\osx-x64\native</PackagePath>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Pack>true</Pack>
+    </None>
+  </ItemGroup>
+  
+  <ItemGroup Condition="exists('..\..\rhino3dm\src\build\linux\Release\librhino3dm_native.so')">
+    <None Include="..\..\rhino3dm\src\build\linux\Release\librhino3dm_native.so">
+      <PackagePath>runtimes\linux-x64\native</PackagePath>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Pack>true</Pack>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="packages.config" />
   </ItemGroup>
 </Project>

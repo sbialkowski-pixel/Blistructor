@@ -159,40 +159,6 @@ namespace Blistructor
             return CutBlisterWorker(pLines.Item2, pLines.Item1);
         }
 
-        public JObject CutBlister(string pillsMask, string blisterMask)
-        {
-            InitialiseNewCut();
-            // Do Contuter stuff here for pills and blister then    CutBlister(pills, blister)
-            List<Curve> pills = GetContursBasedOnBinaryImage(pillsMask, 0.0);
-            List<Curve> blisters = GetContursBasedOnBinaryImage(blisterMask, 0.0); // This should be 1 element list....
-            if (blisters.Count != 1) return null;
-            ApplyCalibrationData(pills);
-            ApplyCalibrationData(blisters);
-
-            // process pills
-            List<PolylineCurve> outPills = new List<PolylineCurve>();
-            foreach (PolylineCurve crv in pills)
-            {
-                outPills.Add(SimplifyContours2(crv));
-
-                //NurbsCurve nCrv = (NurbsCurve)crv;
-                //  Curve fitCurve = nCrv.Fit(3, Setups.CurveFitTolerance, 0.0);
-                //  outPills.Add(fitCurve.ToPolyline(Setups.CurveDistanceTolerance, 0.0, 0.05, 1000.0));
-            }
-
-            //NurbsCurve bliNCrv = (NurbsCurve)blisters[0];
-            //Curve fitBliCurve = bliNCrv.Fit(3, Setups.CurveFitTolerance, 0.0);
-            //PolylineCurve blister = fitBliCurve.ToPolyline(Setups.CurveDistanceTolerance, 0.0, 0.05, 1000.0);
-            PolylineCurve blister = SimplifyContours2((PolylineCurve)blisters[0]);
-            // TO remove
-            mainOutline = blister;
-            pillsss = outPills;
-
-            JObject cuttingResult = CutBlisterWorker(outPills, blister);
-            return cuttingResult;
-            // return null;
-        }
-
         public JObject CutBlister(List<Polyline> pills, Polyline blister)
         {
             InitialiseNewCut();
@@ -435,26 +401,6 @@ namespace Blistructor
                 PrepareStatus(CuttingState.CTR_OTHER_ERR, message);
                 return null; }
             return Tuple.Create(blister[0], pills);
-        }
-
-        private List<Curve> GetContursBasedOnBinaryImage(string imagePath, double tol)
-        {
-            List<List<int[]>> allPoints = Conturer.getContours(imagePath, tol);
-            List<Curve> finalContours = new List<Curve>();
-            foreach (List<int[]> conturPoints in allPoints)
-            {
-                Polyline pLine = new Polyline(conturPoints.Count);
-                foreach (int[] rawPoint in conturPoints)
-                {
-                    Point3d point = new Point3d(rawPoint[0], rawPoint[1], 0);
-                    pLine.Add(point);
-                }
-                pLine.Add(pLine.First);
-                PolylineCurve ppLine = pLine.ToPolylineCurve();
-                finalContours.Add(ppLine);
-                //  finalContours.Add((Curve)ppLine.Rebuild(pLine.Count, 3, true));
-            }
-            return finalContours;
         }
 
         private void ApplyCalibrationData(List<Curve> curves)
