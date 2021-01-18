@@ -5,9 +5,11 @@ VisualStudioVersion = 16.0.30804.86
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Blistructor.core", "Blistructor\Blistructor.core.csproj", "{C640724D-8EF7-4A46-837C-E032270A2D46}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BlistructorApp", "BlistructorApp\BlistructorApp.csproj", "{036B6351-0334-46F5-A9DB-5C28095CA741}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BlistructorApp", "BlistructorApp\BlistructorApp.csproj", "{036B6351-0334-46F5-A9DB-5C28095CA741}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BlistructorGH", "BlistructorGH\BlistructorGH.csproj", "{FAE0E2D2-BCB2-446A-B3D3-7DB9C3B24FAB}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BlistructorGH", "BlistructorGH\BlistructorGH.csproj", "{FAE0E2D2-BCB2-446A-B3D3-7DB9C3B24FAB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BlistructorWeb", "BlistructorWeb\BlistructorWeb.csproj", "{718722C3-39F4-418A-8202-7D9D1D8F25EC}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -48,6 +50,16 @@ Global
 		{FAE0E2D2-BCB2-446A-B3D3-7DB9C3B24FAB}.Release_JSON|Any CPU.Build.0 = Release_JSON|Any CPU
 		{FAE0E2D2-BCB2-446A-B3D3-7DB9C3B24FAB}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FAE0E2D2-BCB2-446A-B3D3-7DB9C3B24FAB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{718722C3-39F4-418A-8202-7D9D1D8F25EC}.Debug_Accupro5|Any CPU.ActiveCfg = Debug|Any CPU
+		{718722C3-39F4-418A-8202-7D9D1D8F25EC}.Debug_Accupro5|Any CPU.Build.0 = Debug|Any CPU
+		{718722C3-39F4-418A-8202-7D9D1D8F25EC}.Debug_Valtap|Any CPU.ActiveCfg = Debug|Any CPU
+		{718722C3-39F4-418A-8202-7D9D1D8F25EC}.Debug_Valtap|Any CPU.Build.0 = Debug|Any CPU
+		{718722C3-39F4-418A-8202-7D9D1D8F25EC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{718722C3-39F4-418A-8202-7D9D1D8F25EC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{718722C3-39F4-418A-8202-7D9D1D8F25EC}.Release_JSON|Any CPU.ActiveCfg = Release|Any CPU
+		{718722C3-39F4-418A-8202-7D9D1D8F25EC}.Release_JSON|Any CPU.Build.0 = Release|Any CPU
+		{718722C3-39F4-418A-8202-7D9D1D8F25EC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{718722C3-39F4-418A-8202-7D9D1D8F25EC}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
