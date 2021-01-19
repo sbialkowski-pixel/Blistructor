@@ -3,18 +3,23 @@
 FROM mcr.microsoft.com/dotnet/core/runtime:3.1-buster-slim AS base
 WORKDIR /app
 
-FROM mcr.microsoft.com/dotnet/core/sdk:3.1-buster AS build
-WORKDIR /src
-COPY ["BlistructorWeb/BlistructorWeb.csproj", "BlistructorWeb/"]
-RUN dotnet restore "BlistructorWeb/BlistructorWeb.csproj"
-COPY . .
-WORKDIR "/src/BlistructorWeb"
-RUN dotnet build "BlistructorWeb.csproj" -c Release -o /app/build
+#FROM mcr.microsoft.com/dotnet/core/sdk:3.1-buster AS build
+#WORKDIR /src
+#COPY ["BlistructorWeb/BlistructorWeb.csproj", "BlistructorWeb/"]
+#RUN dotnet restore "BlistructorWeb/BlistructorWeb.csproj"
+#COPY . .
+#WORKDIR "/src/BlistructorWeb"
+#RUN dotnet build "BlistructorWeb.csproj" -c Release -o /app/build
 
-FROM build AS publish
-RUN dotnet publish "BlistructorWeb.csproj" -c Release -o /app/publish
+#FROM build AS publish
+#RUN dotnet publish "BlistructorWeb.csproj" -c Release -o /app/publish
 
-FROM base AS final
-WORKDIR /app
-COPY --from=publish /app/publish .
-ENTRYPOINT ["dotnet", "BlistructorWeb.exe"]
+#FROM base AS final
+#WORKDIR /app
+#COPY --from=publish /app/publish .
+
+COPY /bin/Release/netcoreapp3.1/publish .
+
+ENTRYPOINT ["dotnet", "BlistructorWeb.dll"]
+
+EXPOSE 8080
