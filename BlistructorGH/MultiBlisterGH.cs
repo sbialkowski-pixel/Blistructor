@@ -12,7 +12,7 @@ namespace BlistructorGH
 {
     public class MultiBlisterGH : MultiBlister
     {
-        public MultiBlisterGH(int Limit1, int Limit2) : base(Limit1, Limit2)
+        public MultiBlisterGH() : base()
         {
 
         }

@@ -51,6 +51,7 @@
     <Reference Include="Rhino3dm">
       <HintPath>..\..\rhino3dm\src\dotnet\Release\netstandard2.0\Rhino3dm.dll</HintPath>
       <Private>true</Private>
+      <EmbedInteropTypes>false</EmbedInteropTypes>
     </Reference>
   </ItemGroup>
 

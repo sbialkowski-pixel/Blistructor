@@ -267,11 +267,11 @@ namespace Blistructor
         public Point3d GlobalCutCoordinates(Point3d localCoordinates, Point3d Jaw1_Local)
         {
             // A = (Point3d)KnifeCenterG - CutL + JawL;
-            Point3d knifeCenter = new Point3d(Setups.BladeGlobalX, Setups.BladeGlobalY, 0);
+            Point3d knifeCenter = new Point3d(Setups.BladeGlobal);
             //NOTE: Zamiana X, Y, należy sprawdzić czy to jest napewno dobrze. Wg. moich danych i opracowanej logiki tak...
             Point3d flipedLocalCoordinates = new Point3d(localCoordinates.Y, localCoordinates.X, 0);
             Point3d fliped_Jaw1 = new Point3d(0 , Jaw1_Local.X, 0);
-            return (Point3d)knifeCenter - flipedLocalCoordinates + fliped_Jaw1;                                                                    
+            return knifeCenter - flipedLocalCoordinates + fliped_Jaw1;                                                                    
         }
 
         public JArray GetJSON(Point3d Jaw1_Local)

@@ -553,6 +553,7 @@ namespace Blistructor
                 {
                     int glob_index = (i * (resolution - 1)) + j;
                     // vor.Add(voronoi[glob_index].ToPolyline());
+                    if (voronoi[glob_index].C.Count == 0) continue;
                     Point3d[] vert = voronoi[glob_index].ToPolyline().ToArray();
                     foreach (Point3d pt in vert)
                     {
