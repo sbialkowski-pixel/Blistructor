@@ -113,12 +113,10 @@ namespace Blistructor
                 GrasperPossibleLocation.Add(cln);
             }
 
-            anchors = GetJawsPoints();
+            anchors = GetGraspersPoints();
             log.Info(String.Format("Anchors found: {0}", anchors.Count));
 
         }
-
-        //  public void Update
 
         private List<Interval> ConvertGrasperstoInterval()
         {
@@ -209,6 +207,7 @@ namespace Blistructor
             }
         }
 
+        [Obsolete("This method is deprecated, please use GetGraspersPoints")]
         public List<AnchorPoint> GetJawsPoints()
         {
             List<AnchorPoint> jawPoints = new List<AnchorPoint>();
@@ -525,7 +524,7 @@ namespace Blistructor
         public void FindNewAnchorAndApplyOnBlister(Blister cuttedBlister)
         {
             Update(cuttedBlister);
-            anchors = GetJawsPoints();
+            anchors = GetGraspersPoints();
             ApplyAnchorOnBlister();
         }
 
@@ -591,7 +590,7 @@ namespace Blistructor
 
         public JObject GetJSON()
             {
-            anchors = GetJawsPoints();
+            anchors = GetGraspersPoints();
             JObject jawPoints = new JObject();
             if (anchors.Count == 0) return jawPoints;
             computeGlobalAnchors();
