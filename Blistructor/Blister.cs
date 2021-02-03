@@ -17,7 +17,7 @@ namespace Blistructor
     public class Blister
     {
         
-        private static readonly ILog log = LogManager.GetLogger("Main.Blister");
+        private static readonly ILog log = LogManager.GetLogger("Cutter.Blister");
 
 
         private bool toTight = false;

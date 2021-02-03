@@ -36,14 +36,15 @@ namespace Blistructor
 {
     public class MultiBlister
     {
-        private static readonly ILog log = LogManager.GetLogger("Main.Blistructor");
+        private static readonly ILog log = LogManager.GetLogger("Cutter.Main");
+        
         public PolylineCurve mainOutline;
 
         private int loopTolerance = 5;
         public List<Blister> Queue;
         public List<Blister> Cutted;
 
-      //  private JObject cuttingResult;
+        //  private JObject cuttingResult;
 
         public Anchor anchor;
         public List<Curve> worldObstacles;
@@ -51,9 +52,10 @@ namespace Blistructor
 
         public MultiBlister()
         {
+          // Logger.Setup();
             Queue = new List<Blister>();
             Cutted = new List<Blister>();
-           // cuttingResult = PrepareEmptyJSON();
+            // cuttingResult = PrepareEmptyJSON();
         }
 
         public int CuttableCellsLeft
@@ -106,7 +108,7 @@ namespace Blistructor
         private void InitialiseNewCut()
         {
             // Init Logger
-            Logger.Setup();
+           // Logger.Setup();
 
             // Initialize Lists
             Queue = new List<Blister>();
@@ -121,14 +123,14 @@ namespace Blistructor
             initialBlister.SortCellsByCoordinates(true);
             Queue.Add(initialBlister);
             anchor = new Anchor(this);
-            log.Debug(String.Format("New blistructor with {0} Queue blisters", Queue.Count));
             
+
             // World Obstacles
             // Line cartesianLimitLine = new Line(new Point3d(0, -Setups.BlisterCartesianDistance, 0), Vector3d.XAxis, 1.0);
             //cartesianLimitLine.Extend(Setups.IsoRadius, Setups.IsoRadius);
 
             worldObstacles = new List<Curve>() { anchor.cartesianLimitLine };
-
+            log.Info(String.Format("New blister with {0} pills", pills.Count));
         }
 
         //double pixelSpacing = 1.0, double calibrationVectorX = 0.0, double calibrationVectorY = 0.0
@@ -142,17 +144,17 @@ namespace Blistructor
                     { "blister", "blister" },
                     { "pill", "tabletka" }
                 };
-                Tuple<JObject,JArray> data = ParseJson(JSON);
+                Tuple<JObject, JArray> data = ParseJson(JSON);
                 JObject setup = data.Item1;
                 JArray content = data.Item2;
                 Setups.ApplySetups(setup);
                 // Parse JSON. Item1 -> Blister, Item2 -> Pills
                 Tuple<PolylineCurve, List<PolylineCurve>> pLines = GetContursBasedOnJSON(content, jsonCategoryMap);
-                
+
                 // Simplyfy paths on blister and pills
                 PolylineCurve blister = SimplifyContours2(pLines.Item1, Setups.CurveReduceTolerance, Setups.CurveSmoothTolerance);
                 List<PolylineCurve> pills = pLines.Item2.Select(pill => SimplifyContours2(pill, Setups.CurveReduceTolerance, Setups.CurveSmoothTolerance)).ToList();
-                
+
                 // Apply calibration on blister and pills
                 // Vector3d calibrationVector = new Vector3d(rX, calibrationVectorY, 0);
                 ApplyCalibrationData(blister, Setups.ZeroPosition, Setups.PixelSpacing);
@@ -163,11 +165,13 @@ namespace Blistructor
 
             catch (AnchorException ex)
             {
+                log.Error("Anchor Exception.", ex);
                 return PrepareStatus(CuttingState.CTR_WRONG_BLISTER_POSSITION, "Anchor Exception.", ex);
             }
-            
+
             catch (Exception ex)
             {
+                log.Error("Unhandled Exception.", ex);
                 return PrepareStatus(CuttingState.CTR_OTHER_ERR, "Unhandled Exception.", ex);
             }
         }
@@ -200,7 +204,7 @@ namespace Blistructor
 
         private JObject CutBlisterWorker(List<Polyline> pills, Polyline blister)
         {
-            return CutBlisterWorker(pills.Select(pline => pline.ToPolylineCurve()).ToList() , blister.ToPolylineCurve());
+            return CutBlisterWorker(pills.Select(pline => pline.ToPolylineCurve()).ToList(), blister.ToPolylineCurve());
         }
 
         private JObject CutBlisterWorker(List<PolylineCurve> pills, PolylineCurve blister)
@@ -247,7 +251,7 @@ namespace Blistructor
 
         private CuttingState PerformCut()
         {
-             // Check if blister is correctly allign
+            // Check if blister is correctly allign
             if (!anchor.IsBlisterStraight(Setups.MaxBlisterPossitionDeviation)) return CuttingState.CTR_WRONG_BLISTER_POSSITION;
             log.Info(String.Format("=== Start Cutting ==="));
             int initialPillCount = Queue[0].Cells.Count;
@@ -263,7 +267,7 @@ namespace Blistructor
                 //if (n > mainLimit && mainLimit != -1) break;
                 // Extra control to not loop forever...
                 if (n > initialPillCount + loopTolerance) break;
-                log.Info(String.Format(String.Format("<<<<<<<<<<<<<<<Blisters Count: Queue: {0}, Cutted {1}>>>>>>>>>>>>>>>>>>>>>>>>", Queue.Count, Cutted.Count)));
+                log.Info(String.Format(String.Format("<<<<<<Blisters Count: Queue: {0}, Cutted {1}>>>>>>>>>>>>>>>>>>>>>>>>", Queue.Count, Cutted.Count)));
                 // InnerLoop - Queue Blisters
 
                 for (int i = 0; i < Queue.Count; i++)
@@ -285,12 +289,12 @@ namespace Blistructor
                         Cell cuttedCell = result.Item1.Cells[0];
                         if (cuttedCell.Anchor.state == AnchorState.Inactive)
                         {
-                            log.Info("Anchor - Update Pred Line");
+                            log.Debug("Anchor - Update Pred Line");
 
                             anchor.Update(result.Item1);
                         }
                         if (cuttedCell.Anchor.state == AnchorState.Active && cuttedCell.State != CellState.Alone && CuttableCellsLeft == 2) anchor.FindNewAnchorAndApplyOnBlister(result.Item1);
-                        log.Info("Adding new CutOut blister to Cutted list");
+                        log.Debug("Adding new CutOut blister to Cutted list");
                         Cutted.Add(result.Item1);
                     }
                     else
@@ -308,7 +312,7 @@ namespace Blistructor
                     }
                     else
                     {
-                        log.Info("Updating blister");
+                        log.Debug("Updating blister");
                         blister = result.Item2;
                         // Sort Pills by last Knife Possition -> Last Pill Centre
                         // Point3d lastKnifePossition = Cutted.Last().Cells[0].bestCuttingData.GetLastKnifePossition();
@@ -320,7 +324,7 @@ namespace Blistructor
                     // Add extra blsters if any was created
                     if (result.Item3.Count != 0)
                     {
-                        log.Info("Adding new blister(s) to Queue");
+                        log.Debug("Adding new blister(s) to Queue");
                         Queue.AddRange(result.Item3);
                         break;
                     }
@@ -335,7 +339,7 @@ namespace Blistructor
 
         private JObject PrepareStatus(CuttingState stateCode, string message = "")
         {
-            if  (message == "") message = stateCode.GetDescription();
+            if (message == "") message = stateCode.GetDescription();
             JObject data = new JObject
             {
                 { "status", stateCode.ToString() },
@@ -415,7 +419,7 @@ namespace Blistructor
                     string message = String.Format("JSON - Found {0} contours per object. Only one contour per object allowed", contours.Count);
                     log.Error(message);
                     throw new InvalidOperationException(message);
-                } 
+                }
                 // Get contour and create Polyline
                 JArray points = (JArray)contours[0];
                 Polyline pline = new Polyline(points.Count);
@@ -432,14 +436,16 @@ namespace Blistructor
                 }
                 if ((string)obj_data["category"] == jsonCategoryMap["pill"]) pills.Add(pline.ToPolylineCurve());
                 else if ((string)obj_data["category"] == jsonCategoryMap["blister"]) blister.Add(pline.ToPolylineCurve());
-                else {
-                    string message = String.Format("JSON - Incorrect category for countour"); 
+                else
+                {
+                    string message = String.Format("JSON - Incorrect category for countour");
                     log.Error(message);
                     throw new InvalidOperationException(message);
                 }
             }
 
-            if (blister.Count != 1) {
+            if (blister.Count != 1)
+            {
                 string message = String.Format("JSON - {0} blister objects found! Need just one object.", blister.Count);
                 log.Error(message);
                 throw new NotSupportedException(message);
@@ -447,12 +453,12 @@ namespace Blistructor
             return Tuple.Create(blister[0], pills);
         }
 
-        private void ApplyCalibrationData(PolylineCurve curve, Vector3d calibrationVector, double pixelSpacing = 1.0, double rotation = Math.PI/6)
+        private void ApplyCalibrationData(PolylineCurve curve, Vector3d calibrationVector, double pixelSpacing = 1.0, double rotation = Math.PI / 6)
         {
             curve.Translate(-calibrationVector);
             curve.Rotate(rotation, Vector3d.ZAxis, new Point3d(0, 0, 0));
             curve.Scale(pixelSpacing);
-            
+
         }
     }
 }

@@ -16,7 +16,7 @@ namespace Blistructor
 {
     public class Anchor
     {
-        private static readonly ILog log = LogManager.GetLogger("Blistructor.Anchor");
+        private static readonly ILog log = LogManager.GetLogger("Cutter.Anchor");
 
         public LineCurve cartesianLimitLine;
 

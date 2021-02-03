@@ -9,23 +9,31 @@ using System.ComponentModel;
 using System.Globalization;
 
 using Blistructor;
+using log4net;
 
 namespace BlistructorWeb
 {
     class Server
     {
+        private static readonly ILog log = LogManager.GetLogger("Cutter.Web");
         private static MultiBlister structor = new MultiBlister();
         static void Main(string[] args)
         {
+            Logger.Setup();
             //------------------- define routes -------------------
-            Route.Before = (rq, rp) => { Console.WriteLine($"Requested: {rq.Url.PathAndQuery}"); return false; };
+            //  Route.Before = (rq, rp) => { Console.WriteLine($"Requested: {rq.Url.PathAndQuery}"); return false; };
 
             Route.Add("/cut?{params}", (rq, rp, args) =>
             {
-                Console.WriteLine(rq.Url.Query.ToString());
+                string requestId = rq.QueryString.Get("requestId");
+                
+                if (requestId == null) requestId = Guid.NewGuid().ToString("n").Substring(0, 8); 
+                log4net.GlobalContext.Properties["requestId"] = requestId;
+            
+                log.Info(String.Format("Request for CUT from:{0}", rq.Url.Host.ToString()));
                 /*
-                string[] req_params = { "pixel_spacing", "zero_position_X", "zero_position_Y" };
-                Dictionary<string, float> parameters = new Dictionary<string, float>();
+                string[] req_params = { "requestId", "zero_position_X", "zero_position_Y" };
+                Dictionary<string, float> parameters = new Dictionary<strig, float>();
                 foreach(string param in req_params)
                 {
                     var value = rq.QueryString.Get(param);
@@ -47,24 +55,21 @@ namespace BlistructorWeb
                
                 //var json = structor.CutBlister(content, parameters["pixelSpacing"], parameters["zero_position_X"], parameters["zero_position_Y"]);
                 var json = structor.CutBlister(content);
-                if (json != null) {
-                    rp.AsText(json.ToString(), "application/json");
-                }
-                else
-                {     
-                    rp.StatusCode = (int)HttpStatusCode.InternalServerError;
-                    rp.AsText("TotalError", "application/json");
-                }
-            }, "POST");
+                rp.AsText(json.ToString(), "application/json");
+                }, "POST");
 
-            Route.Add("/healthcheck/", (rq, rp, args) =>
+            Route.Add("/health_check?{params}", (rq, rp, args) =>
             {
+                string requestId = rq.QueryString.Get("requestId");
+                if (requestId == null) requestId = Guid.NewGuid().ToString("n").Substring(0, 8);
+                log4net.GlobalContext.Properties["requestId"] = requestId;
+                log.Info(String.Format("Request for HEALTH CHECK from:{0}", rq.Url.Host.ToString()));
                 rp.AsText("Cutter server is fine.");
             }, "GET");
 
             //------------------- start server -------------------           
             var port = 8080;
-            Console.WriteLine("Running HTTP server on: " + port);
+            log.Info("Running HTTP server on: " + port);
 
             var cts = new CancellationTokenSource();
             var ts = HttpServer.ListenAsync(port, cts.Token, Route.OnHttpRequestAsync, useHttps: false);

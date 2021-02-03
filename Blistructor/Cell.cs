@@ -26,7 +26,7 @@ namespace Blistructor
 {
     public class Cell
     {
-        private static readonly ILog log = LogManager.GetLogger("Blistructor.Cell");
+        private static readonly ILog log = LogManager.GetLogger("Cutter.Cell");
 
         public int id;
 
@@ -474,7 +474,7 @@ namespace Blistructor
             // If cell is marekd as possible anchor, also dont try to cut
             if (ommitAnchor == true && Anchor.state == AnchorState.Active)
             {
-                log.Info("Marked as anchored. Omitting");
+                log.Debug("Marked as anchored. Omitting");
                 return CutState.Failed;
             }
 

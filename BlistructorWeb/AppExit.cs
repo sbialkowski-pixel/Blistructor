@@ -16,10 +16,9 @@ namespace BlistructorWeb
 
             Task.Run(() =>
             {
-                Console.WriteLine("------Press [Enter] to stop------");
-                Console.ReadLine();
-
-                cancelTasks(cts);
+                Console.WriteLine("------Press [Esc] or [Crtl+C] to stop------");
+                ConsoleKeyInfo cki = Console.ReadKey();
+                if (cki.Key ==  ConsoleKey.Escape) cancelTasks(cts);
             });
 
             waitTasks(tasks);

@@ -17,7 +17,7 @@ namespace Blistructor
 {
     public class CutData
     {
-        private static readonly ILog log = LogManager.GetLogger("Blistructor.CutData");
+        private static readonly ILog log = LogManager.GetLogger("Cutter.CutData");
         private List<PolylineCurve> path;
         private PolylineCurve polygon;
         public List<PolylineCurve> BlisterLeftovers;
@@ -112,7 +112,7 @@ namespace Blistructor
                 if (footPrint.Count == 0) return false;
                 bladeFootPrint.AddRange(footPrint);
             }
-            log.Info(String.Format("Generated {0} Blade Footpronts.", bladeFootPrint.Count));
+            log.Info(String.Format("Generated {0} Blade Footprints.", bladeFootPrint.Count));
             return true;
         }
 
@@ -194,7 +194,7 @@ namespace Blistructor
                     LineCurve cutPrint = new LineCurve(cutStartPt, cutEndPt);
                     Point3d testPt = isoSegment.ClosestPoint(cutEndPt, true);
                     double endDist = testPt.DistanceTo(cutEndPt);
-                    log.Info(String.Format("EndPointDist{0}", endDist));
+                    log.Debug(String.Format("EndPointDist{0}", endDist));
                     // Check if CutPrint is not out of isoSegment, if not thak it as blase posotion
                     if (endDist < Setups.GeneralTolerance) knifeLines.Add(new LineCurve(cutStartPt, cutEndPt));
                     // Blade posidion os out of possible location, apply fix, by moving it to the center.   
