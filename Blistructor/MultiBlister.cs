@@ -159,7 +159,11 @@ namespace Blistructor
                 // Vector3d calibrationVector = new Vector3d(rX, calibrationVectorY, 0);
                 ApplyCalibrationData(blister, Setups.ZeroPosition, Setups.PixelSpacing);
                 pills.ForEach(pill => ApplyCalibrationData(pill, Setups.ZeroPosition, Setups.PixelSpacing));
-
+                if (Setups.TrimBlisterToXAxis)
+                {
+                    List<Curve> result = Geometry.SplitRegion(blister, new LineCurve(new Line(new Point3d(-1000, -0.2, 0), Vector3d.XAxis, 2000)));
+                    blister = (PolylineCurve)result.OrderByDescending(c => c.Area()).ToList()[0];
+                }
                 return CutBlisterWorker(pills, blister);
             }
 

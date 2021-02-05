@@ -26,7 +26,7 @@ namespace Blistructor
          //   hierarchy.Properties["requestId"] =
 
             PatternLayout patternLayout = new PatternLayout();
-            patternLayout.ConversionPattern = "%.10P{requestId} %-5level %-d{ yyyy-MM-dd HH:mm:ss} %-25logger - %-message%newline";
+            patternLayout.ConversionPattern = "%.10P{requestId} %-5level %-d{ yyyy-MM-dd HH:mm:ss} %-15logger - %-message%newline";
             patternLayout.ActivateOptions();
 
             ConsoleAppender defaultLogger = new ConsoleAppender();

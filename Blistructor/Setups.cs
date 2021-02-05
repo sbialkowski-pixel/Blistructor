@@ -61,8 +61,9 @@ namespace Blistructor
         // if path segment is shorter then this, it will be collapsed
         public static double CollapseTolerance = GetEnvironmentVariableWithDefault("SIMPLIFY_COLLAPSE_DISTANCE", 1.0);
 
-        public static double SnapDistance = GetEnvironmentVariableWithDefault("SIMPLIFY_TOLERANCE_SNAP_DISTANCE", 1.0);
-
+        public static double SnapDistance = GetEnvironmentVariableWithDefault("SIMPLIFY_TOLERANCE_SNAP_DISTANCE", 1.0); 
+        public static bool TrimBlisterToXAxis = GetEnvironmentVariableWithDefault("TRIM_BLISTER_X_AXIS", true);
+        
 
         private static T GetEnvironmentVariableWithDefault<T>(string variable, T defaultValue)
         {
@@ -97,7 +98,7 @@ namespace Blistructor
 
             BladeWidth = setup.GetValue<double>("bladeCutWidth", BladeWidth);
 
-            List<double> BladeGlobalValues = setup.GetValue<List<double>>("cartesianPivotJawVector", new List<double>() { BladeGlobal.X, BladeGlobal.Y });
+            List<double> BladeGlobalValues = setup.GetValue<List<double>>("bladeGlobalPosition", new List<double>() { BladeGlobal.X, BladeGlobal.Y });
             BladeGlobal = new Vector3d(BladeGlobalValues[0], BladeGlobalValues[1], 0);
 
             BladeRotationAxis = setup.GetValue<string>("bladeRotationAxis", BladeRotationAxis);
@@ -128,6 +129,7 @@ namespace Blistructor
             // if path segment is shorter then this, it will be collapsed
             CollapseTolerance = setup.GetValue<double>("simplyfyCollapseTolerance", CollapseTolerance);
             SnapDistance = setup.GetValue<double>("simplyfySnapDistance", SnapDistance);
+            TrimBlisterToXAxis = setup.GetValue<bool>("trimBlisterToXAxis", TrimBlisterToXAxis);
         }
     }
                                                   
