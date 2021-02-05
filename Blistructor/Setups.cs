@@ -5,6 +5,7 @@ using System.Linq;
 using System.Collections.Generic;
 using Newtonsoft.Json.Linq;
 using Pixel.Rhino.Geometry;
+using ExtraMath = Pixel.Rhino.RhinoMath;
 
 namespace Blistructor
 {
@@ -34,11 +35,12 @@ namespace Blistructor
         //Axis (Cartesian Global) to calculate angles. 
         public static string BladeRotationAxis = GetEnvironmentVariableWithDefault("BLADE_ROTATION_AXIS", "X");
         // Knife cutting angles is calculated base od Global Cartesian X axis. Extra Rotation (in radians) if other angles are need. 
-        public static double BladeRotationCalibration = GetEnvironmentVariableWithDefault("BLADE_EXTRA_ROTATION", Math.PI / 2);
+    
+        public static double BladeRotationCalibration = ExtraMath.ToRadians(GetEnvironmentVariableWithDefault("BLADE_EXTRA_ROTATION", 0));
         #endregion
 
         #region CARTESIAN/JAW
-        public static double CartesianPickModeAngle = GetEnvironmentVariableWithDefault("CARTESIAN_PICK_MODE_ANGLE", Math.PI / 6);
+        public static double CartesianPickModeAngle = ExtraMath.ToRadians(GetEnvironmentVariableWithDefault("CARTESIAN_PICK_MODE_ANGLE", 30));
         public static double JawWidth = GetEnvironmentVariableWithDefault("CARTESIAN_JAW_WIDTH", 5.5);
         public static double JawDepth = GetEnvironmentVariableWithDefault("CARTESIAN_JAW_DEPTH", 3.0);
 
@@ -102,9 +104,9 @@ namespace Blistructor
             BladeGlobal = new Vector3d(BladeGlobalValues[0], BladeGlobalValues[1], 0);
 
             BladeRotationAxis = setup.GetValue<string>("bladeRotationAxis", BladeRotationAxis);
-            BladeRotationCalibration = setup.GetValue<double>("bladeRotationCalibration", BladeRotationCalibration);
+            BladeRotationCalibration = ExtraMath.ToRadians(setup.GetValue<double>("bladeRotationCalibration", BladeRotationCalibration));
   
-            CartesianPickModeAngle = setup.GetValue<double>("cartesianPickModeAngle", CartesianPickModeAngle);
+            CartesianPickModeAngle = ExtraMath.ToRadians(setup.GetValue<double>("cartesianPickModeAngle", CartesianPickModeAngle));
             JawWidth = setup.GetValue<double>("cartesianJawWidth", JawWidth);
             JawDepth = setup.GetValue<double>("cartesianJawDepth", JawDepth);
 
