@@ -26,6 +26,7 @@ namespace Blistructor
         public PolylineCurve maBBox;
         public LineCurve GuideLine;
 
+        // Keep grasper in max position => Y = Setups.JawDepth
         public List<LineCurve> GrasperPossibleLocation;
         public List<AnchorPoint> anchors;
         public List<Point3d> GlobalAnchors;
@@ -39,10 +40,9 @@ namespace Blistructor
             tempLine.Extend(100, Setups.IsoRadius);
             cartesianLimitLine = new LineCurve(tempLine);
 
-            // Get needed data
             this.mBlister = mBlister;
             GrasperPossibleLocation = new List<LineCurve>();
-            //Build initial blister shape data
+
             mainOutline = mBlister.Queue[0].Outline;
 
            // Generate BBoxes
@@ -93,8 +93,7 @@ namespace Blistructor
 
             // keep lines between extreme points
             fullPredLine = (LineCurve)fullPredLine.Trim(fullPredLineParamT[0], fullPredLineParamT[1]);
-            // Shrink curve on both sides by half of Grasper width.
-
+       
             // Move temporaly predLine to the upper position, too chceck intersection with pills.
             fullPredLine.Translate(Vector3d.YAxis * Setups.JawDepth / 2);
             // NOTE: Check intersection with pills (Or maybe with pillsOffset. Rethink problem)
@@ -108,7 +107,7 @@ namespace Blistructor
                 ln.Extend(-Setups.JawWidth / 2, -Setups.JawWidth / 2);
                 LineCurve cln = new LineCurve(ln);
                 //move it to 0 position
-                cln.Translate(Vector3d.YAxis * -Setups.JawDepth);
+                //cln.Translate(Vector3d.YAxis * -Setups.JawDepth);
                 // Gather 
                 GrasperPossibleLocation.Add(cln);
             }
@@ -129,8 +128,8 @@ namespace Blistructor
         private List<AnchorPoint> ConvertToAnchors (Interval grasperLocation)
         {
             return new List<AnchorPoint>() {
-                        new AnchorPoint(new Point3d(grasperLocation.T0,0,0), AnchorSite.JAW_1),
-                        new AnchorPoint(new Point3d(grasperLocation.T1,0,0), AnchorSite.JAW_2)
+                        new AnchorPoint(new Point3d(grasperLocation.T0,Setups.JawDepth,0), AnchorSite.JAW_1),
+                        new AnchorPoint(new Point3d(grasperLocation.T1,Setups.JawDepth,0), AnchorSite.JAW_2)
                     };
         }
 
@@ -430,6 +429,7 @@ namespace Blistructor
                     cell.Anchor = new AnchorPoint();
                     foreach (AnchorPoint pt in anchors)
                     {
+                        //TODO : Problem z tym ze sprawdzma punkt który lezy na Y=0 i nie jak nie przecina sie z voronoiem...
                         PointContainment result = cell.voronoi.Contains(pt.location, Plane.WorldXY, Setups.IntersectionTolerance);
                         if (result == PointContainment.Inside)
                         {
@@ -473,15 +473,15 @@ namespace Blistructor
                 if (unitedCurve.Count == 1)
                 {
                     //log.Info(String.Format("unitedCurve Length: {0}", unitedCurve.Length));
-                    // Assuming GrasperPossibleLocation is in the 0 possition...
-                    // First make upper. Move halfway up, trim
-                    moveGrasperPossibleLocation(Setups.JawDepth);
+                    // Assuming GrasperPossibleLocation is in the Setups.JawDepth possition... Trim
                     Tuple<List<Curve>, List<Curve>> result = Geometry.TrimWithRegion(GrasperPossibleLocation.Select(crv => (Curve)crv).ToList(), unitedCurve[0]);
                     GrasperPossibleLocation = result.Item2.Select(crv => (LineCurve)crv).ToList();
                     // Move fullway down, trim
                     moveGrasperPossibleLocation(-Setups.JawDepth);
                     result = Geometry.TrimWithRegion(GrasperPossibleLocation.Select(crv => (Curve)crv).ToList(), unitedCurve[0]);
                     GrasperPossibleLocation = result.Item2.Select(crv => (LineCurve)crv).ToList();
+                    //Put It back on place.
+                    moveGrasperPossibleLocation(Setups.JawDepth);
                 }
             }
         }
@@ -581,7 +581,7 @@ namespace Blistructor
             foreach (AnchorPoint pt in anchors)
             {
                 //NOTE: Zamiana X, Y, należy sprawdzić czy to jest napewno dobrze. Wg. moich danych i opracowanej logiki tak...
-                Point3d flipedPoint = new Point3d(0, anchors[0].location.X, 0);
+                Point3d flipedPoint = new Point3d(anchors[0].location.Y, anchors[0].location.X, 0);
                 Point3d globalJawLocation = CartesianGlobalJaw1L(flipedPoint, blisterCS, Setups.CartesianPickModeAngle, Setups.CartesianPivotJawVector);
                 GlobalAnchors.Add(globalJawLocation);
             }
