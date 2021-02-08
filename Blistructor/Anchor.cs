@@ -573,11 +573,19 @@ namespace Blistructor
             return globalJaw1 - correctionVector;
         }
 
+        private Point3d computeGlobalBlisterPossition() {
+            Vector3d correctionVector = CartesianWorkPickVector(Setups.CartesianPivotJawVector, -Setups.CartesianPickModeAngle);
+            return new Point3d(Setups.BlisterGlobalPick + correctionVector);
+        }
+
         public void computeGlobalAnchors()
         {
             // Compute Global location for JAW_1
-            Point3d blisterCS = new Point3d(Setups.BlisterGlobal);
-          //  Vector3d pivotJaw = Setups.CartesianPivotJawVector;
+            Point3d blisterCS = new Point3d();
+            if (Setups.BlisterGlobalSystem == "PICK") blisterCS = computeGlobalBlisterPossition();
+            else if (Setups.BlisterGlobalSystem == "WORK") blisterCS = new Point3d(Setups.BlisterGlobal);
+            else throw new NotImplementedException("PICK or WORK mode for blister coordiante system hase to be chosen");
+    
             foreach (AnchorPoint pt in anchors)
             {
                 //NOTE: Zamiana X, Y, należy sprawdzić czy to jest napewno dobrze. Wg. moich danych i opracowanej logiki tak...

@@ -29,7 +29,7 @@ namespace Blistructor
         public static double BladeLength = GetEnvironmentVariableWithDefault("BLADE_CUT_LENGTH", 44.0);
         public static double BladeTol = GetEnvironmentVariableWithDefault("BLADE_CUT_TOLERANCE", 2.0);
         public static double BladeWidth = GetEnvironmentVariableWithDefault("BLADE_CUT_WIDTH", 3.0);
-        public static Vector3d BladeGlobal = new Vector3d(GetEnvironmentVariableWithDefault("BLADE_GLOBAL_X", 204.5), GetEnvironmentVariableWithDefault("BLADE_GLOBAL_Y", 199.0), 0);
+        public static Vector3d BladeGlobal = new Vector3d(GetEnvironmentVariableWithDefault("BLADE_GLOBAL_X", 200), GetEnvironmentVariableWithDefault("BLADE_GLOBAL_Y", 199.0), 0);
 
 
         //Axis (Cartesian Global) to calculate angles. 
@@ -48,11 +48,14 @@ namespace Blistructor
         public static double CartesianMaxWidth = GetEnvironmentVariableWithDefault("CARTESIAN_JAWS_MAX_RANGE", 85.0);
         public static double CartesianMinWidth = GetEnvironmentVariableWithDefault("CARTESIAN_JAWS_MIN_RANGE", 10.0);
 
-        public static Vector3d CartesianPivotJawVector = new Vector3d(GetEnvironmentVariableWithDefault("CARTESIAN_PIVOT_JAW_X", 109.375), GetEnvironmentVariableWithDefault("CARTESIAN_PIVOT_JAW_Y", 19.5), 0);
+        public static Vector3d CartesianPivotJawVector = new Vector3d(GetEnvironmentVariableWithDefault("CARTESIAN_PIVOT_JAW_X", 112.4), GetEnvironmentVariableWithDefault("CARTESIAN_PIVOT_JAW_Y", 19.5), 0);
         #endregion
 
         //OTHER
-        public static Vector3d BlisterGlobal = new Vector3d(GetEnvironmentVariableWithDefault("BLISTER_GLOBAL_X", 112.4), GetEnvironmentVariableWithDefault("BLISTER_GLOBAL_Y", 422.1), 0);
+        public static string BlisterGlobalSystem = GetEnvironmentVariableWithDefault("BLISTER_GLOBAL_System", "PICK");
+        public static Vector3d BlisterGlobal = new Vector3d(GetEnvironmentVariableWithDefault("BLISTER_GLOBAL_X", 108.1), GetEnvironmentVariableWithDefault("BLISTER_GLOBAL_Y", 411.5), 0);
+        public static Vector3d BlisterGlobalPick = new Vector3d(GetEnvironmentVariableWithDefault("BLISTER_GLOBAL_PICK_X", 113), GetEnvironmentVariableWithDefault("BLISTER_GLOBAL_PICK_Y", 358), 0);
+
         public static double IsoRadius = GetEnvironmentVariableWithDefault("RAY_LENGTH", 2000.0);
         public static double MinimumCutOutSize = GetEnvironmentVariableWithDefault("CUTOUT_MIN_SIZE", 25.0);
 
@@ -117,9 +120,15 @@ namespace Blistructor
             List<double> CartesianPivotJawVectorValues = setup.GetValue<List<double>>("cartesianPivotJawVector", new List<double>(){ CartesianPivotJawVector.X, CartesianPivotJawVector.Y });
             CartesianPivotJawVector = new Vector3d(CartesianPivotJawVectorValues[0], CartesianPivotJawVectorValues[1], 0);
 
-            //OTHER
+            //OTHER         public static string BlisterGlobalSystem = GetEnvironmentVariableWithDefault("BLISTER_GLOBAL_System", "PICK");
+
+            BlisterGlobalSystem = setup.GetValue<string>("blisterGlobalSystem", BlisterGlobalSystem);
+
             List<double> BlisterGlobalValues = setup.GetValue<List<double>>("blisterGlobalPosition", new List<double>() { BlisterGlobal.X, BlisterGlobal.Y });
             BlisterGlobal = new Vector3d(BlisterGlobalValues[0], BlisterGlobalValues[1], 0);
+
+            List<double> BlisterGlobalPickValues = setup.GetValue<List<double>>("blisterGlobalPickPosition", new List<double>() { BlisterGlobalPick.X, BlisterGlobalPick.Y });
+            BlisterGlobalPick = new Vector3d(BlisterGlobalPickValues[0], BlisterGlobalPickValues[1], 0);
 
             IsoRadius = setup.GetValue<double>("rayLength", IsoRadius);
             MinimumCutOutSize = setup.GetValue<double>("minimumCutOutSize", MinimumCutOutSize);
