@@ -39,7 +39,8 @@ namespace Blistructor
         public static double BladeRotationCalibration = ExtraMath.ToRadians(GetEnvironmentVariableWithDefault("BLADE_EXTRA_ROTATION", 0));
         #endregion
 
-        #region CARTESIAN/JAW
+        #region CARTESIAN/
+
         public static double CartesianPickModeAngle = ExtraMath.ToRadians(GetEnvironmentVariableWithDefault("CARTESIAN_PICK_MODE_ANGLE", 30));
         public static double JawWidth = GetEnvironmentVariableWithDefault("CARTESIAN_JAW_WIDTH", 5.5);
         public static double JawDepth = GetEnvironmentVariableWithDefault("CARTESIAN_JAW_DEPTH", 3.0);
@@ -47,6 +48,8 @@ namespace Blistructor
         public static double BlisterCartesianDistance = GetEnvironmentVariableWithDefault("CARTESIAN_SAFE_DISTANCE_TO_BLISTER", 3.5);
         public static double CartesianMaxWidth = GetEnvironmentVariableWithDefault("CARTESIAN_JAWS_MAX_RANGE", 85.0);
         public static double CartesianMinWidth = GetEnvironmentVariableWithDefault("CARTESIAN_JAWS_MIN_RANGE", 10.0);
+        public static double CartesianJawYLimit = GetEnvironmentVariableWithDefault("CARTESIAN_JAW_Y_LIMIT", 15.0);
+
 
         public static Vector3d CartesianPivotJawVector = new Vector3d(GetEnvironmentVariableWithDefault("CARTESIAN_PIVOT_JAW_X", 112.4), GetEnvironmentVariableWithDefault("CARTESIAN_PIVOT_JAW_Y", 19.5), 0);
         #endregion
@@ -116,6 +119,7 @@ namespace Blistructor
             BlisterCartesianDistance = setup.GetValue<double>("cartesianBlisterSafeDistance", BlisterCartesianDistance);
             CartesianMaxWidth = setup.GetValue<double>("cartesianJawMaxRange", CartesianMaxWidth);
             CartesianMinWidth = setup.GetValue<double>("cartesianJawMinRange", CartesianMinWidth);
+            CartesianJawYLimit = setup.GetValue<double>("cartesianJawYLimit", CartesianJawYLimit);
 
             List<double> CartesianPivotJawVectorValues = setup.GetValue<List<double>>("cartesianPivotJawVector", new List<double>(){ CartesianPivotJawVector.X, CartesianPivotJawVector.Y });
             CartesianPivotJawVector = new Vector3d(CartesianPivotJawVectorValues[0], CartesianPivotJawVectorValues[1], 0);

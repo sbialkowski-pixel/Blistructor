@@ -755,6 +755,30 @@ namespace Blistructor
         }
         #endregion
 
+        /*
+        public static void ApplyCalibrationData(PolylineCurve curve, Vector3d calibrationVector, double pixelSpacing = 1.0, double rotation = Math.PI / 6)
+        {
+            curve.Translate(-calibrationVector);
+            curve.Rotate(rotation, Vector3d.ZAxis, new Point3d(0, 0, 0));
+            curve.Scale(pixelSpacing);
+        }
+        */
+
+        public static void ApplyCalibration(GeometryBase geometry, Vector3d calibrationVector, double pixelSpacing = 1.0, double rotation = Math.PI / 6)
+        {
+            geometry.Translate(-calibrationVector);
+            geometry.Rotate(rotation, Vector3d.ZAxis, new Point3d(0, 0, 0));
+            geometry.Scale(pixelSpacing);
+        }
+
+        public static GeometryBase ReverseCalibration(GeometryBase geometry, Vector3d calibrationVector, double pixelSpacing = 1.0, double rotation = Math.PI / 6)
+        {
+            GeometryBase newGeometry = geometry.Duplicate();
+            newGeometry.Scale(1 / pixelSpacing);
+            newGeometry.Rotate(-rotation, Vector3d.ZAxis, new Point3d(0, 0, 0));
+            newGeometry.Translate(calibrationVector);
+            return newGeometry;
+        }
     }
 
 }

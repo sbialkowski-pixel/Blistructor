@@ -128,8 +128,8 @@ namespace Blistructor
         private List<AnchorPoint> ConvertToAnchors (Interval grasperLocation)
         {
             return new List<AnchorPoint>() {
-                        new AnchorPoint(new Point3d(grasperLocation.T0,Setups.JawDepth,0), AnchorSite.JAW_1),
-                        new AnchorPoint(new Point3d(grasperLocation.T1,Setups.JawDepth,0), AnchorSite.JAW_2)
+                        new AnchorPoint(new Point3d(grasperLocation.T0,Setups.JawDepth,0), AnchorSite.JAW_2),
+                        new AnchorPoint(new Point3d(grasperLocation.T1,Setups.JawDepth,0), AnchorSite.JAW_1)
                     };
         }
 
@@ -258,8 +258,8 @@ namespace Blistructor
                 }
                 // Get JawPoints...
                 return new List<AnchorPoint>() {
-                        new AnchorPoint(leftJaw, AnchorSite.JAW_1),
-                        new AnchorPoint(rightJaw, AnchorSite.JAW_2)
+                        new AnchorPoint(leftJaw, AnchorSite.JAW_2),
+                        new AnchorPoint(rightJaw, AnchorSite.JAW_1)
                     };
             }
             //Return empty list...
@@ -276,8 +276,8 @@ namespace Blistructor
             Point3d leftJaw = GrasperPossibleLocation.OrderBy(line => line.PointAtStart.X).Select(line => line.PointAtStart).First();
             Point3d rightJaw = GrasperPossibleLocation.OrderBy(line => line.PointAtStart.X).Select(line => line.PointAtEnd).Last();
             return new List<AnchorPoint>() {
-                        new AnchorPoint(leftJaw, AnchorSite.JAW_1),
-                        new AnchorPoint(rightJaw, AnchorSite.JAW_2)
+                        new AnchorPoint(leftJaw, AnchorSite.JAW_2),
+                        new AnchorPoint(rightJaw, AnchorSite.JAW_1)
                     };
         }
 
@@ -603,15 +603,16 @@ namespace Blistructor
             if (anchors.Count == 0) return jawPoints;
             computeGlobalAnchors();
             // JAW1 Stuff
+            // 1 i 2 sa zamienione na zyczenie Artura
             JArray jaw1_PointArray = new JArray();
             jaw1_PointArray.Add(GlobalAnchors[0].X);
             jaw1_PointArray.Add(GlobalAnchors[0].Y);
-            jawPoints.Add("jaw_1", jaw1_PointArray);
+            jawPoints.Add("jaw_2", jaw1_PointArray);
             // JAW2 Stuff
             // Calculate distance between JAW1 and JAW2
             // NOTE: Czy moze byc sytuacja ze mamy tylko 1 Anchor?
             double distance = Math.Abs((anchors[0].location - anchors[1].location).Length);
-            jawPoints.Add("jaw_2", distance);
+            jawPoints.Add("jaw_1", distance);
 
             //foreach (AnchorPoint pt in anchors)
             //{

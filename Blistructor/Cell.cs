@@ -864,6 +864,34 @@ namespace Blistructor
 
         #endregion
 
+        public JObject GetDisplayJSON(List<AnchorPoint> anchors)
+        {
+            JObject data = new JObject();
+            data.Add("pillIndex", this.id);
+            //Pill
+            JArray pillDisplayData = new JArray();
+            PolylineCurve imagePill = (PolylineCurve)Geometry.ReverseCalibration(pill, Setups.ZeroPosition, Setups.PixelSpacing, Setups.CartesianPickModeAngle);
+
+            foreach (Point3d pt in imagePill.ToPolyline())
+            {
+                pillDisplayData.Add(new JArray() { pt.X, pt.Y });
+            }
+            data.Add("processingPill", pillDisplayData);
+            Point3d jaw2 = ((Point)Geometry.ReverseCalibration(new Point(anchors[0].location), Setups.ZeroPosition, Setups.PixelSpacing, Setups.CartesianPickModeAngle)).Location;
+            Point3d jaw1 = ((Point)Geometry.ReverseCalibration(new Point(anchors[1].location), Setups.ZeroPosition, Setups.PixelSpacing, Setups.CartesianPickModeAngle)).Location;
+
+            JArray anchorPossitions = new JArray() {
+                new JArray() { jaw2.X, jaw2.Y },
+                new JArray() { jaw1.X, jaw1.Y }
+            };
+            data.Add("anchors", anchorPossitions);
+
+            // Add displayCut data
+            if (bestCuttingData != null) data.Add("displayCut", bestCuttingData.GetDisplayJSON(anchors[0].location));          
+            else data.Add("displayCut", new JArray());
+            return data;
+        }
+
         public JObject GetJSON(Point3d Jaw1_Local)
         {
             JObject data = new JObject();

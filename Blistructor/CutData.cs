@@ -274,28 +274,103 @@ namespace Blistructor
             return knifeCenter - flipedLocalCoordinates + fliped_Jaw1;                                                                    
         }
 
+        private double CalculateAngle(LineCurve line)
+        {
+            // TODO: Tu moze byc potrzeba zmiany vectora z X na Y w zalzenosci gdzie jest 0 stopni noża
+            // YAxiz z wizaku z tym ze nastepuje zmiana koordynatów z X na y przy przejsciu z trybu PICK na WORK...
+            Vector3d lineVector = line.Line.UnitTangent;
+            lineVector.Y = -lineVector.Y;
+
+            Vector3d baseVector = Vector3d.YAxis;
+            if (Setups.BladeRotationAxis == "Y") baseVector = Vector3d.XAxis;
+
+            double angle = Vector3d.VectorAngle(baseVector, lineVector, Plane.WorldXY) + Setups.BladeRotationCalibration;
+            double angleDegree = ExtraMath.ToDegrees(angle);
+            angleDegree = angleDegree > 360 ? angleDegree - 360 : angleDegree;
+            angleDegree = angleDegree > 180 ? angleDegree - 180 : angleDegree;
+            return angleDegree;
+        }
+
+        public JObject GetDisplayJSON(Point3d Jaw1_Local)
+        {
+            JObject displayData = new JObject();
+            if (bladeFootPrint.Count == 0) return displayData;
+            JArray cutLineDisplayData = new JArray();
+            // CutLine stuff
+            foreach (LineCurve line in bladeFootPrint)
+            {
+                LineCurve imageline = (LineCurve)Geometry.ReverseCalibration(line, Setups.ZeroPosition, Setups.PixelSpacing, Setups.CartesianPickModeAngle);
+                //Display Part
+                JObject localCutLineDisplayData = new JObject();
+                JArray startPointArray = new JArray() { imageline.PointAtStart.X, imageline.PointAtStart.Y };
+                JArray endPointArray = new JArray() { imageline.PointAtEnd.X, imageline.PointAtEnd.Y };
+                Point3d globalMidPt = GlobalCutCoordinates(line.Line.PointAt(0.5), Jaw1_Local);
+                JArray midPointArray = new JArray() { globalMidPt.X, globalMidPt.Y };
+                localCutLineDisplayData.Add("cutLine", new JArray() { startPointArray, endPointArray });
+                localCutLineDisplayData.Add("midPoint", midPointArray);
+                localCutLineDisplayData.Add("angle", CalculateAngle(line));
+                cutLineDisplayData.Add(localCutLineDisplayData);
+            }
+            displayData.Add("cutLines", cutLineDisplayData);
+            // Polygon stuff
+            BoundingBox bbox = this.polygon.GetBoundingBox(false);
+            Point3d minBBoxPoint = ((Point)Geometry.ReverseCalibration(new Point(bbox.Min), Setups.ZeroPosition, Setups.PixelSpacing, Setups.CartesianPickModeAngle)).Location;
+            Point3d maxBBoxPoint = ((Point)Geometry.ReverseCalibration(new Point(bbox.Max), Setups.ZeroPosition, Setups.PixelSpacing, Setups.CartesianPickModeAngle)).Location;
+
+            JObject bboxData = new JObject();
+            bboxData.Add("min", new JArray() { minBBoxPoint.X, minBBoxPoint.Y });
+            bboxData.Add("max", new JArray() { maxBBoxPoint.X, maxBBoxPoint.Y });
+            bboxData.Add("diag", new JArray() { bbox.Diagonal.X, bbox.Diagonal.Y });
+            displayData.Add("bbox", bboxData);
+            PolylineCurve polygon = (PolylineCurve)Geometry.ReverseCalibration(this.Polygon, Setups.ZeroPosition, Setups.PixelSpacing, Setups.CartesianPickModeAngle);
+            JArray polygonDisplayData = new JArray();
+            foreach (Point3d pt in polygon.ToPolyline())
+            {
+                polygonDisplayData.Add(new JArray() { pt.X, pt.Y });
+            }
+            displayData.Add("polygon", polygonDisplayData);
+            //PATH
+            JArray pathDisplayData = new JArray();
+            foreach (LineCurve line in this.Segments)
+            {
+                double length = line.GetLength();
+                LineCurve imageLine = (LineCurve)Geometry.ReverseCalibration(line, Setups.ZeroPosition, Setups.PixelSpacing, Setups.CartesianPickModeAngle);
+                JObject segmentData = new JObject();
+                segmentData.Add("length", length);
+                segmentData.Add("line", new JArray() {
+                    new JArray() { imageLine.PointAtStart.X, imageLine.PointAtStart.Y },
+                    new JArray() { imageLine.PointAtEnd.X, imageLine.PointAtEnd.Y }
+                });
+                pathDisplayData.Add(segmentData);
+            }
+            displayData.Add("segments", pathDisplayData);
+            // BlisterLeftOvers
+            JArray leftOverDisplayData = new JArray();
+            foreach (PolylineCurve pline in this.BlisterLeftovers) {
+                PolylineCurve imagePline = (PolylineCurve)Geometry.ReverseCalibration(pline, Setups.ZeroPosition, Setups.PixelSpacing, Setups.CartesianPickModeAngle);
+                JArray leftOverPolygon = new JArray();
+                foreach (Point3d pt in imagePline.ToPolyline())
+                {
+                    leftOverPolygon.Add(new JArray() { pt.X, pt.Y });
+                }
+                leftOverDisplayData.Add(leftOverPolygon);
+            }
+            displayData.Add("leftOver", leftOverDisplayData);
+            return displayData;
+        }
+
+    
         public JArray GetJSON(Point3d Jaw1_Local)
         {
+            //JObject totalData = new JObject();
             JArray instructionsArray = new JArray();
+            JArray displayArray = new JArray();
             if (bladeFootPrint.Count == 0) return instructionsArray;
             foreach (LineCurve line in bladeFootPrint)
             {
                 //Angle
                 JObject cutData = new JObject();
-                // TODO: Tu moze byc potrzeba zmiany vectora z X na Y w zalzenosci gdzie jest 0 stopni noża
-                // YAxiz z wizaku z tym ze nastepuje zmiana koordynatów z X na y przy przejsciu z trybu PICK na WORK...
-                Vector3d lineVector = line.Line.UnitTangent;
-                lineVector.Y = -lineVector.Y;
-
-                Vector3d baseVector = Vector3d.YAxis;
-                if (Setups.BladeRotationAxis == "Y") baseVector = Vector3d.XAxis;
-
-                double angle = Vector3d.VectorAngle(baseVector, lineVector, Plane.WorldXY)+ Setups.BladeRotationCalibration;
-                double angleDegree = ExtraMath.ToDegrees(angle);
-                angleDegree = angleDegree > 360 ? angleDegree - 360 : angleDegree;
-                angleDegree = angleDegree > 180 ? angleDegree - 180 : angleDegree;
-
-                cutData.Add("angle", angleDegree);
+                cutData.Add("angle", CalculateAngle(line));
                 //Point 
                 JArray pointArray = new JArray();
                 // Apply transformation to global

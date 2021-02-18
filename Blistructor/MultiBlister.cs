@@ -157,8 +157,8 @@ namespace Blistructor
 
                 // Apply calibration on blister and pills
                 // Vector3d calibrationVector = new Vector3d(rX, calibrationVectorY, 0);
-                ApplyCalibrationData(blister, Setups.ZeroPosition, Setups.PixelSpacing);
-                pills.ForEach(pill => ApplyCalibrationData(pill, Setups.ZeroPosition, Setups.PixelSpacing));
+                Geometry.ApplyCalibration(blister, Setups.ZeroPosition, Setups.PixelSpacing);
+                pills.ForEach(pill => Geometry.ApplyCalibration(pill, Setups.ZeroPosition, Setups.PixelSpacing));
                 if (Setups.TrimBlisterToXAxis)
                 {
                     List<Curve> result = Geometry.SplitRegion(blister, new LineCurve(new Line(new Point3d(-1000, -0.2, 0), Vector3d.XAxis, 2000)));
@@ -243,12 +243,15 @@ namespace Blistructor
             {
 
                 JArray allCuttingInstruction = new JArray();
+                JArray allDisplayInstruction = new JArray();
                 foreach (Blister bli in Cutted)
                 {
                     // Pass to JsonCretors JAW_1 Local coordinate for proper global coordinates calculation...
                     allCuttingInstruction.Add(bli.Cells[0].GetJSON(anchor.anchors[0].location));
+                    allDisplayInstruction.Add(bli.Cells[0].GetDisplayJSON(anchor.anchors));
                 }
                 cuttingResult["cuttingData"] = allCuttingInstruction;
+                cuttingResult["displayData"] = allDisplayInstruction;
             }
             return cuttingResult;
         }
@@ -455,14 +458,6 @@ namespace Blistructor
                 throw new NotSupportedException(message);
             }
             return Tuple.Create(blister[0], pills);
-        }
-
-        private void ApplyCalibrationData(PolylineCurve curve, Vector3d calibrationVector, double pixelSpacing = 1.0, double rotation = Math.PI / 6)
-        {
-            curve.Translate(-calibrationVector);
-            curve.Rotate(rotation, Vector3d.ZAxis, new Point3d(0, 0, 0));
-            curve.Scale(pixelSpacing);
-
         }
     }
 }
