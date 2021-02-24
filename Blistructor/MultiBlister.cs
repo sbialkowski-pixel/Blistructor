@@ -162,7 +162,7 @@ namespace Blistructor
                 if (Setups.TrimBlisterToXAxis)
                 {
                     List<Curve> result = Geometry.SplitRegion(blister, new LineCurve(new Line(new Point3d(-1000, -0.2, 0), Vector3d.XAxis, 2000)));
-                    blister = (PolylineCurve)result.OrderByDescending(c => c.Area()).ToList()[0];
+                    if (result != null) blister = (PolylineCurve)result.OrderByDescending(c => c.Area()).ToList()[0];
                 }
                 return CutBlisterWorker(pills, blister);
             }
