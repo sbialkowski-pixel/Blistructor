@@ -395,12 +395,6 @@ namespace Blistructor
             return Tuple.Create(inside, outside);
         }
 
-        /// <summary>
-        /// Split Closed Curve by any other curve
-        /// </summary>
-        /// <param name="region">Closed curve (region) to split</param>
-        /// <param name="splittingCurve">Curve for spliting</param>
-        /// <returns>Splitted regions or null if no splitting occured or region is not closed curve.</returns>
         public static List<Curve> SplitRegion(Curve region, Curve splittingCurve)
         {
             List<double> region_t_params = new List<double>();
@@ -464,7 +458,6 @@ namespace Blistructor
                 // Use recursieve option
                 pCurve.AddRange(SplitRegion(region, sCurve));
             }
-
             return pCurve;
         }
 
