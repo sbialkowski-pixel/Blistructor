@@ -420,29 +420,41 @@ namespace Blistructor
             foreach (JObject obj_data in content)
             {
                 JArray contours = (JArray)obj_data["contours"];
+                // Can be more then one contour, MaskRCNN can detect small shit withing bboxes, so have to remove them by filtering areas. 
+                List<Polyline> tempContours = new List<Polyline>();
+                foreach (JArray contour in contours)
+                {
+                    // Get contour and create Polyline
+                    Polyline pline = new Polyline(contour.Count);
+                    foreach (JArray cont_data in contour)
+                    {
+                        pline.Add((double)cont_data[0], (double)cont_data[1], 0);
+                    }
+                    // If Polyline is closed, proceed it further
+                    if (pline.IsClosed) tempContours.Add(pline);
+                }
+                if (tempContours.Count == 0)
+                {
+                    string message = String.Format("JSON - None closed polyline for contour set. Incorrect contour data.");
+                    log.Error(message);
+                    throw new InvalidOperationException(message);
+                }
+                Polyline finalPline = tempContours.OrderByDescending(contour => contour.Area()).First();
+
+
                 // If more the one contours or zero per category, return error;
-                if (contours.Count != 1)
+                /*if (contours.Count != 1)
                 {
                     string message = String.Format("JSON - Found {0} contours per object. Only one contour per object allowed", contours.Count);
                     log.Error(message);
                     throw new InvalidOperationException(message);
                 }
-                // Get contour and create Polyline
-                JArray points = (JArray)contours[0];
-                Polyline pline = new Polyline(points.Count);
-                foreach (JArray cont_data in points)
-                {
-                    pline.Add((double)cont_data[0], (double)cont_data[1], 0);
-                }
-                // Check if Polyline is closed
-                if (!pline.IsClosed)
-                {
-                    string message = String.Format("JSON - Polyline is not closed. Incorrect contour data.");
-                    log.Error(message);
-                    throw new InvalidOperationException(message);
-                }
-                if ((string)obj_data["category"] == jsonCategoryMap["pill"]) pills.Add(pline.ToPolylineCurve());
-                else if ((string)obj_data["category"] == jsonCategoryMap["blister"]) blister.Add(pline.ToPolylineCurve());
+                */
+
+
+
+                if ((string)obj_data["category"] == jsonCategoryMap["pill"]) pills.Add(finalPline.ToPolylineCurve());
+                else if ((string)obj_data["category"] == jsonCategoryMap["blister"]) blister.Add(finalPline.ToPolylineCurve());
                 else
                 {
                     string message = String.Format("JSON - Incorrect category for countour");

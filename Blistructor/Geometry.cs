@@ -474,7 +474,7 @@ namespace Blistructor
             List<Curve> temp_regions = new List<Curve>();
             temp_regions.Add(region);
 
-            foreach (PolylineCurve splitter in splitters)
+            foreach (Curve splitter in splitters)
             {
                 List<Curve> current_temp_regions = new List<Curve>();
                 foreach (Curve current_region in temp_regions)
