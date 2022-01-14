@@ -9,7 +9,7 @@ using ExtraMath = Pixel.Rhino.RhinoMath;
 
 namespace Blistructor
 {
-    static class Setups
+    static public class Setups
     {
 
         public static double PixelSpacing = GetEnvironmentVariableWithDefault("PIXEL_SPACING", 1.0);

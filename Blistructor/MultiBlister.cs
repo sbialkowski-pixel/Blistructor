@@ -157,8 +157,8 @@ namespace Blistructor
 
                 // Apply calibration on blister and pills
                 // Vector3d calibrationVector = new Vector3d(rX, calibrationVectorY, 0);
-                Geometry.ApplyCalibration(blister, Setups.ZeroPosition, Setups.PixelSpacing);
-                pills.ForEach(pill => Geometry.ApplyCalibration(pill, Setups.ZeroPosition, Setups.PixelSpacing));
+                Geometry.ApplyCalibration(blister, Setups.ZeroPosition, Setups.PixelSpacing, Setups.CartesianPickModeAngle);
+                pills.ForEach(pill => Geometry.ApplyCalibration(pill, Setups.ZeroPosition, Setups.PixelSpacing, Setups.CartesianPickModeAngle));
                 if (Setups.TrimBlisterToXAxis)
                 {
                     List<Curve> result = Geometry.SplitRegion(blister, new LineCurve(new Line(new Point3d(-1000, -0.2, 0), Vector3d.XAxis, 2000)));

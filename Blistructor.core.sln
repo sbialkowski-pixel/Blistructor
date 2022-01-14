@@ -9,13 +9,16 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BlistructorApp", "Blistruct
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BlistructorGH", "BlistructorGH\BlistructorGH.csproj", "{FAE0E2D2-BCB2-446A-B3D3-7DB9C3B24FAB}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BlistructorWeb", "BlistructorWeb\BlistructorWeb.csproj", "{718722C3-39F4-418A-8202-7D9D1D8F25EC}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BlistructorWeb", "BlistructorWeb\BlistructorWeb.csproj", "{718722C3-39F4-418A-8202-7D9D1D8F25EC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BlistructorPlugin", "BlistructorPlugin\BlistructorPlugin.csproj", "{44CB359D-D163-48D1-874D-A7966BCE9AE9}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug_Accupro5|Any CPU = Debug_Accupro5|Any CPU
 		Debug_Valtap|Any CPU = Debug_Valtap|Any CPU
 		Debug|Any CPU = Debug|Any CPU
+		DebugPlugin|Any CPU = DebugPlugin|Any CPU
 		Release_JSON|Any CPU = Release_JSON|Any CPU
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
@@ -26,6 +29,8 @@ Global
 		{C640724D-8EF7-4A46-837C-E032270A2D46}.Debug_Valtap|Any CPU.Build.0 = Debug|Any CPU
 		{C640724D-8EF7-4A46-837C-E032270A2D46}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{C640724D-8EF7-4A46-837C-E032270A2D46}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C640724D-8EF7-4A46-837C-E032270A2D46}.DebugPlugin|Any CPU.ActiveCfg = DebugPlugin|Any CPU
+		{C640724D-8EF7-4A46-837C-E032270A2D46}.DebugPlugin|Any CPU.Build.0 = DebugPlugin|Any CPU
 		{C640724D-8EF7-4A46-837C-E032270A2D46}.Release_JSON|Any CPU.ActiveCfg = Release|Any CPU
 		{C640724D-8EF7-4A46-837C-E032270A2D46}.Release_JSON|Any CPU.Build.0 = Release|Any CPU
 		{C640724D-8EF7-4A46-837C-E032270A2D46}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -36,6 +41,7 @@ Global
 		{036B6351-0334-46F5-A9DB-5C28095CA741}.Debug_Valtap|Any CPU.Build.0 = Debug|Any CPU
 		{036B6351-0334-46F5-A9DB-5C28095CA741}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{036B6351-0334-46F5-A9DB-5C28095CA741}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{036B6351-0334-46F5-A9DB-5C28095CA741}.DebugPlugin|Any CPU.ActiveCfg = DebugPlugin|Any CPU
 		{036B6351-0334-46F5-A9DB-5C28095CA741}.Release_JSON|Any CPU.ActiveCfg = Debug|Any CPU
 		{036B6351-0334-46F5-A9DB-5C28095CA741}.Release_JSON|Any CPU.Build.0 = Debug|Any CPU
 		{036B6351-0334-46F5-A9DB-5C28095CA741}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -46,6 +52,8 @@ Global
 		{FAE0E2D2-BCB2-446A-B3D3-7DB9C3B24FAB}.Debug_Valtap|Any CPU.Build.0 = Debug_Valtap|Any CPU
 		{FAE0E2D2-BCB2-446A-B3D3-7DB9C3B24FAB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{FAE0E2D2-BCB2-446A-B3D3-7DB9C3B24FAB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FAE0E2D2-BCB2-446A-B3D3-7DB9C3B24FAB}.DebugPlugin|Any CPU.ActiveCfg = DebugPlugin|Any CPU
+		{FAE0E2D2-BCB2-446A-B3D3-7DB9C3B24FAB}.DebugPlugin|Any CPU.Build.0 = DebugPlugin|Any CPU
 		{FAE0E2D2-BCB2-446A-B3D3-7DB9C3B24FAB}.Release_JSON|Any CPU.ActiveCfg = Release_JSON|Any CPU
 		{FAE0E2D2-BCB2-446A-B3D3-7DB9C3B24FAB}.Release_JSON|Any CPU.Build.0 = Release_JSON|Any CPU
 		{FAE0E2D2-BCB2-446A-B3D3-7DB9C3B24FAB}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -56,10 +64,23 @@ Global
 		{718722C3-39F4-418A-8202-7D9D1D8F25EC}.Debug_Valtap|Any CPU.Build.0 = Debug|Any CPU
 		{718722C3-39F4-418A-8202-7D9D1D8F25EC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{718722C3-39F4-418A-8202-7D9D1D8F25EC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{718722C3-39F4-418A-8202-7D9D1D8F25EC}.DebugPlugin|Any CPU.ActiveCfg = DebugPlugin|Any CPU
 		{718722C3-39F4-418A-8202-7D9D1D8F25EC}.Release_JSON|Any CPU.ActiveCfg = Release|Any CPU
 		{718722C3-39F4-418A-8202-7D9D1D8F25EC}.Release_JSON|Any CPU.Build.0 = Release|Any CPU
 		{718722C3-39F4-418A-8202-7D9D1D8F25EC}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{718722C3-39F4-418A-8202-7D9D1D8F25EC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{44CB359D-D163-48D1-874D-A7966BCE9AE9}.Debug_Accupro5|Any CPU.ActiveCfg = Debug|Any CPU
+		{44CB359D-D163-48D1-874D-A7966BCE9AE9}.Debug_Accupro5|Any CPU.Build.0 = Debug|Any CPU
+		{44CB359D-D163-48D1-874D-A7966BCE9AE9}.Debug_Valtap|Any CPU.ActiveCfg = Debug|Any CPU
+		{44CB359D-D163-48D1-874D-A7966BCE9AE9}.Debug_Valtap|Any CPU.Build.0 = Debug|Any CPU
+		{44CB359D-D163-48D1-874D-A7966BCE9AE9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{44CB359D-D163-48D1-874D-A7966BCE9AE9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{44CB359D-D163-48D1-874D-A7966BCE9AE9}.DebugPlugin|Any CPU.ActiveCfg = DebugPlugin|Any CPU
+		{44CB359D-D163-48D1-874D-A7966BCE9AE9}.DebugPlugin|Any CPU.Build.0 = DebugPlugin|Any CPU
+		{44CB359D-D163-48D1-874D-A7966BCE9AE9}.Release_JSON|Any CPU.ActiveCfg = Release|Any CPU
+		{44CB359D-D163-48D1-874D-A7966BCE9AE9}.Release_JSON|Any CPU.Build.0 = Release|Any CPU
+		{44CB359D-D163-48D1-874D-A7966BCE9AE9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{44CB359D-D163-48D1-874D-A7966BCE9AE9}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

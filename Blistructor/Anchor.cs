@@ -9,6 +9,11 @@ using Pixel.Rhino.Geometry;
 using Rhino;
 using Rhino.Geometry;
 #endif
+
+#if DEBUG
+using Pixel.Rhino.FileIO;
+using Pixel.Rhino.DocObjects;
+#endif
 using log4net;
 using Newtonsoft.Json.Linq;
 
@@ -30,7 +35,6 @@ namespace Blistructor
         public List<LineCurve> GrasperPossibleLocation;
         public List<AnchorPoint> anchors;
         public List<Point3d> GlobalAnchors;
-
 
         public Anchor(MultiBlister mBlister)
         {
@@ -449,19 +453,41 @@ namespace Blistructor
             GrasperPossibleLocation.ForEach(line => line.Translate(Vector3d.YAxis * factor));
         }
 
+        /*
         public void Update(Blister cuttedBlister)
         {
             //Update(null, cuttedBlister.Cells[0].bestCuttingData.Polygon);
             Update(cuttedBlister.Cells[0].bestCuttingData.Polygon);
         }
+        */
 
-        public void Update(PolylineCurve polygon)
-        {        
+        public void Update(Blister cuttedBlister)
+        {
+#if DEBUG
+            var file = new File3dm();
+#endif
+            PolylineCurve polygon = cuttedBlister.Cells[0].bestCuttingData.Polygon;
+
+           // List<RegionContainment> cont1 = GrasperPossibleLocation.Select(crv => Curve.PlanarClosedCurveRelationship(polygon, crv)).ToList();
             // Simplify polygon
             Curve simplePolygon = polygon;
             simplePolygon.RemoveShortSegments(Setups.CollapseTolerance);
             // Offset by half BladeWidth
             Curve offset = simplePolygon.Offset(Plane.WorldXY, Setups.BladeWidth / 2);
+#if DEBUG
+            var att = new ObjectAttributes() ;
+            att.Name = "simplePolygon";
+            file.Objects.AddCurve(simplePolygon, att);
+            att = new ObjectAttributes();
+            att.Name = "offset";
+            file.Objects.AddCurve(offset, att);
+            att = new ObjectAttributes();
+            att.Name = "path";
+            cuttedBlister.Cells[0].bestCuttingData.Path.ForEach(crv => file.Objects.AddCurve(crv, att));
+            att = new ObjectAttributes();
+            att.Name = "path_segemnts";
+            cuttedBlister.Cells[0].bestCuttingData.bladeFootPrint.ForEach(crv => file.Objects.AddCurve(crv, att));
+#endif
             if (offset != null)
             {
                 //log.Info(String.Format("offset Length: {0}", offset.Length));
@@ -472,18 +498,42 @@ namespace Blistructor
                 List<Curve> unitedCurve = Curve.CreateBooleanUnion(new List<Curve>() { rightMove, offset, leftMove });
                 if (unitedCurve.Count == 1)
                 {
+                    List<RegionContainment> cont2 = GrasperPossibleLocation.Select(crv => Curve.PlanarClosedCurveRelationship(unitedCurve[0], crv)).ToList();
+
                     //log.Info(String.Format("unitedCurve Length: {0}", unitedCurve.Length));
                     // Assuming GrasperPossibleLocation is in the Setups.JawDepth possition... Trim
                     Tuple<List<Curve>, List<Curve>> result = Geometry.TrimWithRegion(GrasperPossibleLocation.Select(crv => (Curve)crv).ToList(), unitedCurve[0]);
-                    GrasperPossibleLocation = result.Item2.Select(crv => (LineCurve)crv).ToList();
+                    //GrasperPossibleLocation = result.Item2.Select(crv => (LineCurve)crv).ToList();
+#if DEBUG
+                    att = new ObjectAttributes();
+                    att.Name = "unitedCurve";
+                    file.Objects.AddCurve(unitedCurve[0], att);
+                    att = new ObjectAttributes();
+                    att.Name = "trim_result";
+                    result.Item2.ForEach(crv => file.Objects.AddCurve(crv, att));
+                    att = new ObjectAttributes();
+                    att.Name = "GrasperPossibleLocation_1";
+                    GrasperPossibleLocation.ForEach(crv => file.Objects.AddCurve(crv, att));
+#endif
+
                     // Move fullway down, trim
                     moveGrasperPossibleLocation(-Setups.JawDepth);
                     result = Geometry.TrimWithRegion(GrasperPossibleLocation.Select(crv => (Curve)crv).ToList(), unitedCurve[0]);
                     GrasperPossibleLocation = result.Item2.Select(crv => (LineCurve)crv).ToList();
                     //Put It back on place.
                     moveGrasperPossibleLocation(Setups.JawDepth);
+
+#if DEBUG
+                    att = new ObjectAttributes();
+                    att.Name = "GrasperPossibleLocation_Final";
+                    GrasperPossibleLocation.ForEach(crv => file.Objects.AddCurve(crv, att));
+#endif
                 }
             }
+#if DEBUG
+
+            file.Write(String.Format(@"D:\PIXEL\DEBUG_FILES\ANCHORS\Update_{0}.3dm", mBlister.Cutted.Count()), 6);
+#endif
         }
 
         [Obsolete("This Update is deprecated, please use method with PolylineCurve as argument")]
@@ -584,7 +634,7 @@ namespace Blistructor
             Point3d blisterCS = new Point3d();
             if (Setups.BlisterGlobalSystem == "PICK") blisterCS = computeGlobalBlisterPossition();
             else if (Setups.BlisterGlobalSystem == "WORK") blisterCS = new Point3d(Setups.BlisterGlobal);
-            else throw new NotImplementedException("PICK or WORK mode for blister coordiante system hase to be chosen");
+            else throw new NotImplementedException("PICK or WORK mode for blister coordiante system has to be chosen");
     
             foreach (AnchorPoint pt in anchors)
             {
