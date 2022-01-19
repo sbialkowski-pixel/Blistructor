@@ -22,7 +22,7 @@ namespace BlistructorApp
             if (File.Exists(JsonPath))
             {
                 string content = File.ReadAllText(JsonPath);
-                MultiBlister structor = new MultiBlister();
+                Blister structor = new Blister();
                 var JSON = structor.CutBlister(content);
                 
                 if (JSON != null) Console.WriteLine(JSON.ToString());

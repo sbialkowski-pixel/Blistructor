@@ -29,7 +29,7 @@ using log4net;
 
 namespace Blistructor
 {
-    public class MultiBlister
+    public class Blister
     {
         private static readonly ILog log = LogManager.GetLogger("Cutter.Main");
 
@@ -45,7 +45,7 @@ namespace Blistructor
         public List<Curve> worldObstacles;
 
 
-        public MultiBlister()
+        public Blister()
         {
             // Logger.Setup();
             Queue = new List<SubBlister>();

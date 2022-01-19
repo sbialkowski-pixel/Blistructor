@@ -26,7 +26,7 @@ namespace Blistructor
 
         public LineCurve cartesianLimitLine;
 
-        public MultiBlister mBlister;
+        public Blister blister;
         public PolylineCurve mainOutline;
         public PolylineCurve aaBBox;
         public PolylineCurve maBBox;
@@ -37,17 +37,17 @@ namespace Blistructor
         public List<AnchorPoint> anchors;
         public List<Point3d> GlobalAnchors;
 
-        public Anchor(MultiBlister mBlister)
+        public Anchor(Blister blister)
         {
             GlobalAnchors = new List<Point3d>(2);
             // Create Cartesian Limit Line
             Line tempLine = new Line(new Point3d(-Setups.IsoRadius, -Setups.BlisterCartesianDistance, 0), Vector3d.XAxis, 2* Setups.IsoRadius);
             cartesianLimitLine = new LineCurve(tempLine);
 
-            this.mBlister = mBlister;
+            this.blister = blister;
             GrasperPossibleLocation = new List<LineCurve>();
 
-            mainOutline = mBlister.Queue[0].Outline;
+            mainOutline = blister.Queue[0].Outline;
 
             // Generate BBoxes
             BoundingBox blisterBB = mainOutline.GetBoundingBox(false);
@@ -91,7 +91,7 @@ namespace Blistructor
             fullPredLine.SetEndPoint(new Point3d(maxCartesianDistanceX, Setups.JawDepth, 0));
 
             // NOTE: Check intersection with pills (Or maybe with pillsOffset. Rethink problem)
-            Tuple<List<Curve>, List<Curve>> trimResult = Geometry.TrimWithRegions(fullPredLine, mBlister.Queue[0].GetPills(false));
+            Tuple<List<Curve>, List<Curve>> trimResult = Geometry.TrimWithRegions(fullPredLine, blister.Queue[0].GetPills(false));
             // Gather all parts outsite (not in pills) shrink curve on both sides by half of Grasper width and move it back to mid position 
             foreach (Curve crv in trimResult.Item2)
             {
@@ -344,7 +344,7 @@ namespace Blistructor
         /// </summary>
         public void GuessAnchorPossiblityOnCell()
         {
-            foreach (SubBlister subBlister in mBlister.Queue)
+            foreach (SubBlister subBlister in blister.Queue)
             {
                 foreach (Cell cell in subBlister.Cells)
                 {
@@ -533,7 +533,7 @@ namespace Blistructor
         {
             if (anchors.Count == 0) return false;
             // NOTE: For loop by all queue blisters.
-            foreach (SubBlister subBlister in mBlister.Queue)
+            foreach (SubBlister subBlister in blister.Queue)
             {
                 if (subBlister.Cells == null) return false;
                 if (subBlister.Cells.Count == 0) return false;
@@ -649,7 +649,7 @@ namespace Blistructor
             }
 #if DEBUG
 
-            file.Write(String.Format(@"D:\PIXEL\DEBUG_FILES\ANCHORS\Update_{0}.3dm", mBlister.Cutted.Count()), 6);
+            file.Write(String.Format(@"D:\PIXEL\DEBUG_FILES\ANCHORS\Update_{0}.3dm", blister.Cutted.Count()), 6);
 #endif
         }
 

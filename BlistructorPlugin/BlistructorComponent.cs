@@ -62,7 +62,7 @@ namespace BlistructorPlugin
         {
             string jsonData = "";
             DA.GetData<string>(0, ref jsonData);
-            MultiBlister structor = new MultiBlister();
+            Blister structor = new Blister();
 
             JObject json = structor.CutBlister(jsonData);
 

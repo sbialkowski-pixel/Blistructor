@@ -75,7 +75,7 @@ namespace Blistructor.SegPrev
             Blistructor.Logger.Setup();
             Blistructor.Logger.ClearAllLogFile();
 
-            //MultiBlister structor = new MultiBlister();
+            //Blister structor = new Blister();
 
             //JObject json = structor.CutBlister(jsonData);
 

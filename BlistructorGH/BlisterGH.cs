@@ -10,9 +10,9 @@ using Blistructor;
 
 namespace BlistructorGH
 {
-    public class MultiBlisterGH : MultiBlister
+    public class BlisterGH : Blister
     {
-        public MultiBlisterGH() : base()
+        public BlisterGH() : base()
         {
 
         }
