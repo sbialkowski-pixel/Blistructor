@@ -256,7 +256,7 @@ namespace BlistructorGH
                 //List<List<Curve>> out_data = new List<List<Curve>>();
                 for (int i = 0; i < Cutted.Count; i++)
                 {
-                    Blister cuttedBlister = Cutted[i];
+                    SubBlister cuttedBlister = Cutted[i];
                     Cell cuttedCell = Cutted[i].Cells[0];
                     // if (cuttedCell.cuttingData == null) continue;
                     // if (cuttedCell.cuttingData.Count == 0) continue;
@@ -286,9 +286,9 @@ namespace BlistructorGH
             get
             {
                 DataTree<string> anchors = new DataTree<string>();
-                foreach (Blister blister in Cutted)
+                foreach (SubBlister blister in Cutted)
                 {
-                    anchors.Add(blister.Cells[0].Anchor.state.ToString());
+                    //anchors.Add(blister.Cells[0].Anchor.state.ToString());
                 }
                 anchors.Graft();
                 return anchors;
@@ -304,7 +304,7 @@ namespace BlistructorGH
                 {
                     for (int i = 0; i < Queue[j].Cells.Count; i++)
                     {
-                        anchors.Add(Queue[j].Cells[i].Anchor.state.ToString(), new GH_Path(j, i));
+                        //anchors.Add(Queue[j].Cells[i].Anchor.state.ToString(), new GH_Path(j, i));
                     }
                 }
                 return anchors;

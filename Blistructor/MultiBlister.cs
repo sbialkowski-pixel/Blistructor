@@ -10,19 +10,14 @@ using Rhino.Geometry;
 using log4net;
 
 // TODO: -WIP-: Przejechanie wszystkich blistrów i sprawdzenie jak działa -> szukanie błedów
-// TODO: -DONE?-: Adaptacyje anchory -> Aktualizacja anchorów (ich przemieszczania) wraz z procesem ciecia np. przypadek blistra 19.
-
 // TODO: AdvancedCutting -> blister 19.
 
 //
 // TODO: Zle sie wyliczaja Anchor Pointy - trzeba dodac grasperPredLine na górze i na dole  i brac mina z obu extremalnych konców...
 
 // TODO: -WIP-: Adaptacyjna kolejność ciecia - po każdej wycietej tabletce, nalezało by przesortowac cell tak aby wubierał najbliższe - Nadal kolejnosc ciecia jest do kitu ...
-// TODO: -DONE???-: Generowanie JSONA, Obsługa wyjątków, lista errorów. struktura pliku
 // TODO: "ładne" logowanie produkcyjne jak i debugowe.
 // TODO: Posprzątanie w klasach.
-// TODO: -DONE???-: PredAnchorLine nie updatuje sie w przypadku gdzi na końcu jest wiecej niż jeden blister...
-// TODO: -DONE- W przypadku Blstra 28 -> Tab10, linia ciecia nieszczeslicwi przecina blister 4 razy... wywala sie na tym cąła logika 
 
 /*States:
  * CTR_SUCCESS -> Cutting successful.
@@ -37,12 +32,12 @@ namespace Blistructor
     public class MultiBlister
     {
         private static readonly ILog log = LogManager.GetLogger("Cutter.Main");
-        
+
         public PolylineCurve mainOutline;
 
         private int loopTolerance = 5;
-        public List<Blister> Queue;
-        public List<Blister> Cutted;
+        public List<SubBlister> Queue;
+        public List<SubBlister> Cutted;
 
         //  private JObject cuttingResult;
 
@@ -52,9 +47,9 @@ namespace Blistructor
 
         public MultiBlister()
         {
-          // Logger.Setup();
-            Queue = new List<Blister>();
-            Cutted = new List<Blister>();
+            // Logger.Setup();
+            Queue = new List<SubBlister>();
+            Cutted = new List<SubBlister>();
             // cuttingResult = PrepareEmptyJSON();
         }
 
@@ -63,9 +58,9 @@ namespace Blistructor
             get
             {
                 int counter = 0;
-                foreach (Blister blister in Queue)
+                foreach (SubBlister subBlister in Queue)
                 {
-                    counter += blister.Cells.Select(cell => cell.State).Where(state => state == CellState.Queue || state == CellState.Alone).ToList().Count;
+                    counter += subBlister.Cells.Select(cell => cell.State).Where(state => state == CellState.Queue || state == CellState.Alone).ToList().Count;
                 }
                 return counter;
             }
@@ -78,9 +73,9 @@ namespace Blistructor
             get
             {
                 List<PolylineCurve> polygons = new List<PolylineCurve>(Cutted.Count);
-                foreach (Blister blister in Cutted)
+                foreach (SubBlister subBlister in Cutted)
                 {
-                    polygons.Add(blister.Outline);
+                    polygons.Add(subBlister.Outline);
                 }
                 return polygons;
             }
@@ -92,9 +87,9 @@ namespace Blistructor
             get
             {
                 List<List<LineCurve>> cuttingLines = new List<List<LineCurve>>(Cutted.Count);
-                foreach (Blister blister in Cutted)
+                foreach (SubBlister subBlister in Cutted)
                 {
-                    cuttingLines.Add(blister.GetCuttingLines());
+                    cuttingLines.Add(subBlister.GetCuttingLines());
                 }
                 return cuttingLines;
             }
@@ -108,22 +103,22 @@ namespace Blistructor
         private void InitialiseNewCut()
         {
             // Init Logger
-           // Logger.Setup();
+            // Logger.Setup();
 
             // Initialize Lists
-            Queue = new List<Blister>();
-            Cutted = new List<Blister>();
+            Queue = new List<SubBlister>();
+            Cutted = new List<SubBlister>();
 
             //cuttingResult = PrepareEmptyJSON();
         }
 
         private void InitialiseNewBlister(List<PolylineCurve> pills, PolylineCurve blister)
         {
-            Blister initialBlister = new Blister(pills, blister);
+            SubBlister initialBlister = new SubBlister(pills, blister);
             initialBlister.SortCellsByCoordinates(true);
             Queue.Add(initialBlister);
             anchor = new Anchor(this);
-            
+
 
             // World Obstacles
             // Line cartesianLimitLine = new Line(new Point3d(0, -Setups.BlisterCartesianDistance, 0), Vector3d.XAxis, 1.0);
@@ -148,7 +143,7 @@ namespace Blistructor
                 JObject setup = data.Item1;
                 JArray content = data.Item2;
                 Setups.ApplySetups(setup);
-                // Parse JSON. Item1 -> Blister, Item2 -> Pills
+                // Parse JSON. Item1 -> SubBlister, Item2 -> Pills
                 Tuple<PolylineCurve, List<PolylineCurve>> pLines = GetContursBasedOnJSON(content, jsonCategoryMap);
 
                 // Simplyfy paths on blister and pills
@@ -244,7 +239,7 @@ namespace Blistructor
 
                 JArray allCuttingInstruction = new JArray();
                 JArray allDisplayInstruction = new JArray();
-                foreach (Blister bli in Cutted)
+                foreach (SubBlister bli in Cutted)
                 {
                     // Pass to JsonCretors JAW_1 Local coordinate for proper global coordinates calculation...
                     allCuttingInstruction.Add(bli.Cells[0].GetJSON(anchor.anchors[0].location));
@@ -280,29 +275,29 @@ namespace Blistructor
                 for (int i = 0; i < Queue.Count; i++)
                 {
                     if (Queue == null) continue;
-                    Blister blister = Queue[i];
-                    log.Info(String.Format("{0} cells left to cut on on Blister:{1}", blister.Cells.Count, i));
-                    if (blister.IsDone)
+                    SubBlister subBlister = Queue[i];
+                    log.Info(String.Format("{0} cells left to cut on on SubBlister:{1}", subBlister.Cells.Count, i));
+                    if (subBlister.IsDone)
                     {
-                        log.Info("Blister is already cutted or is to tight for cutting.");
+                        log.Info("SubBlister is already cutted or is to tight for cutting.");
                         continue;
                     }
-                    // In tuple I have | CutOut Blister | Current Updated Blister | Extra Blisters to Cut (recived by spliting currentBlister) 
-                    Tuple<Blister, Blister, List<Blister>> result = blister.CutNext(worldObstacles);
-                    log.Debug(String.Format("Cutting Result: Cutout: {0} - Current Blister {1} - New Blisters {2}.", result.Item1, result.Item2, result.Item3.Count));
+                    // In tuple I have | CutOut SubBlister | Current Updated SubBlister | Extra Blisters to Cut (recived by spliting currentBlister) 
+                    CutResult result = subBlister.CutNext(worldObstacles);
+                    log.Debug(String.Format("Cutting Result: Cutout: {0} - Current SubBlister {1} - New Blisters {2}.", result.CutOut, result.Current, result.ExtraBlisters.Count));
                     // If anything was cutted, add to list
-                    if (result.Item1 != null)
+                    if (result.CutOut != null)
                     {
-                        Cell cuttedCell = result.Item1.Cells[0];
-                        if (cuttedCell.Anchor.state == AnchorState.Inactive)
+                        Cell cuttedCell = result.CutOut.Cells[0];
+                        if (!cuttedCell.IsAnchored)
                         {
                             log.Debug("Anchor - Update Pred Line");
 
-                            anchor.Update(result.Item1);
+                            anchor.Update(result.CutOut);
                         }
-                        if (cuttedCell.Anchor.state == AnchorState.Active && cuttedCell.State != CellState.Alone && CuttableCellsLeft == 2) anchor.FindNewAnchorAndApplyOnBlister(result.Item1);
-                        log.Debug("Adding new CutOut blister to Cutted list");
-                        Cutted.Add(result.Item1);
+                        if (cuttedCell.IsAnchored && cuttedCell.State != CellState.Alone && CuttableCellsLeft == 2) anchor.FindNewAnchorAndApplyOnBlister(result.CutOut);
+                        log.Debug("Adding new CutOut subBlister to Cutted list");
+                        Cutted.Add(result.CutOut);
                     }
                     else
                     {
@@ -310,29 +305,29 @@ namespace Blistructor
                         return CuttingState.CTR_FAILED;
                     }
                     // override current bluster, if null , remove it from Queue list
-                    if (result.Item2 == null)
+                    if (result.Current == null)
                     {
-                        log.Info("Current blister is empty. Removing from Queue");
+                        log.Info("Current subBlister is empty. Removing from Queue");
                         Queue.RemoveAt(i);
                         i--;
                         break;
                     }
                     else
                     {
-                        log.Debug("Updating blister");
-                        blister = result.Item2;
+                        log.Debug("Updating subBlister");
+                        subBlister = result.Current;
                         // Sort Pills by last Knife Possition -> Last Pill Centre
                         // Point3d lastKnifePossition = Cutted.Last().Cells[0].bestCuttingData.GetLastKnifePossition();
                         Point3d lastKnifePossition = Cutted.Last().Cells[0].PillCenter;
-                        if (lastKnifePossition.X != double.NaN) blister.SortCellsByPointDirection(lastKnifePossition, false);
-                        //if (lastKnifePossition.X != double.NaN) blister.SortCellsByCoordinates(true);
+                        if (lastKnifePossition.X != double.NaN) subBlister.SortCellsByPointDirection(lastKnifePossition, false);
+                        //if (lastKnifePossition.X != double.NaN) subBlister.SortCellsByCoordinates(true);
 
                     }
                     // Add extra blsters if any was created
-                    if (result.Item3.Count != 0)
+                    if (result.ExtraBlisters.Count != 0)
                     {
-                        log.Debug("Adding new blister(s) to Queue");
-                        Queue.AddRange(result.Item3);
+                        log.Debug("Adding new subBlister(s) to Queue");
+                        Queue.AddRange(result.ExtraBlisters);
                         break;
                     }
 
@@ -404,6 +399,7 @@ namespace Blistructor
             return new Tuple<JObject, JArray>(data.GetValue<JObject>("setup", null), data.GetValue<JArray>("content", null));
         }
 
+        //TODO: Dodanie thresholda do segmentacji. Tutaj albo w UdoneVision.
         public Tuple<PolylineCurve, List<PolylineCurve>> GetContursBasedOnJSON(JArray content, Dictionary<string, string> jsonCategoryMap)
         {
             //JArray data = JArray.Parse(json);

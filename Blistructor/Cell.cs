@@ -30,12 +30,14 @@ namespace Blistructor
 
         public int id;
 
-        // Parent Blister
-        private Blister blister;
+        // Parent SubBlister
+        private SubBlister subBlister;
 
         // States
         private CellState state = CellState.Queue;
-        public AnchorPoint Anchor;
+        //public AnchorPoint Anchor;
+        public List<AnchorPoint> Anchors;
+        public bool possibleAnchor;
         //public double CornerDistance = 0;
         //public double GuideDistance = 0;
 
@@ -47,7 +49,7 @@ namespace Blistructor
         private Point3d pillCenter;
 
         // Connection and Adjacent Stuff
-        public Curve voronoi;
+        public PolylineCurve voronoi;
         //!!connectionLines, proxLines, adjacentCells, samplePoints <- all same sizes, and order!!
         public List<Curve> connectionLines;
         public List<Curve> proxLines;
@@ -60,21 +62,23 @@ namespace Blistructor
         // public List<Curve> temp2 = new List<Curve>();
         public List<CutData> cuttingData;
         public CutData bestCuttingData;
-        // Int with best cutting index and new Blister for this cutting.
+        // Int with best cutting index and new SubBlister for this cutting.
 
-        public Cell(int _id, PolylineCurve _pill, Blister _blister)
+        public Cell(int _id, PolylineCurve _pill, SubBlister _blister)
         {
             id = _id;
-            blister = _blister;
+            SubBlister = _blister;
             // Prepare all needed Pill properties
             pill = _pill;
             // Make Pill curve oriented in proper direction.
             Geometry.UnifyCurve(pill);
 
-            Anchor = new AnchorPoint();
+            //Anchor = new AnchorPoint();
+            Anchors = new List<AnchorPoint>(2);
+            possibleAnchor = false;
 
             pillCenter = pill.ToPolyline().CenterPoint();
-  
+
             // Create pill offset
             Curve ofCur = pill.Offset(Plane.WorldXY, Setups.BladeWidth / 2);
             if (ofCur == null)
@@ -82,7 +86,7 @@ namespace Blistructor
                 log.Error("Incorrect pill offseting");
                 throw new InvalidOperationException("Incorrect pill offseting");
             }
-            else 
+            else
             {
                 pillOffset = (PolylineCurve)ofCur;
             }
@@ -93,14 +97,14 @@ namespace Blistructor
         {
             //get { return pillProp.Centroid; } //
             get { return pillCenter; } //
-            
+
         }
 
-        public Blister Blister
+        public SubBlister SubBlister
         {
             set
             {
-                blister = value;
+                SubBlister = value;
                 EstimateOrientationCircle();
                 SortData();
             }
@@ -130,6 +134,14 @@ namespace Blistructor
             return output;
         }
         */
+
+        public bool IsAnchored
+        {
+            get
+            {
+                return Anchors.Any(anchor => anchor.state == AnchorState.Active);
+            }
+        }
 
         public List<PolylineCurve> GetPaths()
         {
@@ -259,7 +271,7 @@ namespace Blistructor
         {
             double circle_radius = pill.GetBoundingBox(false).Diagonal.Length / 2;
             OrientationCircle = (new Circle(PillCenter, circle_radius)).ToNurbsCurve();
-            Geometry.EditSeamBasedOnCurve(OrientationCircle, blister.Outline);
+            Geometry.EditSeamBasedOnCurve(OrientationCircle, subBlister.Outline);
         }
 
         private void SortData()
@@ -342,7 +354,7 @@ namespace Blistructor
                 //List<Curve> prox = adjacentCells[i].GetUniqueProxy(id);
                 foreach (KeyValuePair<int, Curve> prox_crv in proxDict)
                 {
-                    uniqueCellsOffset[prox_crv.Key] = blister.CellByID(prox_crv.Key).pillOffset;
+                    uniqueCellsOffset[prox_crv.Key] = subBlister.CellByID(prox_crv.Key).pillOffset;
 
                     if (Geometry.CurveCurveIntersection(prox_crv.Value, proxLines).Count == 0)
                     {
@@ -472,7 +484,7 @@ namespace Blistructor
                 return CutState.Alone;
             }
             // If cell is marekd as possible anchor, also dont try to cut
-            if (ommitAnchor == true && Anchor.state == AnchorState.Active)
+            if (ommitAnchor == true && IsAnchored)
             {
                 log.Debug("Marked as anchored. Omitting");
                 return CutState.Failed;
@@ -637,12 +649,12 @@ namespace Blistructor
             if (ray == null) return outLine;
             //  log.Debug("Ray not null");
             Geometry.FlipIsoRays(OrientationCircle, ray);
-            Tuple<List<Curve>, List<Curve>> result = Geometry.TrimWithRegion(ray, blister.Outline);
+            Tuple<List<Curve>, List<Curve>> result = Geometry.TrimWithRegion(ray, subBlister.Outline);
             if (result.Item1.Count < 1) return outLine;
             // log.Debug("After trimming.");
             foreach (Curve crv in result.Item1)
             {
-                PointContainment test = blister.Outline.Contains(crv.PointAtNormalizedLength(0.5), Plane.WorldXY, 0.1);
+                PointContainment test = subBlister.Outline.Contains(crv.PointAtNormalizedLength(0.5), Plane.WorldXY, 0.1);
                 if (test == PointContainment.Inside) return (LineCurve)crv;
 
             }
@@ -655,16 +667,16 @@ namespace Blistructor
         /// <param name="rays"></param>
         private void PolygonBuilder_v2(List<LineCurve> rays)
         {
-           /*
-            String path = String.Format("D:\\PIXEL\\Blistructor\\DebugModels\\PolygonBuilder_Rays_{0}.3dm", id);
-            File3dm file = new File3dm();
-            if (File.Exists(path)) { 
-               file = File3dm.Read(path); 
-                file.Objects.AddCurve(blister.Outline);
-                file.Objects.AddCurve(pillOffset);
-                this.obstacles.ForEach(crv => file.Objects.AddCurve(crv)) ;
-            }
-            */
+            /*
+             String path = String.Format("D:\\PIXEL\\Blistructor\\DebugModels\\PolygonBuilder_Rays_{0}.3dm", id);
+             File3dm file = new File3dm();
+             if (File.Exists(path)) { 
+                file = File3dm.Read(path); 
+                 file.Objects.AddCurve(subBlister.Outline);
+                 file.Objects.AddCurve(pillOffset);
+                 this.obstacles.ForEach(crv => file.Objects.AddCurve(crv)) ;
+             }
+             */
             // file.Dump();
             // Trim incomming rays and build current working full ray aray.
             List<LineCurve> trimedRays = new List<LineCurve>(rays.Count);
@@ -675,12 +687,12 @@ namespace Blistructor
                 if (trimed_ray == null) continue;
                 trimedRays.Add(trimed_ray);
                 fullRays.Add(ray);
-              //  file.Objects.AddCurve(trimed_ray);
-               // file.Objects.AddLine(ray.Line);
+                //  file.Objects.AddCurve(trimed_ray);
+                // file.Objects.AddLine(ray.Line);
             }
             if (trimedRays.Count != rays.Count) log.Warn("After trimming there is less rays!");
 
-        
+
 
             List<int> raysIndicies = Enumerable.Range(0, trimedRays.Count).ToList();
 
@@ -705,7 +717,7 @@ namespace Blistructor
                 log.Debug(String.Format("STAGE 1: Checking {0} rays.", currentTimmedIsoRays.Count));
                 List<CutData> localCutData = new List<CutData>(2);
                 // STAGE 1: Check if each ray in combination, can cut sucessfully blister.
-              
+
                 // Convert LineCurve to PolylineCurve....
                 CutData afterVerificationSeperate = VerifyPath(pLinecurrentTimmedIsoRays);
                 localCutData.Add(afterVerificationSeperate);
@@ -714,20 +726,20 @@ namespace Blistructor
                 // STAGE 2: Looking for 1 (ONE) continouse cutpath...
                 // Generate Continouse Path, If there is one curve in combination, PathBuilder will return that curve, so it can be checked.
                 PolylineCurve curveToCheck = PathBuilder(currentTimmedIsoRays);
-                
+
                 // If PathBuilder retun any curve... (ONE)
                 if (curveToCheck != null)
                 {
-                  //  file.Objects.AddCurve(curveToCheck);
+                    //  file.Objects.AddCurve(curveToCheck);
                     // Remove very short segments
                     Polyline pLineToCheck = curveToCheck.ToPolyline();
                     //pLineToCheck.DeleteShortSegments(Setups.CollapseTolerance);
                     // Look if end of cutting line is close to existing point on blister. If tolerance is smaller snap to this point
                     curveToCheck = pLineToCheck.ToPolylineCurve();
-                    //curveToCheck = Geometry.SnapToPoints(curveToCheck, blister.Outline, Setups.SnapDistance);
+                    //curveToCheck = Geometry.SnapToPoints(curveToCheck, subBlister.Outline, Setups.SnapDistance);
                     // NOTE: straighten parts of curve????
                     CutData afterVerificationJoined = VerifyPath(curveToCheck);
-            
+
                     localCutData.Add(afterVerificationJoined);
                     log.Debug(String.Format("STAGE 2: Pass. {0}", afterVerificationSeperate != null ? "Cut FOUND" : "Cut NOT found"));
                 }
@@ -742,7 +754,7 @@ namespace Blistructor
                     cuttingData.Add(cutData);
                 }
             }
-           // file.Write(path, 6);
+            // file.Write(path, 6);
         }
 
         /// <summary>
@@ -807,15 +819,15 @@ namespace Blistructor
             if (pathCrv == null) return null;
             // Check if this curves creates closed polygon with blister edge.
             List<Curve> splitters = pathCrv.Cast<Curve>().ToList();
-            List<Curve> splited_blister = Geometry.SplitRegion(blister.Outline, splitters);
+            List<Curve> splited_blister = Geometry.SplitRegion(subBlister.Outline, splitters);
             // If after split there is less then 2 region it means nothing was cutted and bliseter stays unchanged
             if (splited_blister == null) return null;
             //splitters.ForEach(crv => file.Objects.AddCurve(crv));
             //splited_blister.ForEach(crv => file.Objects.AddCurve(crv));
-           // file.Write(path, 6);
+            // file.Write(path, 6);
             if (splited_blister.Count < 2) return null;
 
-            log.Debug(string.Format("Blister splitited onto {0} parts", splited_blister.Count));
+            log.Debug(string.Format("SubBlister splitited onto {0} parts", splited_blister.Count));
             Polyline pill_region = null;
             List<PolylineCurve> cutted_blister_regions = new List<PolylineCurve>();
 
@@ -840,7 +852,7 @@ namespace Blistructor
 
             // Chceck if only this pill is inside pill_region, After checking if pill region exists of course....
             log.Debug("Chceck if only this pill is inside pill_region.");
-            foreach (Cell cell in blister.Cells)
+            foreach (Cell cell in subBlister.Cells)
             {
                 if (cell.id == this.id) continue;
                 RegionContainment test = Curve.PlanarClosedCurveRelationship(cell.pillOffset, pill_region_curve);
@@ -887,7 +899,7 @@ namespace Blistructor
             data.Add("anchors", anchorPossitions);
 
             // Add displayCut data
-            if (bestCuttingData != null) data.Add("displayCut", bestCuttingData.GetDisplayJSON(anchors[0].location));          
+            if (bestCuttingData != null) data.Add("displayCut", bestCuttingData.GetDisplayJSON(anchors[0].location));
             else data.Add("displayCut", new JArray());
             return data;
         }
@@ -897,7 +909,7 @@ namespace Blistructor
             JObject data = new JObject();
             data.Add("pillIndex", this.id);
             // Add Anchor Data <- to be implement.
-            data.Add("openJaw", Anchor.orientation.ToString().ToLower());
+            data.Add("openJaw", new JArray(Anchors.Select(anchor => anchor.orientation.ToString().ToLower())));
             // Add Cutting Instruction
             if (bestCuttingData != null) data.Add("cutInstruction", bestCuttingData.GetJSON(Jaw1_Local));
             else data.Add("cutInstruction", new JArray());

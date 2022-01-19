@@ -13,26 +13,23 @@ using Newtonsoft.Json.Linq;
 
 namespace Blistructor
 {
-    
-    public class Blister
+
+    public class SubBlister
     {
-        
-        private static readonly ILog log = LogManager.GetLogger("Cutter.Blister");
+
+        private static readonly ILog log = LogManager.GetLogger("Cutter.SubBlister");
 
 
         private bool toTight = false;
         private PolylineCurve outline;
-        //private PolylineCurve bBox;
-        //private Point3d minPoint;
-        //private LineCurve guideLine;
         private List<Cell> cells;
         public List<PolylineCurve> irVoronoi;
 
         /// <summary>
         /// Internal constructor for non-pill stuff
         /// </summary>
-        /// <param name="outline">Blister Shape</param>
-        private Blister(PolylineCurve outline)
+        /// <param name="outline">SubBlister Shape</param>
+        private SubBlister(PolylineCurve outline)
         {
             cells = new List<Cell>();
             Geometry.UnifyCurve(outline);
@@ -44,33 +41,33 @@ namespace Blistructor
         /// </summary>
         /// <param name="cells"></param>
         /// <param name="outline"></param>
-        public Blister(Cell _cells, PolylineCurve outline) : this(outline)
+        public SubBlister(Cell _cells, PolylineCurve outline) : this(outline)
         {
             this.cells = new List<Cell>(1) { _cells };
         }
 
         /// <summary>
-        /// New blister based on already existing cells and outline.
+        /// New SubBlister based on already existing cells and outline.
         /// </summary>
         /// <param name="cells">Existing cells</param>
-        /// <param name="outline">Blister edge outline</param>
-        public Blister(List<Cell> _cells, PolylineCurve outline) : this(outline)
+        /// <param name="outline">SubBlister edge outline</param>
+        public SubBlister(List<Cell> _cells, PolylineCurve outline) : this(outline)
         {
-            log.Debug("Creating new blister");
+            log.Debug("Creating new SubBlister");
             this.cells = new List<Cell>(_cells.Count);
             // Loop by all given cells
             foreach (Cell cell in _cells)
             {
                 if (cell.State == CellState.Cutted) continue;
-                // If cell is not cutOut, check if belong to this blister.
+                // If cell is not cutOut, check if belong to this SubBlister.
                 if (this.InclusionTest(cell))
                 {
-                    cell.Blister = this;
+                    cell.SubBlister = this;
                     this.cells.Add(cell);
                 }
 
             }
-            log.Debug(String.Format("Instantiated {0} cells on blister", cells.Count));
+            log.Debug(String.Format("Instantiated {0} cells on SubBlister", cells.Count));
             if (LeftCellsCount == 1) return;
             log.Debug("Sorting Cells");
             // Order by CoordinateIndicator so it means Z-ordering.
@@ -82,22 +79,22 @@ namespace Blistructor
         }
 
         /// <summary>
-        /// New initial blister with Cells creation base on pills outlines.
+        /// New initial SubBlister with Cells creation base on pills outlines.
         /// </summary>
         /// <param name="pills">Pills outline</param>
-        /// <param name="outline">Blister edge outline</param>
-        public Blister(List<PolylineCurve> pills, Polyline outline) : this(pills, outline.ToPolylineCurve())
+        /// <param name="outline">SubBlister edge outline</param>
+        public SubBlister(List<PolylineCurve> pills, Polyline outline) : this(pills, outline.ToPolylineCurve())
         {
         }
 
         /// <summary>
-        /// New initial blister with Cells creation base on pills outlines.
+        /// New initial SubBlister with Cells creation base on pills outlines.
         /// </summary>
         /// <param name="pills">Pills outline</param>
-        /// <param name="outline">Blister edge outline</param>
-        public Blister(List<PolylineCurve> pills, PolylineCurve outline) : this(outline)
+        /// <param name="outline">SubBlister edge outline</param>
+        public SubBlister(List<PolylineCurve> pills, PolylineCurve outline) : this(outline)
         {
-            log.Debug("Creating new blister");
+            log.Debug("Creating new SubBlister");
             // Cells Creation
             cells = new List<Cell>(pills.Count);
             for (int cellId = 0; cellId < pills.Count; cellId++)
@@ -109,10 +106,10 @@ namespace Blistructor
                     cells.Add(cell);
                 }
             }
-            log.Debug(String.Format("Instantiated {0} cells on blister", cells.Count));
+            log.Debug(String.Format("Instantiated {0} cells on SubBlister", cells.Count));
             // If only 1 cell, finish here.
             if (cells.Count <= 1) return;
-            // NOTE: Cells Sorting move to BLister nd controled in BListructor...
+            // NOTE: Cells Sorting move to SubBlister nd controled in BListructor...
             // Order by Corner distance. First Two set as possible Anchor.
             // log.Debug("Sorting Cells");
             // cells = cells.OrderBy(cell => cell.CornerDistance).ToList();
@@ -129,78 +126,6 @@ namespace Blistructor
 
 
         #region PROPERTIES
-          /*
-        public DataTree<Curve> GetObstacles
-        {
-            get
-            {
-                DataTree<Curve> out_data = new DataTree<Curve>();
-                //List<List<Curve>> out_data = new List<List<Curve>>();
-                //  if (cells.Count == 0) return out_data;
-                for (int i = 0; i < cells.Count; i++)
-                {
-                    GH_Path path = new GH_Path(i);
-                    if (cells[i].obstacles == null) cells[i].obstacles = cells[i].BuildObstacles_v2(null);
-                    //   if (cells[i].obstacles.Count == 0) out_data.AddRang(new List<Curve>());
-                    out_data.AddRange(cells[i].obstacles, path);
-                }
-                return out_data;
-            }
-        }
-        public DataTree<Point3d> GetSamplePoints
-        {
-            get
-            {
-                DataTree<Point3d> out_data = new DataTree<Point3d>();
-                //List<List<Curve>> out_data = new List<List<Curve>>();
-                for (int i = 0; i < cells.Count; i++)
-                {
-                    GH_Path path = new GH_Path(i);
-                    out_data.AddRange(cells[i].samplePoints, path);
-                }
-                return out_data;
-            }
-        }
-        public DataTree<Curve> GetConnectionLines
-        {
-            get
-            {
-                DataTree<Curve> out_data = new DataTree<Curve>();
-                //List<List<Curve>> out_data = new List<List<Curve>>();
-                for (int i = 0; i < cells.Count; i++)
-                {
-                    GH_Path path = new GH_Path(i);
-                    out_data.AddRange(cells[i].connectionLines, path);
-                }
-                return out_data;
-            }
-        }
-        public DataTree<Curve> GetProxyLines
-        {
-            get
-            {
-                DataTree<Curve> out_data = new DataTree<Curve>();
-                //List<List<Curve>> out_data = new List<List<Curve>>();
-                for (int i = 0; i < cells.Count; i++)
-                {
-                    GH_Path path = new GH_Path(i);
-                    out_data.AddRange(cells[i].proxLines, path);
-                }
-                return out_data;
-            }
-        }
-       * /
-        /*
-        public Point3d MinPoint
-        {
-            get { return minPoint; }
-        }
-
-        public LineCurve GuideLine
-        {
-            get { return guideLine; }
-        }
-        */
 
         public int LeftCellsCount
         {
@@ -266,8 +191,7 @@ namespace Blistructor
         {
             get
             {
-                if (cells.Select(cell => cell.Anchor.state).Where(state => state == AnchorState.Active).ToList().Count > 0) return true;
-                else return false;
+                return cells.Any(cell => cell.IsAnchored);
             }
         }
 
@@ -326,24 +250,27 @@ namespace Blistructor
         /// 
         /// </summary>
         /// <param name="worldObstacles"></param>
-        /// <returns> In tuple I have | CutOut Blister | Current Updated Blister | Extra Blisters to Cut (recived by spliting currentBlister)</returns>
-        public Tuple<Blister, Blister, List<Blister>> CutNext(List<Curve> worldObstacles)
+        /// <returns> CutResult with : CutOut SubBlister, Current Updated SubBlister and Extra Blisters to Cut (recived by spliting currentBlister)</returns>
+        public CutResult CutNext(List<Curve> worldObstacles)
         {
-            //int counter = 0;
-            log.Debug(String.Format("There is still {0} cells on blister", cells.Count));
-
-            // counter = 0;
+            log.Debug(String.Format("There is still {0} cells on SubBlister", cells.Count));
             // Try cutting only AnchorInactive cells
             for (int i = 0; i < cells.Count; i++)
-            //   foreach (Cell currentCell in cells)
             {
                 Cell currentCell = cells[i];
                 CutState tryCutState = currentCell.TryCut(true, worldObstacles);
-                if (tryCutState != CutState.Failed)
+                if (tryCutState != CutState.Alone)
                 {
-                    Tuple<Blister, Blister, List<Blister>> data = CuttedCellProcessing(currentCell, tryCutState, i);
-                    if (data.Item1 == null && data.Item2 == null && data.Item3 == null)
-                    { 
+                    currentCell.State = CellState.Alone;
+                    log.Info(String.Format("Cell {0}. That was last cell on SubBlister.", currentCell.id));
+
+                    return new CutResult(this, null, new List<SubBlister>(), CutState.Alone);
+                }
+                else if (tryCutState != CutState.Failed)
+                {
+                    CutResult data = CuttedCellProcessing(currentCell, tryCutState, i);
+                    if (data.State == CutState.Failed)
+                    {
                         continue;
                     }
                     else
@@ -358,19 +285,17 @@ namespace Blistructor
                 }
             }
             // If nothing, try to cut anchored ones...
-            log.Warn("No cutting data generated for whole blister. Try to find cutting data in anchored ...");
-            //counter = 0;
+            log.Warn("No cutting data generated for whole SubBlister. Try to find cutting data in anchored ...");
+  
             for (int i = 0; i < cells.Count; i++)
-            //foreach (Cell currentCell in cells)
             {
                 Cell currentCell = cells[i];
                 CutState tryCutState = currentCell.TryCut(false, worldObstacles);
-                if (currentCell.Anchor.state == AnchorState.Active && tryCutState != CutState.Failed)
+                if (currentCell.IsAnchored && tryCutState != CutState.Failed)
                 {
-                    Tuple<Blister, Blister, List<Blister>> data = CuttedCellProcessing(currentCell, tryCutState, i);
-                    if (data.Item1 == null && data.Item2 == null && data.Item3 == null)
+                    CutResult data = CuttedCellProcessing(currentCell, tryCutState, i);
+                    if (data.State == CutState.Failed)
                     {
-                        //  counter++;
                         continue;
                     }
                     else
@@ -381,156 +306,48 @@ namespace Blistructor
                 }
                 else
                 {
-                    //counter++;
                     continue;
                 }
 
             }
-            log.Warn("No cutting data generated for whole blister.");
-
-            return Tuple.Create<Blister, Blister, List<Blister>>(null, this, new List<Blister>());
-
+            log.Warn("No cutting data generated for whole SubBlister.");
+            return new CutResult(null, this, new List<SubBlister>());
         }
 
-        private Tuple<Blister, Blister, List<Blister>> CuttedCellProcessing(Cell foundCell, CutState foundCellState, int locationIndex)
+
+
+        private CutResult CuttedCellProcessing(Cell foundCell, CutState foundCellState, int locationIndex)
         {
-            List<Blister> newBlisters = new List<Blister>();
-            // If on blister was only one cell, after cutting is status change to Alone, so just return it, without any leftover blisters. 
+            List<SubBlister> newBlisters = new List<SubBlister>();
+            // If on SubBlister was only one cell, after cutting is status change to Alone, so just return it, without any leftover blisters. 
             if (foundCellState == CutState.Alone)
             {
                 foundCell.State = CellState.Alone;
-                //foundCell.RemoveConnectionData();
-                log.Info(String.Format("Cell {0}. That was last cell on blister.", foundCell.id));
-                return Tuple.Create<Blister, Blister, List<Blister>>(this, null, newBlisters);
+                log.Info(String.Format("Cell {0}. That was last cell on SubBlister.", foundCell.id));
+
+                return new CutResult(this, null, newBlisters, CutState.Alone);
             }
 
-            log.Info(String.Format("Cell {0}. That was NOT last cell on blister.", foundCell.id));
+            log.Info(String.Format("Cell {0}. That was NOT last cell on SubBlister.", foundCell.id));
 
-            List<int> usedIds = new List<int>(cells.Count);
+            // Inspect leftovers.
             foreach (PolylineCurve leftover in foundCell.bestCuttingData.BlisterLeftovers)
             {
-                // Gather cell belongs to current leftover.
-                List<Cell> currentCells = new List<Cell>(cells.Count);
-                for (int i = 0; i < cells.Count; i++)
+                SubBlister newBli = new SubBlister(cells, leftover);
+                if (!newBli.CheckConnectivityIntegrity(foundCell)) return new CutResult();
+                if (!newBli.HasActiveAnchor)
                 {
-                    // Dont check myself
-                    if (i == locationIndex) continue;
-                    // Dont check already checked cell (it belong to oother leftover
-                    if (usedIds.Contains(i)) continue;
-                    if (InclusionTest(cells[i], leftover))
-                    {
-                        usedIds.Add(i);
-                        currentCells.Add(cells[i]);
-                    }
-                }
-                
-               
-                if (currentCells.Count > 1)
-                {
-                    // Check if all pills on one leftover has adjacent Cell. This is must have
-                    bool alonePill = false;
-                    foreach (Cell cell in currentCells)
-                    {
-
-                        if (cell.adjacentCells.Count == 1)
-                        {
-                            if (cell.adjacentCells[0].id == foundCell.id)
-                            {
-                                log.Info("Adjacent Cells Checker - Found alone pill in multi-pills blister. Skip this cutting.");
-                                alonePill = true;
-                                break;
-                            }
-                        }
-                    }
-                    if (alonePill) return Tuple.Create<Blister, Blister, List<Blister>>(null, null, null);
-                    // Check for blister integrity
-                    List<HashSet<int>> setsList = new List<HashSet<int>>();
-                    // Add initileze set
-                    HashSet<int> initSet = new HashSet<int>();
-                    initSet.Add(currentCells[0].id);
-                    initSet.UnionWith(currentCells[0].GetAdjacentCellsIds());
-                    setsList.Add(initSet);
-                    for (int i = 1; i < currentCells.Count; i++)
-                    {
-                        List<int> cellsIds = currentCells[i].GetAdjacentCellsIds();
-                        // Remove foundCell Id
-                        cellsIds.Remove(foundCell.id);
-                        cellsIds.Add(currentCells[i].id);
-                        // check if smallSet fit to any bigger sets in list.
-                        bool added = false;
-                        for (int j = 0; j < setsList.Count; j++)
-                        {
-                            // If yes, add it and break forloop.
-                            if (setsList[j].Overlaps(cellsIds))
-                            {
-                                setsList[j].UnionWith(cellsIds);
-                                added = true;
-                                break;
-                            }
-                        }
-                        // if not added, create ne bog set based on small one.
-                        if (!added)
-                        {
-                            HashSet<int> newSet = new HashSet<int>();
-                            newSet.UnionWith(cellsIds);
-                            setsList.Add(newSet);
-                        }                          
-                    }
-
-                    // If only one setList, its ok. If more, try to merge, if not possible, blister is not consistent...
-                    if (setsList.Count>1) 
-                    {
-                        // Create finalSet
-                        HashSet<int> finalSet = new HashSet<int>();
-                        finalSet.UnionWith(setsList[0]);
-                        // Remove form setList all sets which are alredy added to finalSet, in this case first one
-                        setsList.RemoveAt(0);
-                        // Try 3 times. Why 3, i dont know. Just like that...
-                        int initsetsListCount = setsList.Count;
-                        for (int m = 0; m < 3; m++)
-                        {
-                            for (int k = 0; k < setsList.Count; k++)
-                            {
-                                if (finalSet.Overlaps(setsList[k]))
-                                {
-                                    // if overlaped, add to finalSet
-                                    finalSet.UnionWith(setsList[k]);
-                                    // Remove form setList all sets which are alredy added to finalSet, in this case first one
-                                    setsList.RemoveAt(k);
-                                    k--;
-                                }
-                            }
-                            // If all sets are merged, break;
-                            if (setsList.Count == 0) break;
-                            // If after second runf setList is same, means no change, brake;
-                            if (m > 2 && setsList.Count == initsetsListCount) break;
-                        }
-                        if (setsList.Count > 0)
-                        {
-                            log.Info("BPill AdjacentConnection not cconsistent. Skip this cutting.");
-                            return Tuple.Create<Blister, Blister, List<Blister>>(null, null, null);
-                        }
-                    }
-                }
-
-                // Chceck if after cutting all parts has anchor point, so none pill will fall of...
-                bool hasActiveAnchor = false;
-                foreach (Cell cell in currentCells)
-                {
-                    if (cell.Anchor.state == AnchorState.Active)
-                    {
-                        hasActiveAnchor = true;
-                        break;
-                    }
-                }
-                if (!hasActiveAnchor)
-                {
-                    log.Info("No Anchor found for this leftover. Skip this cutting.");
-                    return Tuple.Create<Blister, Blister, List<Blister>>(null, null, null);
+                    log.Warn("No Anchor found for this leftover. Skip this cutting.");
+                    return new CutResult();
                 }
             }
-           
-           
+            return new CutResult(this, null, null, CutState.Proposal);
+
+            // HERE SHOULD BE ANCHOR CHECK, AND UPDATE.
+        }
+
+        public CutResult ApplyCut(Cell foundCell, CutState foundCellState, int locationIndex) {
+            List<SubBlister> newBlisters = new List<SubBlister>();
             // Ok. If cell is not alone, and Anchor requerments are met. Set cell status as Cutted, and remove all connection with this cell.
             if (foundCellState == CutState.Cutted)
             {
@@ -538,51 +355,52 @@ namespace Blistructor
                 foundCell.RemoveConnectionData();
             }
 
-            log.Info("Updating current blister outline. Creating cutout blister to store.");
+            log.Info("Updating current SubBlister outline. Creating cutout SubBlister to store.");
 
-            // If more cells are on blister, replace outline of current blister by first curve from the list...
-            // Update current blister outline
+            // If more cells are on SubBlister, replace outline of current SubBlister by first curve from the list...
+            // Update current SubBlister outline
             Outline = foundCell.bestCuttingData.BlisterLeftovers[0];
-            // If all was ok, Create new blister with cutted pill
-            Blister cutted = new Blister(foundCell, foundCell.bestCuttingData.Polygon);
-            // Remove this cell from current blister
+            // If all was ok, Create new SubBlister with cutted pill
+            SubBlister cutted = new SubBlister(foundCell, foundCell.bestCuttingData.Polygon);
+            // Remove this cell from current SubBlister
             cells.RemoveAt(locationIndex);
             // Deal with more then one leftover
-            // Remove other cells which are not belong to this blister anymore...
-            log.Debug("Remove all cells which are not belong to this blister anymore.");
+            // Remove other cells which are not belong to this SubBlister anymore...
+            log.Debug("Remove all cells which are not belong to this SubBlister anymore.");
             log.Debug(String.Format("Before removal {0}", cells.Count));
             List<Cell> removerdCells = new List<Cell>(cells.Count);
             for (int i = 0; i < cells.Count; i++)
             {
-                // If cell is no more insied this blister, remove it.
+                // If cell is no more inside this SubBlister, remove it.
                 if (!InclusionTest(cells[i]))
                 {
-                    // check if cell is aimed to cut. For 100% all cells in blister should be Queue.. If not it;s BUGERSON
+                    // check if cell is aimed to cut. For 100% all cells in SubBlister should be Queue.. If not it;s BUGERSON
                     if (cells[i].State != CellState.Queue) continue;
                     removerdCells.Add(cells[i]);
                     cells.RemoveAt(i);
                     i--;
                 }
             }
-            // Check if any form remaining cells in current blister has Active anchore. /It is not alone/ If doesent, return nulllllls 
-            //  if (!this.HasActiveAnchor) return Tuple.Create<Blister, Blister, List<Blister>>(null, null, null);
+            // Check if any form remaining cells in current SubBlister has Active anchore. /It is not alone/ If doesent, return nulllllls 
+            //  if (!this.HasActiveAnchor) return Tuple.Create<SubBlister, SubBlister, List<SubBlister>>(null, null, null);
 
             //  log.Debug(String.Format("After removal {0} - Removed Cells {1}", cells.Count, removerdCells.Count));
-            //  log.Debug(String.Format("Loop by Leftovers  [{0}] (ommit first, it is current blister) and create new blisters.", foundCell.bestCuttingData.BlisterLeftovers.Count - 1));
+            //  log.Debug(String.Format("Loop by Leftovers  [{0}] (ommit first, it is current SubBlister) and create new blisters.", foundCell.bestCuttingData.BlisterLeftovers.Count - 1));
             //int cellCount = 0;
-            // Loop by Leftovers (ommit first, it is current blister) and create new blisters.
+            // Loop by Leftovers (ommit first, it is current SubBlister) and create new blisters.
+            //List<SubBlister> newBlisters = new List<SubBlister>();
             for (int j = 1; j < foundCell.bestCuttingData.BlisterLeftovers.Count; j++)
             {
                 PolylineCurve blisterLeftover = foundCell.bestCuttingData.BlisterLeftovers[j];
-                Blister newBli = new Blister(removerdCells, blisterLeftover);
-                // Verify if new blister is attachetd to anchor
-                //    if (!newBli.HasActiveAnchor) return Tuple.Create<Blister, Blister, List<Blister>>(null, null, null);
+                SubBlister newBli = new SubBlister(removerdCells, blisterLeftover);
+                // Verify if new SubBlister is attachetd to anchor
+                //    if (!newBli.HasActiveAnchor) return Tuple.Create<SubBlister, SubBlister, List<SubBlister>>(null, null, null);
                 //cellCount += newBli.Cells.Count;
                 newBlisters.Add(newBli);
             }
-
-            return Tuple.Create<Blister, Blister, List<Blister>>(cutted, this, newBlisters);
+            return new CutResult(cutted, this, newBlisters);
         }
+
 
         public bool InclusionTest(Cell testCell)
         {
@@ -630,6 +448,106 @@ namespace Blistructor
         }
 
         /// <summary>
+        /// Check Connectivity (AdjacingCell) against some cell planned to be cutout.
+        /// </summary>
+        /// <param name="cellToCut"></param>
+        /// <returns>True if all ok, false if there is inconsistency.</returns>
+        protected bool CheckConnectivityIntegrity(Cell cellToCut)
+        {
+            if (cells.Count > 1)
+            {
+                foreach (Cell cell in cells)
+                {
+
+                    if (cell.adjacentCells.Count == 1)
+                    {
+                        if (cell.adjacentCells[0].id == cellToCut.id)
+                        {
+                            log.Warn("Adjacent Cells Checker - Found alone pill in multi-pills SubBlister. Skip this cutting.");
+                            return false;
+                        }
+                    }
+                }
+
+                // Check for SubBlister integrity
+                List<HashSet<int>> setsList = new List<HashSet<int>>();
+                // Add initileze set
+                HashSet<int> initSet = new HashSet<int>();
+                initSet.Add(cells[0].id);
+                initSet.UnionWith(cells[0].GetAdjacentCellsIds());
+                setsList.Add(initSet);
+                for (int i = 1; i < cells.Count; i++)
+                {
+                    List<int> cellsIds = cells[i].GetAdjacentCellsIds();
+                    // Remove foundCell Id
+                    cellsIds.Remove(cellToCut.id);
+                    cellsIds.Add(cells[i].id);
+                    // check if smallSet fit to any bigger sets in list.
+                    bool added = false;
+                    for (int j = 0; j < setsList.Count; j++)
+                    {
+                        // If yes, add it and break forloop.
+                        if (setsList[j].Overlaps(cellsIds))
+                        {
+                            setsList[j].UnionWith(cellsIds);
+                            added = true;
+                            break;
+                        }
+                    }
+                    // if not added, create ne big set based on small one.
+                    if (!added)
+                    {
+                        HashSet<int> newSet = new HashSet<int>();
+                        newSet.UnionWith(cellsIds);
+                        setsList.Add(newSet);
+                    }
+                }
+
+                // If only one setList, its ok. If more, try to merge, if not possible, SubBlister is not consistent...
+                if (setsList.Count > 1)
+                {
+                    // Create finalSet
+                    HashSet<int> finalSet = new HashSet<int>();
+                    finalSet.UnionWith(setsList[0]);
+                    // Remove form setList all sets which are alredy added to finalSet, in this case first one
+                    setsList.RemoveAt(0);
+                    // Try 3 times. Why 3, i dont know. Just like that...
+                    int initsetsListCount = setsList.Count;
+                    for (int m = 0; m < 3; m++)
+                    {
+                        for (int k = 0; k < setsList.Count; k++)
+                        {
+                            if (finalSet.Overlaps(setsList[k]))
+                            {
+                                // if overlaped, add to finalSet
+                                finalSet.UnionWith(setsList[k]);
+                                // Remove form setList all sets which are alredy added to finalSet, in this case first one
+                                setsList.RemoveAt(k);
+                                k--;
+                            }
+                        }
+                        // If all sets are merged, break;
+                        if (setsList.Count == 0) break;
+                        // If after second runf setList is same, means no change, brake;
+                        if (m > 2 && setsList.Count == initsetsListCount) break;
+                    }
+                    if (setsList.Count > 0)
+                    {
+                        log.Warn("Adjacent Cells Checker - Pill AdjacentConnection not cconsistent. Skip this cutting.");
+                        return false;
+                    }
+                    else return true;
+                }
+                else return true;
+            }
+            else
+            {
+                return true;
+            }
+
+        }
+
+        /// <summary>
         /// Iterate throught cells and compute interconnectring data between them. 
         /// </summary>
         public void CreateConnectivityData()
@@ -651,13 +569,9 @@ namespace Blistructor
                     Line line = new Line(currentCell.PillCenter, proxCell.PillCenter);
                     Point3d midPoint = line.PointAt(0.5);
                     double t;
-                 //   bool closeStatus = currentCell.voronoi.ClosestPoint(midPoint, out t);
-                  // double dist = currentCell.voronoi.PointAt(t).DistanceTo(midPoint);
-                  //  log.Debug(String.Format("Distance: {0}", dist));
-                    //  bool closeStatus = currentCell.voronoi.ClosestPoint(midPoint, out t, 2.000);
                     if (currentCell.voronoi.ClosestPoint(midPoint, out t, 2.000))
                     {
-                       // log.Debug(String.Format("Checking cell: {0}", currentCell.id));
+                        // log.Debug(String.Format("Checking cell: {0}", currentCell.id));
                         currenAdjacentCells.Add(proxCell);
                         currentConnectionLines.Add(new LineCurve(line));
                         currentMidPoints.Add(midPoint);

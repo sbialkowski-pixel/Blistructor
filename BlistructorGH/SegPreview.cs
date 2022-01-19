@@ -75,11 +75,11 @@ namespace Blistructor.SegPrev
             Blistructor.Logger.Setup();
             Blistructor.Logger.ClearAllLogFile();
 
-            MultiBlister structor = new MultiBlister();
+            //MultiBlister structor = new MultiBlister();
 
-            JObject json = structor.CutBlister(jsonData);
+            //JObject json = structor.CutBlister(jsonData);
 
-            cut_inst = json.ToString();
+            //cut_inst = json.ToString();
 
             Dictionary<string, string> jsonCategoryMap = new Dictionary<string, string>
                 {
