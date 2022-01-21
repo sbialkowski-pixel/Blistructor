@@ -41,8 +41,7 @@ namespace Blistructor
         {
             GlobalAnchors = new List<Point3d>(2);
             // Create Cartesian Limit Line
-            Line tempLine = new Line(new Point3d(-Setups.IsoRadius, -Setups.BlisterCartesianDistance, 0), Vector3d.XAxis, 2* Setups.IsoRadius);
-            cartesianLimitLine = new LineCurve(tempLine);
+            cartesianLimitLine = new LineCurve(new Line(new Point3d(-Setups.IsoRadius, -Setups.BlisterCartesianDistance, 0), Vector3d.XAxis, 2 * Setups.IsoRadius));
 
             this.blister = blister;
             GrasperPossibleLocation = new List<LineCurve>();
@@ -103,7 +102,7 @@ namespace Blistructor
                 GrasperPossibleLocation.Add(cln);
             }
             GuessAnchorPossiblityOnCell();
-            anchors = GetGraspersPoints();
+            anchors = FindAnchorPoints();
             GuideLine.Translate(new Vector3d(0, -Setups.JawDepth, 0));
             log.Info(String.Format("Anchors found: {0}", anchors.Count));
         }
@@ -116,7 +115,7 @@ namespace Blistructor
             return GrasperPossibleSpacing;
         }
 
-        private List<AnchorPoint> ConvertToAnchors(Interval grasperLocation)
+        private List<AnchorPoint> ConvertGraspersToAnchors(Interval grasperLocation)
         {
             return new List<AnchorPoint>() {
                         new AnchorPoint(new Point3d(grasperLocation.T0,Setups.JawDepth,0), AnchorSite.JAW_2),
@@ -128,7 +127,7 @@ namespace Blistructor
         /// Based on grasperPossibleLocation find GrasperPoints
         /// </summary>
         /// <returns></returns>
-        public List<AnchorPoint> GetGraspersPoints()
+        public List<AnchorPoint> FindAnchorPoints()
         {
             // List<AnchorPoint> outputGrasperPoints = new List<AnchorPoint>();
             List<Interval> grasperPossibleLocation = ConvertGrasperstoInterval();
@@ -145,7 +144,7 @@ namespace Blistructor
             Interval spectrumLine = new Interval(extremeLeft, extremeRight);
 
             //If spectrum samller then CartesianMaxWidth, and bigger then CartesianMinWidth, just give me spectrumLine as Locations.
-            if (spectrumLine.Length < Setups.CartesianMaxWidth && spectrumLine.Length > Setups.CartesianMinWidth) return ConvertToAnchors(spectrumLine);
+            if (spectrumLine.Length < Setups.CartesianMaxWidth && spectrumLine.Length > Setups.CartesianMinWidth) return ConvertGraspersToAnchors(spectrumLine);
             //If spectrum samller then CartesianMinWidth, return null
             else if (spectrumLine.Length < Setups.CartesianMinWidth) return new List<AnchorPoint>();
             else
@@ -159,7 +158,7 @@ namespace Blistructor
                     // If result is in the middle or very close to it, return it and we are done here...
                     if (score > 0.95)
                     {
-                        return ConvertToAnchors(estimatedGraspers);
+                        return ConvertGraspersToAnchors(estimatedGraspers);
                     }
                 }
                 // If not working, just look further for best anchor location
@@ -196,96 +195,40 @@ namespace Blistructor
                 {
                     // Best First..
                     result = result.OrderBy(data => data.Item1).Reverse().ToList();
-                    return ConvertToAnchors(result[0].Item2);
+                    return ConvertGraspersToAnchors(result[0].Item2);
                 }
                 return new List<AnchorPoint>();
             }
         }
 
-        [Obsolete("This method is deprecated, please use GetGraspersPoints")]
-        public List<AnchorPoint> GetJawsPoints()
-        {
-            List<AnchorPoint> jawPoints = new List<AnchorPoint>();
-            List<AnchorPoint> extremePoints = GetExtremePoints();
-            //log.Info(String.Format("extremePoints found: {0}", extremePoints.Count));
-            if (extremePoints == null) return jawPoints;
-            // Create line connectng extreme points
-            Line spectrumLine = new Line(extremePoints[0].location, extremePoints[1].location);
-            // If line length is within MinMax Cartesian Width, just get this points
-            if (spectrumLine.Length < Setups.CartesianMaxWidth && spectrumLine.Length > Setups.CartesianMinWidth)
-            {
-                return extremePoints;
-            }
-            // If not..
-            else if (spectrumLine.Length > Setups.CartesianMaxWidth)
-            {
-                //log.Info("spectrumLine.Length > Setups.CartesianMaxWidth");
-
-                // Create circle with MaxWidth diameter in teh center of spectrum line
-                Point3d midPoint = spectrumLine.PointAt(0.5);
-                NurbsCurve maxJawsCircle = (new Circle(midPoint, Setups.CartesianMaxWidth / 2)).ToNurbsCurve();
-
-                // Trim GrasperPossibleLocation byt this circle.
-                Tuple<List<Curve>, List<Curve>> trimResult = Geometry.TrimWithRegion(GrasperPossibleLocation.Select(crv => (Curve)crv).ToList(), maxJawsCircle);
-                // If nothing inside return empty list
-                if (trimResult.Item1.Count == 0)
-                {
-                    return jawPoints;
-                }
-                // Check which point in GrasperPossibleLocation lines insied circle is closest to circle
-                List<Point3d> toEvaluate = new List<Point3d>(trimResult.Item1.Count);
-                foreach (Curve ln in trimResult.Item1)
-                {
-                    Point3d pt, pt2;
-                    ln.ClosestPoints(maxJawsCircle, out pt, out pt2);
-                    toEvaluate.Add(pt);
-                }
-                // Get this points....
-                toEvaluate = toEvaluate.OrderBy(pt => pt.X).ToList();
-                Point3d leftJaw = toEvaluate.First();
-                Point3d rightJaw = toEvaluate.Last();
-                //log.Info(leftJaw.ToString());
-                //log.Info(rightJaw.ToString());
-                // If new points are closer than MinWidth, return empty list
-                if (leftJaw.DistanceTo(rightJaw) < Setups.CartesianMinWidth)
-                {
-                    return jawPoints;
-                }
-                // Get JawPoints...
-                return new List<AnchorPoint>() {
-                        new AnchorPoint(leftJaw, AnchorSite.JAW_2),
-                        new AnchorPoint(rightJaw, AnchorSite.JAW_1)
-                    };
-            }
-            //Return empty list...
-            else
-            {
-                return jawPoints;
-            }
-        }
-
-        private List<AnchorPoint> GetExtremePoints()
-        {
-            if (GrasperPossibleLocation == null) return null;
-            if (GrasperPossibleLocation.Count == 0) return null;
-            Point3d leftJaw = GrasperPossibleLocation.OrderBy(line => line.PointAtStart.X).Select(line => line.PointAtStart).First();
-            Point3d rightJaw = GrasperPossibleLocation.OrderBy(line => line.PointAtStart.X).Select(line => line.PointAtEnd).Last();
-            return new List<AnchorPoint>() {
-                        new AnchorPoint(leftJaw, AnchorSite.JAW_2),
-                        new AnchorPoint(rightJaw, AnchorSite.JAW_1)
-                    };
-        }
-
         public void ValidateAgainstCell(Cell cell) { }
 
-        
         /// <summary>
-        /// Based on cell, aimed to cut, compute restricted area for Jaws as intervals.
-        /// Cell must have bestCuttingData precomputed
+        /// Get restricted area, based on actual grasper possible location
         /// </summary>
-        /// <param name="cell">Cell aimed to be cutted</param>
-        /// <returns>List of restricted area intervals</returns>
-        public List<Interval> ComputeRestrictedIntervals(Cell cell)
+        /// <returns>List of Rectangles where graspers can occure</returns>
+        public List<Polyline> GetRestrictedArea(double additionalSafeDistance = 1.0)
+        {
+            List<AnchorPoint> a_points = FindAnchorPoints();
+            List<Polyline> restrictedAreas = new List<Polyline>(2);
+            foreach (AnchorPoint anchor in a_points)
+            {
+                Plane grasperPlane = new Plane(anchor.location, Vector3d.XAxis, Vector3d.YAxis);
+                Interval jawWidth = new Interval(t0: -(additionalSafeDistance + (Setups.JawWidth / 2)), t1: additionalSafeDistance+ Setups.JawWidth / 2);
+                Interval jawHeight = new Interval(t0: -(additionalSafeDistance + Setups.BlisterCartesianDistance), t1: additionalSafeDistance + Setups.JawDepth);
+                Rectangle3d area = new Rectangle3d(grasperPlane, jawWidth, jawHeight);
+                restrictedAreas.Add(area.ToPolyline());
+            }
+            return restrictedAreas;
+        }
+
+            /// <summary>
+            /// Based on cell, aimed to cut, compute restricted area for Jaws as intervals.
+            /// Cell must have bestCuttingData precomputed
+            /// </summary>
+            /// <param name="cell">Cell aimed to be cutted</param>
+            /// <returns>List of restricted area intervals</returns>
+            public List<Interval> ComputeRestrictedIntervals(Cell cell)
         {
             // Thicken paths from cutting data anch check how this influance 
             List<Interval> allRestrictedArea = new List<Interval>(cell.bestCuttingData.Segments.Count);
@@ -471,7 +414,7 @@ namespace Blistructor
         /// </summary>
         /// <param name="graspersPossibleLocation">All possible(allowed) location of Graspers (as intervals)</param>
         /// <param name="centrePoint">Centre Point to test</param>
-        /// <returns>Interval.Unset of canot find positions, else, most wide grasper spacing found in this location</returns>
+        /// <returns>Interval.Unset if cannot find positions, else, most wide grasper spacing found in this location</returns>
         private Interval TryGetGraspersPoints(List<Interval> graspersPossibleLocation, double centrePoint)
         {
             Interval limits = new Interval(centrePoint - (Setups.CartesianMaxWidth / 2), centrePoint + (Setups.CartesianMaxWidth / 2));
@@ -525,6 +468,7 @@ namespace Blistructor
         }
         #endregion
 
+        #region ANCHOR UPDATE
         /// <summary>
         /// Check which Anchor belongs to which cell and reset other cells anchors. 
         /// </summary>
@@ -560,13 +504,6 @@ namespace Blistructor
             return true;
         }
 
-        /*
-        public void Update(SubBlister cuttedBlister)
-        {
-            //Update(null, cuttedBlister.Cells[0].bestCuttingData.Polygon);
-            Update(cuttedBlister.Cells[0].bestCuttingData.Polygon);
-        }
-        */
 
         public void Update(SubBlister cuttedBlister)
         {
@@ -574,10 +511,14 @@ namespace Blistructor
             List<Interval> restrictedAreas = ComputeRestrictedIntervals(cell);
             Interval restrictedArea = IntervalsInterval(restrictedAreas);
             List<Interval> grasperIntervals = ConvertGrasperstoInterval();
-            //Interval.FromSubstraction
-            //Here I need Interval Substraction
-            //Interval. grasperIntervals[0]
-
+            List<Interval> remainingGraspersLocation = new List<Interval>(grasperIntervals.Count);
+            foreach (Interval currentGraspersLocation in grasperIntervals)
+            {
+                remainingGraspersLocation.AddRange(Interval.FromSubstraction(currentGraspersLocation, restrictedArea).Where(interval => interval.Length >0).ToList());
+            }
+            remainingGraspersLocation = remainingGraspersLocation.Select(spacing => { spacing.MakeIncreasing(); return spacing; }).ToList();
+            remainingGraspersLocation = remainingGraspersLocation.OrderBy(spacing => spacing.T0).ToList();
+            GrasperPossibleLocation = remainingGraspersLocation.Select(interval => new LineCurve(new Point2d(interval.T0, Setups.JawDepth), new Point2d(interval.T1, Setups.JawDepth))).ToList(); 
         }
 
         public void Update_Legacy(SubBlister cuttedBlister)
@@ -653,48 +594,14 @@ namespace Blistructor
 #endif
         }
 
-        [Obsolete("This Update is deprecated, please use method with PolylineCurve as argument")]
-        public void Update(PolylineCurve path, PolylineCurve polygon)
-        {
-            if (polygon != null)
-            {
-                // Simplify polygon
-                Curve simplePolygon = polygon;
-                simplePolygon.RemoveShortSegments(Setups.CollapseTolerance);
-
-                Curve offset = simplePolygon.Offset(Plane.WorldXY, Setups.JawWidth / 2);
-
-                //Curve[] offset = simplePolygon.Offset(Plane.WorldXY, Setups.JawWidth / 2, Setups.GeneralTolerance, CurveOffsetCornerStyle.Sharp);
-                if (offset != null)
-                {
-                    //    log.Warn(String.Format("Anchor Pred Line Update - Polygon Oreint {0}", polygon.ClosedCurveOrientation()));
-                    //log.Warn(String.Format("Anchor - Update Pred Line  - SimpOffset Len {0} | Polygon Len {1}", simpleOffset.GetLength(), polygon.GetLength()));
-
-                    Tuple<List<Curve>, List<Curve>> result = Geometry.TrimWithRegion(GrasperPossibleLocation.Select(crv => (Curve)crv).ToList(), offset);
-                    GrasperPossibleLocation = result.Item2.Select(crv => (LineCurve)crv).ToList();
-                }
-                else
-                {
-                    log.Warn("Anchor Pred Line Update not possible. Offset return no result for polygon.");
-                }
-            }
-
-            if (path != null)
-            {
-                PolylineCurve pathOutline = Geometry.PolylineThicken(path, Setups.BladeWidth / 2 + Setups.JawWidth / 2);
-                Tuple<List<Curve>, List<Curve>> result = Geometry.TrimWithRegion(GrasperPossibleLocation.Select(crv => (Curve)crv).ToList(), pathOutline);
-                GrasperPossibleLocation = result.Item2.Select(crv => (LineCurve)crv).ToList();
-            }
-
-        }
-
         public void FindNewAnchorAndApplyOnBlister(SubBlister cuttedBlister)
         {
             Update(cuttedBlister);
-            anchors = GetGraspersPoints();
+            anchors = FindAnchorPoints();
             ApplyAnchorOnBlister();
         }
 
+        #endregion
         //TODO: To nie jest najszczęśliwsze....
         public bool IsBlisterStraight(double maxDeviation)
         {
@@ -766,7 +673,7 @@ namespace Blistructor
 
         public JObject GetJSON()
         {
-            anchors = GetGraspersPoints();
+            anchors = FindAnchorPoints();
             JObject jawPoints = new JObject();
             if (anchors.Count == 0) return jawPoints;
             computeGlobalAnchors();
