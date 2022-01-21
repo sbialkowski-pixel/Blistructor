@@ -31,20 +31,16 @@ namespace Blistructor
         public int id;
 
         // Parent SubBlister
-        private SubBlister subBlister;
+        internal SubBlister subBlister;
 
         // States
         private CellState state = CellState.Queue;
-        //public AnchorPoint Anchor;
         public List<AnchorPoint> Anchors;
         public bool possibleAnchor;
-        //public double CornerDistance = 0;
-        //public double GuideDistance = 0;
 
         // Pill Stuff
         public PolylineCurve pill;
         public PolylineCurve pillOffset;
-
 
         private Point3d pillCenter;
 
@@ -58,16 +54,14 @@ namespace Blistructor
 
         public List<Curve> obstacles;
 
-        //public List<Curve> temp = new List<Curve>();
-        // public List<Curve> temp2 = new List<Curve>();
         public List<CutData> cuttingData;
         public CutData bestCuttingData;
         // Int with best cutting index and new SubBlister for this cutting.
 
-        public Cell(int _id, PolylineCurve _pill, SubBlister _blister)
+        public Cell(int _id, PolylineCurve _pill, SubBlister _subblister)
         {
             id = _id;
-            SubBlister = _blister;
+            subBlister = _subblister;
             // Prepare all needed Pill properties
             pill = _pill;
             // Make Pill curve oriented in proper direction.
@@ -104,7 +98,7 @@ namespace Blistructor
         {
             set
             {
-                SubBlister = value;
+                subBlister = value;
                 EstimateOrientationCircle();
                 SortData();
             }
@@ -338,9 +332,9 @@ namespace Blistructor
             return Geometry.RemoveDuplicateCurves(limiters);
         }
 
-
-        public List<Curve> BuildObstacles_v2(List<Curve> worldObstacles)
+        public List<Curve> BuildObstacles_v2()
         {
+            List<Curve> worldObstacles = new List<Curve>() { this.subBlister.blister.anchor.cartesianLimitLine };
             // TODO: Adding All Pils Offsets as obstaces...
             List<Curve> limiters = new List<Curve> { pillOffset };
             if (worldObstacles != null) limiters.AddRange(worldObstacles);
@@ -367,9 +361,43 @@ namespace Blistructor
         }
 
         #endregion
+        public CutState TryCut(bool ommitAnchor)
+        {
+            log.Info(String.Format("Trying to cut cell id: {0} with status: {1}", id, state));
+            // If cell is cutted, dont try to cut it again... It supose to be in cutted blisters list...
+            if (state == CellState.Cutted) return CutState.Cutted;
+
+
+            // If cell is not surrounded by other cell, update data
+            log.Debug(String.Format("Check if cell is alone on blister: No. adjacent cells: {0}", adjacentCells.Count));
+            if (adjacentCells.Count == 0)
+            {
+                //state = CellState.Alone;
+                log.Debug("This is last cell on blister.");
+                return CutState.Alone;
+            }
+            // If cell is marekd as possible anchor, also dont try to cut
+            if (ommitAnchor == true && IsAnchored)
+            {
+                log.Debug("Marked as anchored. Omitting");
+                return CutState.Failed;
+            }
+
+            // If still here, try to cut 
+            log.Debug("Perform cutting data generation");
+            if (GenerateSimpleCuttingData_v2())
+            {
+                // RemoveConnectionData();
+                PolygonSelector();
+                // state = CellState.Cutted;
+                return CutState.Cutted;
+            }
+            else return CutState.Failed;
+
+        }
 
         #region CUT STUFF
-        public bool GenerateSimpleCuttingData_v2(List<Curve> worldObstacles)
+        public bool GenerateSimpleCuttingData_v2()
         {
             // Initialise new Arrays
             obstacles = BuildObstacles_v2(worldObstacles);
@@ -394,7 +422,6 @@ namespace Blistructor
             if (cuttingData.Count > 0) return true;
             else return false;
         }
-
 
         public bool GenerateAdvancedCuttingData()
         {
@@ -468,40 +495,6 @@ namespace Blistructor
             */
         }
 
-        public CutState TryCut(bool ommitAnchor, List<Curve> worldObstacles)
-        {
-            log.Info(String.Format("Trying to cut cell id: {0} with status: {1}", id, state));
-            // If cell is cutted, dont try to cut it again... It supose to be in cutted blisters list...
-            if (state == CellState.Cutted) return CutState.Cutted;
-
-
-            // If cell is not surrounded by other cell, update data
-            log.Debug(String.Format("Check if cell is alone on blister: No. adjacent cells: {0}", adjacentCells.Count));
-            if (adjacentCells.Count == 0)
-            {
-                //state = CellState.Alone;
-                log.Debug("This is last cell on blister.");
-                return CutState.Alone;
-            }
-            // If cell is marekd as possible anchor, also dont try to cut
-            if (ommitAnchor == true && IsAnchored)
-            {
-                log.Debug("Marked as anchored. Omitting");
-                return CutState.Failed;
-            }
-
-            // If still here, try to cut 
-            log.Debug("Perform cutting data generation");
-            if (GenerateSimpleCuttingData_v2(worldObstacles))
-            {
-                // RemoveConnectionData();
-                PolygonSelector();
-                // state = CellState.Cutted;
-                return CutState.Cutted;
-            }
-            else return CutState.Failed;
-
-        }
         #endregion
 
         #region Polygon Builder Stuff

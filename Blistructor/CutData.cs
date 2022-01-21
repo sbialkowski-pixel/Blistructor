@@ -22,7 +22,6 @@ namespace Blistructor
         private PolylineCurve polygon;
         public List<PolylineCurve> BlisterLeftovers;
         public List<LineCurve> bladeFootPrint;
-        // public List<LineCurve> bladeFootPrint2;
         public List<Curve> obstacles;
         public List<Line> isoSegments;
         public List<Line> segments;
@@ -130,7 +129,6 @@ namespace Blistructor
             }
             return true;
         }
-
 
         public bool RecalculateIsoSegments(Curve orientationGuideCurve)
         {
@@ -359,7 +357,6 @@ namespace Blistructor
             return displayData;
         }
 
-    
         public JArray GetJSON(Point3d Jaw1_Local)
         {
             //JObject totalData = new JObject();

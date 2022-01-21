@@ -42,8 +42,6 @@ namespace Blistructor
         //  private JObject cuttingResult;
 
         public Anchor anchor;
-        public List<Curve> worldObstacles;
-
 
         public Blister()
         {
@@ -102,33 +100,21 @@ namespace Blistructor
 
         private void InitialiseNewCut()
         {
-            // Init Logger
-            // Logger.Setup();
-
             // Initialize Lists
             Queue = new List<SubBlister>();
             Cutted = new List<SubBlister>();
-
-            //cuttingResult = PrepareEmptyJSON();
         }
 
         private void InitialiseNewBlister(List<PolylineCurve> pills, PolylineCurve blister)
         {
-            SubBlister initialBlister = new SubBlister(pills, blister);
+            SubBlister initialBlister = new SubBlister(pills, blister, this);
             initialBlister.SortCellsByCoordinates(true);
             Queue.Add(initialBlister);
             anchor = new Anchor(this);
 
-
-            // World Obstacles
-            // Line cartesianLimitLine = new Line(new Point3d(0, -Setups.BlisterCartesianDistance, 0), Vector3d.XAxis, 1.0);
-            //cartesianLimitLine.Extend(Setups.IsoRadius, Setups.IsoRadius);
-
-            worldObstacles = new List<Curve>() { anchor.cartesianLimitLine };
             log.Info(String.Format("New blister with {0} pills", pills.Count));
         }
-
-        //double pixelSpacing = 1.0, double calibrationVectorX = 0.0, double calibrationVectorY = 0.0
+        
         public JObject CutBlister(string JSON)
         {
             try
@@ -208,24 +194,6 @@ namespace Blistructor
 
         private JObject CutBlisterWorker(List<PolylineCurve> pills, PolylineCurve blister)
         {
-
-            //  CuttingState status = CuttingState.CTR_UNSET;
-
-            // Pills and blister are already curve objects
-            // InitialiseNewBlister(pills, blister);
-            // cuttingResult["pillsDetected"] = pills.Count;
-            /*
-            try
-            {
-                status = PerformCut();
-            }
-            catch (Exception ex)
-            {
-                status = CuttingState.CTR_OTHER_ERR;
-                log.Error("PerformCut Error", ex);
-            }
-            */
-
             InitialiseNewBlister(pills, blister);
             CuttingState status = PerformCut();
             JObject cuttingResult = PrepareStatus(status);
@@ -260,7 +228,6 @@ namespace Blistructor
             if (Queue[0].ToTight) return CuttingState.CTR_TO_TIGHT;
             if (Queue[0].LeftCellsCount == 1) return CuttingState.CTR_ONE_PILL;
             if (!anchor.ApplyAnchorOnBlister()) return CuttingState.CTR_ANCHOR_LOCATION_ERR;
-            //return CuttingState.CTR_ANCHOR_LOCATION_ERR;
 
             int n = 0; // control
                        // Main Loop
@@ -274,7 +241,6 @@ namespace Blistructor
 
                 for (int i = 0; i < Queue.Count; i++)
                 {
-                    if (Queue == null) continue;
                     SubBlister subBlister = Queue[i];
                     log.Info(String.Format("{0} cells left to cut on on SubBlister:{1}", subBlister.Cells.Count, i));
                     if (subBlister.IsDone)
@@ -283,8 +249,8 @@ namespace Blistructor
                         continue;
                     }
                     // In tuple I have | CutOut SubBlister | Current Updated SubBlister | Extra Blisters to Cut (recived by spliting currentBlister) 
-                    CutResult result = subBlister.CutNext(worldObstacles);
-                    log.Debug(String.Format("Cutting Result: Cutout: {0} - Current SubBlister {1} - New Blisters {2}.", result.CutOut, result.Current, result.ExtraBlisters.Count));
+                    CutResult result = subBlister.CutNext();
+                    //log.Debug(String.Format("Cutting Result: Cutout: {0} - Current SubBlister {1} - New Blisters {2}.", result.CutOut, result.Current, result.ExtraBlisters.Count));
                     // If anything was cutted, add to list
                     if (result.CutOut != null)
                     {

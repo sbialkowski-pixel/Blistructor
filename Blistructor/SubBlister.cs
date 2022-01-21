@@ -19,17 +19,22 @@ namespace Blistructor
 
         private static readonly ILog log = LogManager.GetLogger("Cutter.SubBlister");
 
-
-        private bool toTight = false;
+        internal Blister blister;
+        private readonly bool toTight = false;
         private PolylineCurve outline;
         private List<Cell> cells;
         public List<PolylineCurve> irVoronoi;
+
+        private SubBlister(Blister _blister)
+        {
+            blister = _blister;
+        }
 
         /// <summary>
         /// Internal constructor for non-pill stuff
         /// </summary>
         /// <param name="outline">SubBlister Shape</param>
-        private SubBlister(PolylineCurve outline)
+        private SubBlister(PolylineCurve outline, Blister blister): this(blister)
         {
             cells = new List<Cell>();
             Geometry.UnifyCurve(outline);
@@ -41,7 +46,7 @@ namespace Blistructor
         /// </summary>
         /// <param name="cells"></param>
         /// <param name="outline"></param>
-        public SubBlister(Cell _cells, PolylineCurve outline) : this(outline)
+        public SubBlister(Cell _cells, PolylineCurve outline, Blister blister) : this(outline, blister)
         {
             this.cells = new List<Cell>(1) { _cells };
         }
@@ -51,7 +56,7 @@ namespace Blistructor
         /// </summary>
         /// <param name="cells">Existing cells</param>
         /// <param name="outline">SubBlister edge outline</param>
-        public SubBlister(List<Cell> _cells, PolylineCurve outline) : this(outline)
+        public SubBlister(List<Cell> _cells, PolylineCurve outline, Blister blister) : this(outline, blister)
         {
             log.Debug("Creating new SubBlister");
             this.cells = new List<Cell>(_cells.Count);
@@ -83,7 +88,7 @@ namespace Blistructor
         /// </summary>
         /// <param name="pills">Pills outline</param>
         /// <param name="outline">SubBlister edge outline</param>
-        public SubBlister(List<PolylineCurve> pills, Polyline outline) : this(pills, outline.ToPolylineCurve())
+        public SubBlister(List<PolylineCurve> pills, Polyline outline, Blister blister) : this(pills, outline.ToPolylineCurve(), blister)
         {
         }
 
@@ -92,7 +97,7 @@ namespace Blistructor
         /// </summary>
         /// <param name="pills">Pills outline</param>
         /// <param name="outline">SubBlister edge outline</param>
-        public SubBlister(List<PolylineCurve> pills, PolylineCurve outline) : this(outline)
+        public SubBlister(List<PolylineCurve> pills, PolylineCurve outline, Blister blister) : this(outline, blister)
         {
             log.Debug("Creating new SubBlister");
             // Cells Creation
@@ -251,22 +256,16 @@ namespace Blistructor
         /// </summary>
         /// <param name="worldObstacles"></param>
         /// <returns> CutResult with : CutOut SubBlister, Current Updated SubBlister and Extra Blisters to Cut (recived by spliting currentBlister)</returns>
-        public CutResult CutNext(List<Curve> worldObstacles)
+        public CutResult CutNext()
         {
             log.Debug(String.Format("There is still {0} cells on SubBlister", cells.Count));
             // Try cutting only AnchorInactive cells
             for (int i = 0; i < cells.Count; i++)
             {
                 Cell currentCell = cells[i];
-                CutState tryCutState = currentCell.TryCut(true, worldObstacles);
-                if (tryCutState != CutState.Alone)
-                {
-                    currentCell.State = CellState.Alone;
-                    log.Info(String.Format("Cell {0}. That was last cell on SubBlister.", currentCell.id));
+                CutState tryCutState = currentCell.TryCut(true);
 
-                    return new CutResult(this, null, new List<SubBlister>(), CutState.Alone);
-                }
-                else if (tryCutState != CutState.Failed)
+                if (tryCutState != CutState.Failed)
                 {
                     CutResult data = CuttedCellProcessing(currentCell, tryCutState, i);
                     if (data.State == CutState.Failed)
@@ -286,11 +285,11 @@ namespace Blistructor
             }
             // If nothing, try to cut anchored ones...
             log.Warn("No cutting data generated for whole SubBlister. Try to find cutting data in anchored ...");
-  
+
             for (int i = 0; i < cells.Count; i++)
             {
                 Cell currentCell = cells[i];
-                CutState tryCutState = currentCell.TryCut(false, worldObstacles);
+                CutState tryCutState = currentCell.TryCut(false);
                 if (currentCell.IsAnchored && tryCutState != CutState.Failed)
                 {
                     CutResult data = CuttedCellProcessing(currentCell, tryCutState, i);
@@ -308,13 +307,22 @@ namespace Blistructor
                 {
                     continue;
                 }
-
             }
             log.Warn("No cutting data generated for whole SubBlister.");
             return new CutResult(null, this, new List<SubBlister>());
         }
+        /*
+        public CutResult CheckIfAlone()
+        {
+            if (tryCutState != CutState.Alone)
+            {
+                currentCell.State = CellState.Alone;
+                log.Info(String.Format("Cell {0}. That was last cell on SubBlister.", currentCell.id));
 
-
+                return new CutResult(this, null, new List<SubBlister>(), CutState.Alone);
+            }
+        }
+        */
 
         private CutResult CuttedCellProcessing(Cell foundCell, CutState foundCellState, int locationIndex)
         {
@@ -333,7 +341,7 @@ namespace Blistructor
             // Inspect leftovers.
             foreach (PolylineCurve leftover in foundCell.bestCuttingData.BlisterLeftovers)
             {
-                SubBlister newBli = new SubBlister(cells, leftover);
+                SubBlister newBli = new SubBlister(cells, leftover, blister);
                 if (!newBli.CheckConnectivityIntegrity(foundCell)) return new CutResult();
                 if (!newBli.HasActiveAnchor)
                 {
@@ -342,11 +350,10 @@ namespace Blistructor
                 }
             }
             return new CutResult(this, null, null, CutState.Proposal);
-
-            // HERE SHOULD BE ANCHOR CHECK, AND UPDATE.
         }
 
-        public CutResult ApplyCut(Cell foundCell, CutState foundCellState, int locationIndex) {
+        public CutResult ApplyCut(Cell foundCell, CutState foundCellState, int locationIndex)
+        {
             List<SubBlister> newBlisters = new List<SubBlister>();
             // Ok. If cell is not alone, and Anchor requerments are met. Set cell status as Cutted, and remove all connection with this cell.
             if (foundCellState == CutState.Cutted)
@@ -361,7 +368,7 @@ namespace Blistructor
             // Update current SubBlister outline
             Outline = foundCell.bestCuttingData.BlisterLeftovers[0];
             // If all was ok, Create new SubBlister with cutted pill
-            SubBlister cutted = new SubBlister(foundCell, foundCell.bestCuttingData.Polygon);
+            SubBlister cutted = new SubBlister(foundCell, foundCell.bestCuttingData.Polygon, blister);
             // Remove this cell from current SubBlister
             cells.RemoveAt(locationIndex);
             // Deal with more then one leftover
@@ -392,7 +399,7 @@ namespace Blistructor
             for (int j = 1; j < foundCell.bestCuttingData.BlisterLeftovers.Count; j++)
             {
                 PolylineCurve blisterLeftover = foundCell.bestCuttingData.BlisterLeftovers[j];
-                SubBlister newBli = new SubBlister(removerdCells, blisterLeftover);
+                SubBlister newBli = new SubBlister(removerdCells, blisterLeftover, blister);
                 // Verify if new SubBlister is attachetd to anchor
                 //    if (!newBli.HasActiveAnchor) return Tuple.Create<SubBlister, SubBlister, List<SubBlister>>(null, null, null);
                 //cellCount += newBli.Cells.Count;
