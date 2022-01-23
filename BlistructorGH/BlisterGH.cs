@@ -257,7 +257,7 @@ namespace BlistructorGH
                 for (int i = 0; i < Cutted.Count; i++)
                 {
                     SubBlister cuttedBlister = Cutted[i];
-                    Cell cuttedCell = Cutted[i].Cells[0];
+                    Pill cuttedCell = Cutted[i].Pills[0];
                     // if (cuttedCell.cuttingData == null) continue;
                     // if (cuttedCell.cuttingData.Count == 0) continue;
                     // BlisterStuff
@@ -269,7 +269,7 @@ namespace BlistructorGH
                     out_data.AddRange(cuttedBlister.GetIsoRays().Select(crv => Convert.ToRh(crv)).ToList(), new GH_Path(i, 1, 2));
                     if (cuttedCell.cuttingData != null) out_data.AddRange(cuttedCell.cuttingData.Select(cData => Convert.ToRh(cData.Polygon)), new GH_Path(i, 1, 3));
                     else out_data.AddRange(new List<RhGeo.Curve>(), new GH_Path(i, 1, 3));
-                    // Cell Data
+                    // Pill Data
                     out_data.AddRange(cuttedBlister.GetPills(false).Select(crv => Convert.ToRh(crv)).ToList(), new GH_Path(i, 2, 0));
                     out_data.AddRange(cuttedCell.connectionLines.Select(crv => Convert.ToRh(crv)).ToList(), new GH_Path(i, 2, 1));
                     out_data.AddRange(cuttedCell.proxLines.Select(crv => Convert.ToRh(crv)).ToList(), new GH_Path(i, 2, 2));
@@ -302,7 +302,7 @@ namespace BlistructorGH
                 DataTree<string> anchors = new DataTree<string>();
                 for (int j = 0; j < Queue.Count; j++)
                 {
-                    for (int i = 0; i < Queue[j].Cells.Count; i++)
+                    for (int i = 0; i < Queue[j].Pills.Count; i++)
                     {
                         //anchors.Add(Queue[j].Cells[i].Anchor.state.ToString(), new GH_Path(j, i));
                     }
@@ -320,7 +320,7 @@ namespace BlistructorGH
                 for (int i = 0; i < Cutted.Count; i++)
                 {
                     GH_Path path = new GH_Path(i);
-                    out_data.Add(Convert.ToRh(Cutted[i].Cells[0].pill), path);
+                    out_data.Add(Convert.ToRh(Cutted[i].Pills[0].Outline), path);
                 }
                 return out_data;
             }
@@ -335,9 +335,9 @@ namespace BlistructorGH
                 for (int i = 0; i < Cutted.Count; i++)
                 {
                     GH_Path path = new GH_Path(i);
-                    if (Cutted[i].Cells[0].cuttingData == null) continue;
-                    if (Cutted[i].Cells[0].cuttingData.Count == 0) continue;
-                    out_data.AddRange(Cutted[i].Cells[0].cuttingData.Select(cData => Convert.ToRh(cData.Polygon)), path);
+                    if (Cutted[i].Pills[0].cuttingData == null) continue;
+                    if (Cutted[i].Pills[0].cuttingData.Count == 0) continue;
+                    out_data.AddRange(Cutted[i].Pills[0].cuttingData.Select(cData => Convert.ToRh(cData.Polygon)), path);
                 }
                 return out_data;
             }
@@ -409,11 +409,11 @@ namespace BlistructorGH
             {
                 DataTree<RhGeo.Curve> out_data = new DataTree<RhGeo.Curve>();
                 //List<List<Curve>> out_data = new List<List<Curve>>();
-                for (int i = 0; i < Queue[0].Cells.Count; i++)
+                for (int i = 0; i < Queue[0].Pills.Count; i++)
                 {
                     GH_Path path = new GH_Path(i);
-                   if (Queue[0].Cells[i].obstacles == null) continue;
-                   out_data.AddRange(Queue[0].Cells[i].obstacles.Select(crv => Convert.ToRh(crv)).ToList(), path);
+                   if (Queue[0].Pills[i].obstacles == null) continue;
+                   out_data.AddRange(Queue[0].Pills[i].obstacles.Select(crv => Convert.ToRh(crv)).ToList(), path);
 
                     //if (Cutted[i].Cells[0].bestCuttingData == null) 
                    // out_data.AddRange(Cutted[i].Cells[0].bestCuttingData.obstacles.Select(crv => Convert.ToRh(crv)).ToList(), path);
@@ -432,8 +432,8 @@ namespace BlistructorGH
                     GH_Path path = new GH_Path(i);
                     //if (Cutted[i].Cells[0]
 
-                    if (Cutted[i].Cells[0].bestCuttingData == null) continue;
-                    out_data.AddRange(Cutted[i].Cells[0].bestCuttingData.obstacles.Select(crv => Convert.ToRh(crv)).ToList(), path);
+                    if (Cutted[i].Pills[0].bestCuttingData == null) continue;
+                    out_data.AddRange(Cutted[i].Pills[0].bestCuttingData.obstacles.Select(crv => Convert.ToRh(crv)).ToList(), path);
                 }
                 return out_data;
             }
@@ -445,9 +445,9 @@ namespace BlistructorGH
             {
                 DataTree<RhGeo.Curve> out_data = new DataTree<RhGeo.Curve>();
                 //List<List<Curve>> out_data = new List<List<Curve>>();
-                for (int i = 0; i < Queue[0].Cells.Count; i++)
+                for (int i = 0; i < Queue[0].Pills.Count; i++)
                 {
-                    Cell cell = Queue[0].Cells[i];
+                    Pill cell = Queue[0].Pills[i];
                     if (cell.cuttingData == null) continue;
                     if (cell.cuttingData.Count == 0) continue;
                     for (int j = 0; j < cell.cuttingData.Count; j++)
@@ -471,13 +471,13 @@ namespace BlistructorGH
                 //List<List<Curve>> out_data = new List<List<Curve>>();
                 for (int j = 0; j < Queue.Count; j++)
                 {
-                    if (Queue[j].Cells.Count == 0) continue;
-                    for (int i = 0; i < Queue[j].Cells.Count; i++)
+                    if (Queue[j].Pills.Count == 0) continue;
+                    for (int i = 0; i < Queue[j].Pills.Count; i++)
                     {
-                        Cell cell = Queue[j].Cells[i];
+                        Pill cell = Queue[j].Pills[i];
                         //if (cell.cuttingData == null) continue;
-                        out_data.Add(Convert.ToRh(cell.pill), new GH_Path(j, i, 0));
-                        out_data.Add(Convert.ToRh(cell.pillOffset), new GH_Path(j, i, 0));
+                        out_data.Add(Convert.ToRh(cell.Outline), new GH_Path(j, i, 0));
+                        out_data.Add(Convert.ToRh(cell.Offset), new GH_Path(j, i, 0));
 
                         out_data.AddRange(cell.proxLines.Select(crv => Convert.ToRh(crv)).ToList(), new GH_Path(j, i, 1));
                         out_data.AddRange(cell.connectionLines.Select(crv => Convert.ToRh(crv)).ToList(), new GH_Path(j, i, 2));

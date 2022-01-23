@@ -8,7 +8,7 @@ namespace Blistructor
     public enum AnchorSite { JAW_1 = 0, JAW_2 = 1, Unset = 2 };
     public enum AnchorState { Active = 0, Inactive = 1, Cutted = 2 };
 
-    public enum CellState { Queue = 0, Cutted = 1, Alone = 2 };
+    public enum PillState { Queue = 0, Cutted = 1, Alone = 2 };
     public enum CutState { Failed = 0, Cutted = 1, Alone = 2, Proposal = 3};
 
     public enum CuttingState
@@ -17,7 +17,7 @@ namespace Blistructor
         CTR_SUCCESS = 0,
         [Description("Pills are to tight. Cutting aborted.")]
         CTR_TO_TIGHT = 1,
-        [Description("One pill on blister only. Nothing to do.")]
+        [Description("One Outline on blister only. Nothing to do.")]
         CTR_ONE_PILL = 2,
         [Description("Cutting Failed. Cannot Found cutting paths for all pills. Blister is to complicated or it is uncuttable.")]
         CTR_FAILED = 3,

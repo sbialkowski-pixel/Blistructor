@@ -588,11 +588,11 @@ namespace Blistructor.Prototype
 
             //TODO: Dokonczyć reguralny voronoi i dodac jako stage 0 ciecia.
             /*
-            public static List<PxGeo.PolylineCurve> RegularVoronoi(List<Cell> cells, PxGeo.Polyline blister,  double tolerance = 0.05)
+            public static List<PxGeo.PolylineCurve> RegularVoronoi(List<Pill> cells, PxGeo.Polyline blister,  double tolerance = 0.05)
             {
             Diagrams.Node2List n2l = new Diagrams.Node2List();
             List < Diagrams.Node2 > outline = new List<Diagrams.Node2>();
-            foreach (Cell cell in cells)
+            foreach (Pill cell in cells)
             {
             n2l.Append(new Diagrams.Node2(cell.PillCenter.X, cell.PillCenter.Y));
             }
@@ -613,14 +613,14 @@ namespace Blistructor.Prototype
             return output;
             }
 
-            public static List<PxGeo.PolylineCurve> IrregularVoronoi(List<Cell> cells, PxGeo.Polyline blister, int resolution = 50, double tolerance = 0.05)
+            public static List<PxGeo.PolylineCurve> IrregularVoronoi(List<Pill> cells, PxGeo.Polyline blister, int resolution = 50, double tolerance = 0.05)
             {
             Diagrams.Node2List n2l = new Diagrams.Node2List();
             List<Diagrams.Node2> outline = new List<Diagrams.Node2>();
-            foreach (Cell cell in cells)
+            foreach (Pill cell in cells)
             {
             PxGeo.Point3d[] pts;
-            cell.pill.DivideByCount(resolution, false, out pts);
+            cell.Outline.DivideByCount(resolution, false, out pts);
             foreach (PxGeo.Point3d pt in pts)
             {
             n2l.Append(new Diagrams.Node2(pt.X, pt.Y));
@@ -647,7 +647,7 @@ namespace Blistructor.Prototype
             PxGeo.Point3d[] vert = voronoi[glob_index].ToPolyline().ToArray();
             foreach (PxGeo.Point3d pt in vert)
             {
-            PointContainment result = cells[i].pill.Contains(pt, PxGeo.Plane.WorldXY, 0.0001);
+            PointContainment result = cells[i].Outline.Contains(pt, PxGeo.Plane.WorldXY, 0.0001);
             if (result == PointContainment.Outside)
             {
             pts.Add(pt);

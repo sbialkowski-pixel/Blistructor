@@ -84,7 +84,7 @@ namespace Blistructor.SegPrev
             Dictionary<string, string> jsonCategoryMap = new Dictionary<string, string>
                 {
                     { "blister", "blister" },
-                    { "pill", "tabletka" }
+                    { "Outline", "tabletka" }
                 };
             Tuple<JObject, JArray> data = ParseJson(jsonData);
             JObject setup = data.Item1;
@@ -108,7 +108,7 @@ namespace Blistructor.SegPrev
             }
 
 
-            //PxGeo.PolylineCurve Pill = Px.Convert.ToPix(pill).ToPolylineCurve();
+            //PxGeo.PolylineCurve Pill = Px.Convert.ToPix(Outline).ToPolylineCurve();
             // PxGeo.PolylineCurve Blister = Px.Convert.ToPix(blister).ToPolylineCurve();
             o_blister = Px.Convert.ToRh(blister);
             List<PolylineCurve> rh_pills = pills.Select(pill => Px.Convert.ToRh(pill)).ToList();
@@ -168,7 +168,7 @@ namespace Blistructor.SegPrev
                 PxGeo.Polyline finalPline = tempContours.OrderByDescending(contour => contour.Area()).First();
 
 
-                if ((string)obj_data["category"] == jsonCategoryMap["pill"]) pills.Add(finalPline.ToPolylineCurve());
+                if ((string)obj_data["category"] == jsonCategoryMap["Outline"]) pills.Add(finalPline.ToPolylineCurve());
                 else if ((string)obj_data["category"] == jsonCategoryMap["blister"]) blister.Add(finalPline.ToPolylineCurve());
                 else
                 {

@@ -22,7 +22,7 @@ using log4net;
 /*States:
  * CTR_SUCCESS -> Cutting successful.
  * CTR_TO_TIGHT -> Pills are to tight. Cutting aborted.
- * CTR_ONE_PILL -> One pill on blister only. Nothing to do.
+ * CTR_ONE_PILL -> One Outline on blister only. Nothing to do.
  * CTR_FAILED -> Cutting Failed. Cannot Found cutting paths for all pills. Blister is to complicated or it is uncuttable.
  * CTR_ANCHOR_LOCATION_ERR: Blister side to small to pick by both graspers or No place for graspers.
  */
@@ -38,27 +38,22 @@ namespace Blistructor
         private int loopTolerance = 5;
         public List<SubBlister> Queue;
         public List<SubBlister> Cutted;
-
-        //  private JObject cuttingResult;
-
         public Anchor anchor;
 
         public Blister()
         {
-            // Logger.Setup();
             Queue = new List<SubBlister>();
             Cutted = new List<SubBlister>();
-            // cuttingResult = PrepareEmptyJSON();
         }
 
-        public int CuttableCellsLeft
+        public int CuttablePillsLeft
         {
             get
             {
                 int counter = 0;
                 foreach (SubBlister subBlister in Queue)
                 {
-                    counter += subBlister.Cells.Select(cell => cell.State).Where(state => state == CellState.Queue || state == CellState.Alone).ToList().Count;
+                    counter += subBlister.Pills.Select(pill => pill.State).Where(state => state == PillState.Queue || state == PillState.Alone).ToList().Count;
                 }
                 return counter;
             }
@@ -93,9 +88,6 @@ namespace Blistructor
             }
         }
 
-        //public JObject GetLastCutting { get{ return cuttingResult;}}
-
-
         #endregion
 
         private void InitialiseNewCut()
@@ -108,7 +100,7 @@ namespace Blistructor
         private void InitialiseNewBlister(List<PolylineCurve> pills, PolylineCurve blister)
         {
             SubBlister initialBlister = new SubBlister(pills, blister, this);
-            initialBlister.SortCellsByCoordinates(true);
+            initialBlister.SortPillsByCoordinates(true);
             Queue.Add(initialBlister);
             anchor = new Anchor(this);
 
@@ -123,7 +115,7 @@ namespace Blistructor
                 Dictionary<string, string> jsonCategoryMap = new Dictionary<string, string>
                 {
                     { "blister", "blister" },
-                    { "pill", "tabletka" }
+                    { "Outline", "tabletka" }
                 };
                 Tuple<JObject, JArray> data = ParseJson(JSON);
                 JObject setup = data.Item1;
@@ -210,8 +202,8 @@ namespace Blistructor
                 foreach (SubBlister bli in Cutted)
                 {
                     // Pass to JsonCretors JAW_1 Local coordinate for proper global coordinates calculation...
-                    allCuttingInstruction.Add(bli.Cells[0].GetJSON(anchor.anchors[0].location));
-                    allDisplayInstruction.Add(bli.Cells[0].GetDisplayJSON(anchor.anchors));
+                    allCuttingInstruction.Add(bli.Pills[0].GetJSON(anchor.anchors[0].location));
+                    allDisplayInstruction.Add(bli.Pills[0].GetDisplayJSON(anchor.anchors));
                 }
                 cuttingResult["cuttingData"] = allCuttingInstruction;
                 cuttingResult["displayData"] = allDisplayInstruction;
@@ -224,7 +216,7 @@ namespace Blistructor
             // Check if blister is correctly allign
             if (!anchor.IsBlisterStraight(Setups.MaxBlisterPossitionDeviation)) return CuttingState.CTR_WRONG_BLISTER_POSSITION;
             log.Info(String.Format("=== Start Cutting ==="));
-            int initialPillCount = Queue[0].Cells.Count;
+            int initialPillCount = Queue[0].Pills.Count;
             if (Queue[0].ToTight) return CuttingState.CTR_TO_TIGHT;
             if (Queue[0].LeftCellsCount == 1) return CuttingState.CTR_ONE_PILL;
             if (!anchor.ApplyAnchorOnBlister()) return CuttingState.CTR_ANCHOR_LOCATION_ERR;
@@ -242,7 +234,7 @@ namespace Blistructor
                 for (int i = 0; i < Queue.Count; i++)
                 {
                     SubBlister subBlister = Queue[i];
-                    log.Info(String.Format("{0} cells left to cut on on SubBlister:{1}", subBlister.Cells.Count, i));
+                    log.Info(String.Format("{0} pills left to cut on on SubBlister:{1}", subBlister.Pills.Count, i));
                     if (subBlister.IsDone)
                     {
                         log.Info("SubBlister is already cutted or is to tight for cutting.");
@@ -254,14 +246,14 @@ namespace Blistructor
                     // If anything was cutted, add to list
                     if (result.CutOut != null)
                     {
-                        Cell cuttedCell = result.CutOut.Cells[0];
-                        if (!cuttedCell.IsAnchored)
+                        Pill cuttedPill = result.CutOut.Pills[0];
+                        if (!cuttedPill.IsAnchored)
                         {
                             log.Debug("Anchor - Update Pred Line");
 
                             anchor.Update(result.CutOut);
                         }
-                        if (cuttedCell.IsAnchored && cuttedCell.State != CellState.Alone && CuttableCellsLeft == 2) anchor.FindNewAnchorAndApplyOnBlister(result.CutOut);
+                        if (cuttedPill.IsAnchored && cuttedPill.State != PillState.Alone && CuttablePillsLeft == 2) anchor.FindNewAnchorAndApplyOnBlister(result.CutOut);
                         log.Debug("Adding new CutOut subBlister to Cutted list");
                         Cutted.Add(result.CutOut);
                     }
@@ -284,8 +276,8 @@ namespace Blistructor
                         subBlister = result.Current;
                         // Sort Pills by last Knife Possition -> Last Pill Centre
                         // Point3d lastKnifePossition = Cutted.Last().Cells[0].bestCuttingData.GetLastKnifePossition();
-                        Point3d lastKnifePossition = Cutted.Last().Cells[0].PillCenter;
-                        if (lastKnifePossition.X != double.NaN) subBlister.SortCellsByPointDirection(lastKnifePossition, false);
+                        Point3d lastKnifePossition = Cutted.Last().Pills[0].PillCenter;
+                        if (lastKnifePossition.X != double.NaN) subBlister.SortPillsByPointDirection(lastKnifePossition, false);
                         //if (lastKnifePossition.X != double.NaN) subBlister.SortCellsByCoordinates(true);
 
                     }
@@ -415,7 +407,7 @@ namespace Blistructor
 
 
 
-                if ((string)obj_data["category"] == jsonCategoryMap["pill"]) pills.Add(finalPline.ToPolylineCurve());
+                if ((string)obj_data["category"] == jsonCategoryMap["Outline"]) pills.Add(finalPline.ToPolylineCurve());
                 else if ((string)obj_data["category"] == jsonCategoryMap["blister"]) blister.Add(finalPline.ToPolylineCurve());
                 else
                 {

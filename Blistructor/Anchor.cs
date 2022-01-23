@@ -41,7 +41,7 @@ namespace Blistructor
         {
             GlobalAnchors = new List<Point3d>(2);
             // Create Cartesian Limit Line
-            cartesianLimitLine = new LineCurve(new Line(new Point3d(-Setups.IsoRadius, -Setups.BlisterCartesianDistance, 0), Vector3d.XAxis, 2 * Setups.IsoRadius));
+            cartesianLimitLine = Anchor.CreateCartesianLimitLine();
 
             this.blister = blister;
             GrasperPossibleLocation = new List<LineCurve>();
@@ -105,6 +105,11 @@ namespace Blistructor
             anchors = FindAnchorPoints();
             GuideLine.Translate(new Vector3d(0, -Setups.JawDepth, 0));
             log.Info(String.Format("Anchors found: {0}", anchors.Count));
+        }
+
+        public static LineCurve CreateCartesianLimitLine()
+        {
+            return new LineCurve(new Line(new Point3d(-Setups.IsoRadius, -Setups.BlisterCartesianDistance, 0), Vector3d.XAxis, 2 * Setups.IsoRadius));
         }
 
         private List<Interval> ConvertGrasperstoInterval()
@@ -201,8 +206,6 @@ namespace Blistructor
             }
         }
 
-        public void ValidateAgainstCell(Cell cell) { }
-
         /// <summary>
         /// Get restricted area, based on actual grasper possible location
         /// </summary>
@@ -222,17 +225,17 @@ namespace Blistructor
             return restrictedAreas;
         }
 
-            /// <summary>
-            /// Based on cell, aimed to cut, compute restricted area for Jaws as intervals.
-            /// Cell must have bestCuttingData precomputed
-            /// </summary>
-            /// <param name="cell">Cell aimed to be cutted</param>
-            /// <returns>List of restricted area intervals</returns>
-            public List<Interval> ComputeRestrictedIntervals(Cell cell)
+        /// <summary>
+        /// Based on pill, aimed to cut, compute restricted area for Jaws as intervals.
+        /// Pill must have bestCuttingData precomputed
+        /// </summary>
+        /// <param name="pill">Pill aimed to be cutted</param>
+        /// <returns>List of restricted area intervals</returns>
+        public List<Interval> ComputeRestrictedIntervals(Pill pill)
         {
             // Thicken paths from cutting data anch check how this influance 
-            List<Interval> allRestrictedArea = new List<Interval>(cell.bestCuttingData.Segments.Count);
-            foreach (PolylineCurve ply in cell.bestCuttingData.Segments)
+            List<Interval> allRestrictedArea = new List<Interval>(pill.bestCuttingData.Segments.Count);
+            foreach (PolylineCurve ply in pill.bestCuttingData.Segments)
             {
                 //Create upperLine - max distance where Jaw can operate
                 LineCurve uppeLimitLine = new LineCurve(new Line(new Point3d(-Setups.IsoRadius, Setups.JawDepth, 0), Vector3d.XAxis, 2 * Setups.IsoRadius));
@@ -283,35 +286,35 @@ namespace Blistructor
         }
 
         /// <summary>
-        /// Check if Cell intersect with PredLine and update cell status - possibleAnchor
+        /// Check if Pill intersect with PredLine and update pill status - possibleAnchor
         /// </summary>
         public void GuessAnchorPossiblityOnCell()
         {
             foreach (SubBlister subBlister in blister.Queue)
             {
-                foreach (Cell cell in subBlister.Cells)
+                foreach (Pill pill in subBlister.Pills)
                 {
-                    cell.possibleAnchor = false;
+                    pill.possibleAnchor = false;
                     foreach (LineCurve line in GrasperPossibleLocation)
                     {
-                        List<IntersectionEvent> intersection = Intersection.CurveCurve(cell.voronoi, line, Setups.IntersectionTolerance);
+                        List<IntersectionEvent> intersection = Intersection.CurveCurve(pill.voronoi, line, Setups.IntersectionTolerance);
                         if (intersection.Count > 0)
                         {
-                            cell.possibleAnchor = true;
+                            pill.possibleAnchor = true;
                         }
                         else
                         {
                             foreach (Point3d pt in new List<Point3d> { line.PointAtStart, line.PointAtEnd })
                             {
-                                PointContainment contains = cell.voronoi.Contains(pt, Plane.WorldXY, Setups.IntersectionTolerance);
+                                PointContainment contains = pill.voronoi.Contains(pt, Plane.WorldXY, Setups.IntersectionTolerance);
                                 if (contains == PointContainment.Inside)
                                 {
-                                    cell.possibleAnchor = true;
+                                    pill.possibleAnchor = true;
                                     break;
                                 }
                             }
                         }
-                        if (cell.possibleAnchor == true) break;
+                        if (pill.possibleAnchor == true) break;
                     }
                 }
             }
@@ -470,7 +473,7 @@ namespace Blistructor
 
         #region ANCHOR UPDATE
         /// <summary>
-        /// Check which Anchor belongs to which cell and reset other cells anchors. 
+        /// Check which Anchor belongs to which pill and reset other cells anchors. 
         /// </summary>
         /// <returns></returns>
         public bool ApplyAnchorOnBlister()
@@ -479,22 +482,22 @@ namespace Blistructor
             // NOTE: For loop by all queue blisters.
             foreach (SubBlister subBlister in blister.Queue)
             {
-                if (subBlister.Cells == null) return false;
-                if (subBlister.Cells.Count == 0) return false;
-                foreach (Cell cell in subBlister.Cells)
+                if (subBlister.Pills == null) return false;
+                if (subBlister.Pills.Count == 0) return false;
+                foreach (Pill pill in subBlister.Pills)
                 {
-                    // Reset anchors in each cell.
-                    cell.Anchors = new List<AnchorPoint>(2);
-                    //cell.Anchor = new AnchorPoint();
+                    // Reset anchors in each pill.
+                    pill.Anchors = new List<AnchorPoint>(2);
+                    //pill.Anchor = new AnchorPoint();
                     foreach (AnchorPoint pt in anchors)
                     {
                         //TODO : Problem z tym ze sprawdzma punkt który lezy na Y=0 i nie jak nie przecina sie z voronoiem...
-                        PointContainment result = cell.voronoi.Contains(pt.location, Plane.WorldXY, Setups.IntersectionTolerance);
+                        PointContainment result = pill.voronoi.Contains(pt.location, Plane.WorldXY, Setups.IntersectionTolerance);
                         if (result == PointContainment.Inside)
                         {
-                            log.Info(String.Format("Anchor appied on cell - {0} with status {1}", cell.id, pt.state));
-                            //cell.Anchor = pt;
-                            cell.Anchors.Add(pt);
+                            log.Info(String.Format("Anchor appied on pill - {0} with status {1}", pill.id, pt.state));
+                            //pill.Anchor = pt;
+                            pill.Anchors.Add(pt);
                             break;
                         }
                     }
@@ -507,8 +510,8 @@ namespace Blistructor
 
         public void Update(SubBlister cuttedBlister)
         {
-            Cell cell = cuttedBlister.Cells[0];
-            List<Interval> restrictedAreas = ComputeRestrictedIntervals(cell);
+            Pill pill = cuttedBlister.Pills[0];
+            List<Interval> restrictedAreas = ComputeRestrictedIntervals(pill);
             Interval restrictedArea = IntervalsInterval(restrictedAreas);
             List<Interval> grasperIntervals = ConvertGrasperstoInterval();
             List<Interval> remainingGraspersLocation = new List<Interval>(grasperIntervals.Count);
@@ -526,7 +529,7 @@ namespace Blistructor
 #if DEBUG
             var file = new File3dm();
 #endif
-            PolylineCurve polygon = cuttedBlister.Cells[0].bestCuttingData.Polygon;
+            PolylineCurve polygon = cuttedBlister.Pills[0].bestCuttingData.Polygon;
 
             // List<RegionContainment> cont1 = GrasperPossibleLocation.Select(crv => Curve.PlanarClosedCurveRelationship(polygon, crv)).ToList();
             // Simplify polygon
@@ -543,10 +546,10 @@ namespace Blistructor
             file.Objects.AddCurve(offset, att);
             att = new ObjectAttributes();
             att.Name = "path";
-            cuttedBlister.Cells[0].bestCuttingData.Path.ForEach(crv => file.Objects.AddCurve(crv, att));
+            cuttedBlister.Pills[0].bestCuttingData.Path.ForEach(crv => file.Objects.AddCurve(crv, att));
             att = new ObjectAttributes();
             att.Name = "path_segemnts";
-            cuttedBlister.Cells[0].bestCuttingData.bladeFootPrint.ForEach(crv => file.Objects.AddCurve(crv, att));
+            cuttedBlister.Pills[0].bestCuttingData.bladeFootPrint.ForEach(crv => file.Objects.AddCurve(crv, att));
 #endif
             if (offset != null)
             {

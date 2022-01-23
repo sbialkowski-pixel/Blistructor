@@ -505,13 +505,13 @@ namespace Blistructor
         }
 
         //TODO: Dokonczyć reguralny voronoi i dodac jako stage 0 ciecia.
-        public static List<PolylineCurve> RegularVoronoi(List<Cell> cells, Polyline blister,  double tolerance = 0.05)
+        public static List<PolylineCurve> RegularVoronoi(List<Pill> pills, Polyline blister,  double tolerance = 0.05)
         {
             Diagrams.Node2List n2l = new Diagrams.Node2List();
             List < Diagrams.Node2 > outline = new List<Diagrams.Node2>();
-            foreach (Cell cell in cells)
+            foreach (Pill pill in pills)
             {
-                n2l.Append(new Diagrams.Node2(cell.PillCenter.X, cell.PillCenter.Y));
+                n2l.Append(new Diagrams.Node2(pill.PillCenter.X, pill.PillCenter.Y));
             }
 
             foreach (Point3d pt in blister)
@@ -523,21 +523,21 @@ namespace Blistructor
            // List<Diagrams.Voronoi.Cell2> voronoi = Diagrams.Voronoi.Solver.Solve_Connectivity(n2l, del_con, outline);
 
             List<PolylineCurve> output = new List<PolylineCurve>(voronoi.Count);
-            foreach (Diagrams.Voronoi.Cell2 cell in voronoi)
+            foreach (Diagrams.Voronoi.Cell2 pill in voronoi)
             {
-                output.Add(cell.ToPolyline().ToPolylineCurve());
+                output.Add(pill.ToPolyline().ToPolylineCurve());
             }
             return output;
         }
 
-        public static List<PolylineCurve> IrregularVoronoi(List<Cell> cells, Polyline blister, int resolution = 50, double tolerance = 0.05)
+        public static List<PolylineCurve> IrregularVoronoi(List<Pill> pills, Polyline blister, int resolution = 50, double tolerance = 0.05)
         {
             Diagrams.Node2List n2l = new Diagrams.Node2List();
             List<Diagrams.Node2> outline = new List<Diagrams.Node2>();
-            foreach (Cell cell in cells)
+            foreach (Pill pill in pills)
             {
                 Point3d[] pts;
-                cell.pill.DivideByCount(resolution, false, out pts);
+                pill.Outline.DivideByCount(resolution, false, out pts);
                 foreach (Point3d pt in pts)
                 {
                     n2l.Append(new Diagrams.Node2(pt.X, pt.Y));
@@ -553,7 +553,7 @@ namespace Blistructor
             List < Diagrams.Voronoi.Cell2 > voronoi = Diagrams.Voronoi.Solver.Solve_Connectivity(n2l, del_con, outline);
 
             List<PolylineCurve> vCells = new List<PolylineCurve>();
-            for (int i = 0; i < cells.Count; i++)
+            for (int i = 0; i < pills.Count; i++)
             {
                 List<Point3d> pts = new List<Point3d>();
                 for (int j = 0; j < resolution - 1; j++)
@@ -564,7 +564,7 @@ namespace Blistructor
                     Point3d[] vert = voronoi[glob_index].ToPolyline().ToArray();
                     foreach (Point3d pt in vert)
                     {
-                        PointContainment result = cells[i].pill.Contains(pt, Plane.WorldXY, 0.0001);
+                        PointContainment result = pills[i].Outline.Contains(pt, Plane.WorldXY, 0.0001);
                         if (result == PointContainment.Outside)
                         {
                             pts.Add(pt);
@@ -579,7 +579,7 @@ namespace Blistructor
                 poly.Add(poly[0]);
                 poly.ReduceSegments(tolerance);
                 vCells.Add(new PolylineCurve(poly));
-                cells[i].voronoi = new PolylineCurve(poly);
+                pills[i].voronoi = new PolylineCurve(poly);
             }
             return vCells;
         }
@@ -770,6 +770,26 @@ namespace Blistructor
             curve.Scale(pixelSpacing);
         }
         */
+
+        #region InclusionTests
+        public static bool InclusionTest(Pill testCell, SubBlister blister)
+        {
+            return InclusionTest(testCell.Offset, blister.Outline);
+        }
+
+        public static bool InclusionTest(Pill testCell, Curve Region)
+        {
+            return InclusionTest(testCell.Offset, Region);
+        }
+
+        public static bool InclusionTest(Curve testCurve, Curve Region)
+        {
+            RegionContainment test = Curve.PlanarClosedCurveRelationship(Region, testCurve);
+            if (test == RegionContainment.BInsideA) return true;
+            else return false;
+        }
+        #endregion
+
 
         public static void ApplyCalibration(GeometryBase geometry, Vector3d calibrationVector, double pixelSpacing = 1.0, double rotation = Math.PI / 6)
         {

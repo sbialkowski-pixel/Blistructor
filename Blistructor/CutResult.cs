@@ -6,17 +6,17 @@ namespace Blistructor
 {
     public class CutResult
     {
-        public SubBlister CutOut;
-        public SubBlister Current;
-        public List<SubBlister> ExtraBlisters;
-        public CutState State;
+        public readonly SubBlister CutOut;
+        public readonly SubBlister Current;
+        public readonly List<SubBlister> ExtraBlisters;
+        public readonly CutState State;
 
-        public CutResult()
+        public CutResult(CutState state = CutState.Failed)
         {
             CutOut = null;
             Current = null;
-            ExtraBlisters = null;
-            State = CutState.Failed;
+            ExtraBlisters = new List<SubBlister>();
+            State = state;
         }
 
         public CutResult(SubBlister cutOut, SubBlister current, List<SubBlister> newBlisters, CutState state = CutState.Cutted)
