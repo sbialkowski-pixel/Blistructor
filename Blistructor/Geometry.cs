@@ -772,7 +772,7 @@ namespace Blistructor
         */
 
         #region InclusionTests
-        public static bool InclusionTest(Pill testCell, SubBlister blister)
+        public static bool InclusionTest(Pill testCell, Blister blister)
         {
             return InclusionTest(testCell.Offset, blister.Outline);
         }

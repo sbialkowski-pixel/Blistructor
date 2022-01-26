@@ -75,7 +75,7 @@ namespace Blistructor.SegPrev
             Blistructor.Logger.Setup();
             Blistructor.Logger.ClearAllLogFile();
 
-            //Blister structor = new Blister();
+            //Workspace structor = new Workspace();
 
             //JObject json = structor.CutBlister(jsonData);
 
@@ -90,7 +90,7 @@ namespace Blistructor.SegPrev
             JObject setup = data.Item1;
             JArray content = data.Item2;
             Setups.ApplySetups(setup);
-            // Parse JSON. Item1 -> Blister, Item2 -> Pills
+            // Parse JSON. Item1 -> Workspace, Item2 -> Pills
             Tuple<PxGeo.PolylineCurve, List<PxGeo.PolylineCurve>> pLines = GetContursBasedOnJSON(content, jsonCategoryMap);
 
             // Simplyfy paths on blister and pills
@@ -109,7 +109,7 @@ namespace Blistructor.SegPrev
 
 
             //PxGeo.PolylineCurve Pill = Px.Convert.ToPix(Outline).ToPolylineCurve();
-            // PxGeo.PolylineCurve Blister = Px.Convert.ToPix(blister).ToPolylineCurve();
+            // PxGeo.PolylineCurve Workspace = Px.Convert.ToPix(blister).ToPolylineCurve();
             o_blister = Px.Convert.ToRh(blister);
             List<PolylineCurve> rh_pills = pills.Select(pill => Px.Convert.ToRh(pill)).ToList();
             o_pills = rh_pills;

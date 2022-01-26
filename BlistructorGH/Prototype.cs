@@ -107,7 +107,7 @@ namespace Blistructor.Prototype
             // A = connAABB;
             Tuple<List<PxGeo.Curve>, List<PxGeo.Curve>> data =  Geometry.TrimWithRegion(Blister, limitingCircle);
             //A = data.Item1.Select(d => Px.Convert.ToRh((PxGeo.PolylineCurve)d));
-            //A = Geometry.SplitRegion(Blister, limitingCircle).Select(pline1 => Px.Convert.ToRh((PxGeo.PolylineCurve)pline1));
+            //A = Geometry.SplitRegion(Workspace, limitingCircle).Select(pline1 => Px.Convert.ToRh((PxGeo.PolylineCurve)pline1));
 
 
 

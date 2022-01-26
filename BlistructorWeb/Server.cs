@@ -16,7 +16,7 @@ namespace BlistructorWeb
     class Server
     {
         private static readonly ILog log = LogManager.GetLogger("Cutter.Web");
-        private static Blister structor = new Blister();
+        private static Workspace structor = new Workspace();
         static void Main(string[] args)
         {
             Logger.Setup();

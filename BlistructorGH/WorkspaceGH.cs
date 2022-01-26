@@ -10,9 +10,9 @@ using Blistructor;
 
 namespace BlistructorGH
 {
-    public class BlisterGH : Blister
+    public class WorkspaceGH : Workspace
     {
-        public BlisterGH() : base()
+        public WorkspaceGH() : base()
         {
 
         }
@@ -256,7 +256,7 @@ namespace BlistructorGH
                 //List<List<Curve>> out_data = new List<List<Curve>>();
                 for (int i = 0; i < Cutted.Count; i++)
                 {
-                    SubBlister cuttedBlister = Cutted[i];
+                    Blister cuttedBlister = Cutted[i];
                     Pill cuttedCell = Cutted[i].Pills[0];
                     // if (cuttedCell.cuttingData == null) continue;
                     // if (cuttedCell.cuttingData.Count == 0) continue;
@@ -286,7 +286,7 @@ namespace BlistructorGH
             get
             {
                 DataTree<string> anchors = new DataTree<string>();
-                foreach (SubBlister blister in Cutted)
+                foreach (Blister blister in Cutted)
                 {
                     //anchors.Add(blister.Cells[0].Anchor.state.ToString());
                 }

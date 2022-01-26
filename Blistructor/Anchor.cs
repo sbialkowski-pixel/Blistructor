@@ -26,7 +26,7 @@ namespace Blistructor
 
         public LineCurve cartesianLimitLine;
 
-        public Blister blister;
+        private Workspace _workspace;
         public PolylineCurve mainOutline;
         public PolylineCurve aaBBox;
         public PolylineCurve maBBox;
@@ -37,16 +37,16 @@ namespace Blistructor
         public List<AnchorPoint> anchors;
         public List<Point3d> GlobalAnchors;
 
-        public Anchor(Blister blister)
+        public Anchor(Workspace workspace)
         {
             GlobalAnchors = new List<Point3d>(2);
             // Create Cartesian Limit Line
             cartesianLimitLine = Anchor.CreateCartesianLimitLine();
 
-            this.blister = blister;
+            _workspace = workspace;
             GrasperPossibleLocation = new List<LineCurve>();
 
-            mainOutline = blister.Queue[0].Outline;
+            mainOutline = _workspace.Queue[0].Outline;
 
             // Generate BBoxes
             BoundingBox blisterBB = mainOutline.GetBoundingBox(false);
@@ -90,7 +90,7 @@ namespace Blistructor
             fullPredLine.SetEndPoint(new Point3d(maxCartesianDistanceX, Setups.JawDepth, 0));
 
             // NOTE: Check intersection with pills (Or maybe with pillsOffset. Rethink problem)
-            Tuple<List<Curve>, List<Curve>> trimResult = Geometry.TrimWithRegions(fullPredLine, blister.Queue[0].GetPills(false));
+            Tuple<List<Curve>, List<Curve>> trimResult = Geometry.TrimWithRegions(fullPredLine, workspace.Queue[0].GetPills(false));
             // Gather all parts outsite (not in pills) shrink curve on both sides by half of Grasper width and move it back to mid position 
             foreach (Curve crv in trimResult.Item2)
             {
@@ -290,7 +290,7 @@ namespace Blistructor
         /// </summary>
         public void GuessAnchorPossiblityOnCell()
         {
-            foreach (SubBlister subBlister in blister.Queue)
+            foreach (Blister subBlister in _workspace.Queue)
             {
                 foreach (Pill pill in subBlister.Pills)
                 {
@@ -480,7 +480,7 @@ namespace Blistructor
         {
             if (anchors.Count == 0) return false;
             // NOTE: For loop by all queue blisters.
-            foreach (SubBlister subBlister in blister.Queue)
+            foreach (Blister subBlister in _workspace.Queue)
             {
                 if (subBlister.Pills == null) return false;
                 if (subBlister.Pills.Count == 0) return false;
@@ -495,7 +495,7 @@ namespace Blistructor
                         PointContainment result = pill.voronoi.Contains(pt.location, Plane.WorldXY, Setups.IntersectionTolerance);
                         if (result == PointContainment.Inside)
                         {
-                            log.Info(String.Format("Anchor appied on pill - {0} with status {1}", pill.id, pt.state));
+                            log.Info(String.Format("Anchor appied on pill - {0} with status {1}", pill.Id, pt.state));
                             //pill.Anchor = pt;
                             pill.Anchors.Add(pt);
                             break;
@@ -508,7 +508,7 @@ namespace Blistructor
         }
 
 
-        public void Update(SubBlister cuttedBlister)
+        public void Update(Blister cuttedBlister)
         {
             Pill pill = cuttedBlister.Pills[0];
             List<Interval> restrictedAreas = ComputeRestrictedIntervals(pill);
@@ -524,7 +524,7 @@ namespace Blistructor
             GrasperPossibleLocation = remainingGraspersLocation.Select(interval => new LineCurve(new Point2d(interval.T0, Setups.JawDepth), new Point2d(interval.T1, Setups.JawDepth))).ToList(); 
         }
 
-        public void Update_Legacy(SubBlister cuttedBlister)
+        public void Update_Legacy(Blister cuttedBlister)
         {
 #if DEBUG
             var file = new File3dm();
@@ -593,11 +593,11 @@ namespace Blistructor
             }
 #if DEBUG
 
-            file.Write(String.Format(@"D:\PIXEL\DEBUG_FILES\ANCHORS\Update_{0}.3dm", blister.Cutted.Count()), 6);
+            file.Write(String.Format(@"D:\PIXEL\DEBUG_FILES\ANCHORS\Update_{0}.3dm", _workspace.Cutted.Count()), 6);
 #endif
         }
 
-        public void FindNewAnchorAndApplyOnBlister(SubBlister cuttedBlister)
+        public void FindNewAnchorAndApplyOnBlister(Blister cuttedBlister)
         {
             Update(cuttedBlister);
             anchors = FindAnchorPoints();
