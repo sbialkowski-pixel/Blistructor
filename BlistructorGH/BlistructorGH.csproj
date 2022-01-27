@@ -73,12 +73,16 @@
   <ItemGroup>
     <None Include="GhWip - Copy.cs" />
     <None Include="GhWip.cs" />
+    <None Include="Prototype.cs" />
+    <None Include="WorkspaceGH.cs" />
   </ItemGroup>
  
  
   <ItemGroup>
     <Compile Remove="GhWip - Copy.cs" />
     <Compile Remove="GhWip.cs" />
+    <Compile Remove="Prototype.cs" />
+    <Compile Remove="WorkspaceGH.cs" />
   </ItemGroup>
  
   <ItemGroup>

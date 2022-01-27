@@ -19,13 +19,6 @@ using log4net;
 // TODO: "ładne" logowanie produkcyjne jak i debugowe.
 // TODO: Posprzątanie w klasach.
 
-/*States:
- * CTR_SUCCESS -> Cutting successful.
- * CTR_TO_TIGHT -> Pills are to tight. Cutting aborted.
- * CTR_ONE_PILL -> One Outline on blister only. Nothing to do.
- * CTR_FAILED -> Cutting Failed. Cannot Found cutting paths for all pills. Workspace is to complicated or it is uncuttable.
- * CTR_ANCHOR_LOCATION_ERR: Workspace side to small to pick by both graspers or No place for graspers.
- */
 
 namespace Blistructor
 {
@@ -36,76 +29,22 @@ namespace Blistructor
         public PolylineCurve mainOutline;
 
         private int loopTolerance = 5;
-        public List<Blister> Queue;
-        public List<Blister> Cutted;
         public Anchor anchor;
 
         public Workspace()
         {
-            Queue = new List<Blister>();
-            Cutted = new List<Blister>();
         }
+ 
 
-        public int CuttablePillsLeft
+        private Blister InitialiseNewBlister(List<PolylineCurve> pillsOutlines, PolylineCurve blisterOutlines)
         {
-            get
-            {
-                int counter = 0;
-                foreach (Blister subBlister in Queue)
-                {
-                    counter += subBlister.Pills.Select(pill => pill.State).Where(state => state == PillState.Queue || state == PillState.Alone).ToList().Count;
-                }
-                return counter;
-            }
-        }
-
-        #region PROPERTIES   
-
-        public List<PolylineCurve> GetCuttedPolygons
-        {
-            get
-            {
-                List<PolylineCurve> polygons = new List<PolylineCurve>(Cutted.Count);
-                foreach (Blister subBlister in Cutted)
-                {
-                    polygons.Add(subBlister.Outline);
-                }
-                return polygons;
-            }
-        }
-
-        /*
-        public List<List<LineCurve>> GetCuttingLines
-        {
-            get
-            {
-                List<List<LineCurve>> cuttingLines = new List<List<LineCurve>>(Cutted.Count);
-                foreach (Blister subBlister in Cutted)
-                {
-                    cuttingLines.Add(subBlister.GetCuttingLines());
-                }
-                return cuttingLines;
-            }
-        }
-        */
-
-        #endregion
-
-        private void InitialiseNewCut()
-        {
-            // Initialize Lists
-            Queue = new List<Blister>();
-            Cutted = new List<Blister>();
-        }
-
-        private void InitialiseNewBlister(List<PolylineCurve> pills, PolylineCurve blister)
-        {
-            Blister initialBlister = new Blister(pills, blister, this);
+            Blister initialBlister = new Blister(pillsOutlines, blisterOutlines, this);
             initialBlister.SortPillsByCoordinates(true);
-            Queue.Add(initialBlister);
+            //Queue.Add(initialBlister);
             anchor = new Anchor(this);
 
-            log.Info(String.Format("New blister with {0} pills", pills.Count));
+            log.Info(String.Format("New blister with {0} pills", pillsOutlines.Count));
+            return initialBlister;
         }
         
         public JObject CutBlister(string JSON)
@@ -185,14 +124,15 @@ namespace Blistructor
             return CutBlisterWorker(pills.Select(pline => pline.ToPolylineCurve()).ToList(), blister.ToPolylineCurve());
         }
 
-        private JObject CutBlisterWorker(List<PolylineCurve> pills, PolylineCurve blister)
+        private JObject CutBlisterWorker(List<PolylineCurve> pillsOutlines, PolylineCurve blisterOutlines)
         {
-            InitialiseNewBlister(pills, blister);
-            CuttingState status = PerformCut();
+            Blister initialBlister = InitialiseNewBlister(pillsOutlines, blisterOutlines);
+            BlisterProcessor cutter = new BlisterProcessor(initialBlister);
+            CuttingState status = cutter.PerformCut();
             JObject cuttingResult = PrepareStatus(status);
             cuttingResult.Merge(PrepareEmptyJSON());
-            cuttingResult["pillsDetected"] = pills.Count;
-            cuttingResult["pillsCutted"] = Cutted.Count;
+            cuttingResult["pillsDetected"] = pillsOutlines.Count;
+            cuttingResult["pillsCutted"] = cutter.Cutted.Count;
             cuttingResult["jawsLocation"] = anchor.GetJSON();
             // If all alright, populate by cutting data
             if (status == CuttingState.CTR_SUCCESS)
@@ -200,7 +140,7 @@ namespace Blistructor
 
                 JArray allCuttingInstruction = new JArray();
                 JArray allDisplayInstruction = new JArray();
-                foreach (Blister bli in Cutted)
+                foreach (Blister bli in cutter.Cutted)
                 {
                     // Pass to JsonCretors JAW_1 Local coordinate for proper global coordinates calculation...
                     allCuttingInstruction.Add(bli.Pills[0].GetJSON());
@@ -212,6 +152,7 @@ namespace Blistructor
             return cuttingResult;
         }
 
+        /*
         private CuttingState PerformCut()
         {
             // Check if blister is correctly allign
@@ -316,6 +257,7 @@ namespace Blistructor
             if (initialPillCount == Cutted.Count) return CuttingState.CTR_SUCCESS;
             else return CuttingState.CTR_FAILED;
         }
+        */
 
         private JObject PrepareStatus(CuttingState stateCode, string message = "")
         {

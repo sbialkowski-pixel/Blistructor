@@ -524,6 +524,7 @@ namespace Blistructor
             GrasperPossibleLocation = remainingGraspersLocation.Select(interval => new LineCurve(new Point2d(interval.T0, Setups.JawDepth), new Point2d(interval.T1, Setups.JawDepth))).ToList(); 
         }
 
+        /*
         public void Update_Legacy(Blister cuttedBlister)
         {
 #if DEBUG
@@ -596,6 +597,7 @@ namespace Blistructor
             file.Write(String.Format(@"D:\PIXEL\DEBUG_FILES\ANCHORS\Update_{0}.3dm", _workspace.Cutted.Count()), 6);
 #endif
         }
+        */
 
         public void FindNewAnchorAndApplyOnBlister(Blister cuttedBlister)
         {

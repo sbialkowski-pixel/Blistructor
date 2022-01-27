@@ -511,7 +511,7 @@ namespace Blistructor
             List < Diagrams.Node2 > outline = new List<Diagrams.Node2>();
             foreach (Pill pill in pills)
             {
-                n2l.Append(new Diagrams.Node2(pill.PillCenter.X, pill.PillCenter.Y));
+                n2l.Append(new Diagrams.Node2(pill.Center.X, pill.Center.Y));
             }
 
             foreach (Point3d pt in blister)

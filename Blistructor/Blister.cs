@@ -13,504 +13,44 @@ using Newtonsoft.Json.Linq;
 
 namespace Blistructor
 {
-    public class BlisterCutter2
+    public class CuttedBlister : Blister
     {
-        private static readonly ILog log = LogManager.GetLogger("Cutter.BlisterCutter2");
-        public List<Blister> Queue = new List<Blister>();
-        public List<Blister> Cutted = new List<Blister>();
-        public Anchor anchor;
-        private int loopTolerance = 5;
+        private static readonly ILog log = LogManager.GetLogger("Cutter.CuttedPill");
+        private readonly CutData _cutData;
 
-        public BlisterCutter2(Blister blisterToCut)
+        public CuttedBlister(Pill cuttedPill, CutData cutData, Workspace workspace) : base(cuttedPill, cutData.Polygon, workspace)
         {
+            _cutData = cutData;
+        }
+        public Pill Pill { get => Pills[0]; }
+
+        private List<AnchorPoint> Anchors { get => _workspace.anchor.anchors; }
+
+        public JObject GetDisplayJSON()
+        {
+            JObject data = Pill.GetDisplayJSON();
+            // Add displayCut data
+            if (_cutData != null) data.Add("displayCut", _cutData.GetDisplayJSON(Anchors[0].location));
+            else data.Add("displayCut", new JArray());
+            return data;
         }
 
-        public int CuttablePillsLeft
+        public JObject GetJSON()
         {
-            get
-            {
-                int counter = 0;
-                foreach (Blister subBlister in Queue)
-                {
-                    counter += subBlister.Pills.Select(pill => pill.State).Where(state => state == PillState.Queue || state == PillState.Alone).ToList().Count;
-                }
-                return counter;
-            }
+            JObject data = Pill.GetJSON();
+            Point3d Jaw1_Local = _workspace.anchor.anchors[0].location;
+            // Add Cutting Instruction
+            if (_cutData != null) data.Add("cutInstruction", _cutData.GetJSON(Jaw1_Local));
+            else data.Add("cutInstruction", new JArray());
+            return data;
         }
-
-        private CuttingState PerformCut()
-        {
-            // Check if blister is correctly allign
-            if (!anchor.IsBlisterStraight(Setups.MaxBlisterPossitionDeviation)) return CuttingState.CTR_WRONG_BLISTER_POSSITION;
-            log.Info(String.Format("=== Start Cutting ==="));
-            int initialPillCount = Queue[0].Pills.Count;
-            if (Queue[0].ToTight) return CuttingState.CTR_TO_TIGHT;
-            if (Queue[0].LeftPillsCount == 1) return CuttingState.CTR_ONE_PILL;
-            if (!anchor.ApplyAnchorOnBlister()) return CuttingState.CTR_ANCHOR_LOCATION_ERR;
-
-            int n = 0; // control
-                       // Main Loop
-            while (Queue.Count > 0)
-            {
-                //if (n > mainLimit && mainLimit != -1) break;
-                // Extra control to not loop forever...
-                if (n > initialPillCount + loopTolerance) break;
-                log.Info(String.Format(String.Format("<<<<<<Blisters Count: Queue: {0}, Cutted {1}>>>>>>>>>>>>>>>>>>>>>>>>", Queue.Count, Cutted.Count)));
-                // InnerLoop - Queue Blisters
-
-                for (int i = 0; i < Queue.Count; i++)
-                {
-                    Blister subBlister = Queue[i];
-                    log.Info(String.Format("{0} pills left to cut on on Blister:{1}", subBlister.Pills.Count, i));
-                    if (subBlister.IsDone)
-                    {
-                        log.Info("Blister is already cutted or is to tight for cutting.");
-                        continue;
-                    }
-                    // In tuple I have | CutOut Blister | Current Updated Blister | Extra Blisters to Cut (recived by spliting currentBlister) 
-                    PillCutter cutter = new PillCutter(subBlister);
-                    PillCutProposals cutProposal;
-                    try
-                    {
-                        cutProposal = cutter.CutNext(onlyAnchor: false);
-                    }
-                    catch (Exception)
-                    {
-                        log.Error("!!!Cannot cut blister Anymore!!!");
-                        return CuttingState.CTR_FAILED;
-                    }
-
-                    if (cutProposal.HasGrasperCollisions())
-                    {
-                        subBlister.RemoveCollision(BlisterCutProposals);
-                        cutProposal = cutter.CutNext(onlyAnchor: true);
-                    }
-                    cutProposal.Approve();
-
-                    //CutResult result = subBlister.CutNext();
-                    //log.Debug(String.Format("Cutting Result: Cutout: {0} - Current Blister {1} - New Blisters {2}.", result.CutOut, result.Current, result.ExtraBlisters.Count));
-                    // If anything was cutted, add to list
-                    if (cutProposal.CutOut != null)
-                    {
-                        Pill cuttedPill = cutProposal.CutOut.Pills[0];
-                        if (!cuttedPill.IsAnchored)
-                        {
-                            log.Debug("Anchor - Update Pred Line");
-
-                            anchor.Update(cutProposal.CutOut);
-                        }
-                        if (cuttedPill.IsAnchored && cuttedPill.State != PillState.Alone && CuttablePillsLeft == 2) anchor.FindNewAnchorAndApplyOnBlister(cutProposal.CutOut);
-                        log.Debug("Adding new CutOut subBlister to Cutted list");
-                        Cutted.Add(cutProposal.CutOut);
-                    }
-                    else
-                    {
-                        log.Error("!!!Cannot cut blister Anymore!!!");
-                        return CuttingState.CTR_FAILED;
-                    }
-                    // override current bluster, if null , remove it from Queue list
-                    if (cutProposal.Current == null)
-                    {
-                        log.Info("Current subBlister is empty. Removing from Queue");
-                        Queue.RemoveAt(i);
-                        i--;
-                        break;
-                    }
-                    else
-                    {
-                        log.Debug("Updating subBlister");
-                        subBlister = cutProposal.Current;
-                        // Sort Pills by last Knife Possition -> Last Pill Centre
-                        // Point3d lastKnifePossition = Cutted.Last().Cells[0].bestCuttingData.GetLastKnifePossition();
-                        Point3d lastKnifePossition = Cutted.Last().Pills[0].PillCenter;
-                        if (lastKnifePossition.X != double.NaN) subBlister.SortPillsByPointDirection(lastKnifePossition, false);
-                        //if (lastKnifePossition.X != double.NaN) subBlister.SortCellsByCoordinates(true);
-                    }
-                    // Add extra blsters if any was created
-                    if (cutProposal.ExtraBlisters.Count != 0)
-                    {
-                        log.Debug("Adding new subBlister(s) to Queue");
-                        Queue.AddRange(cutProposal.ExtraBlisters);
-                        break;
-                    }
-                }
-                n++;
-            }
-
-            if (initialPillCount == Cutted.Count) return CuttingState.CTR_SUCCESS;
-            else return CuttingState.CTR_FAILED;
-        }
-    }
-
-    public class BlisterCutProposal : PillCutProposals
-    {
-        private static readonly ILog log = LogManager.GetLogger("Cutter.BlisterCutProposal");
-
-        private Blister _blister;
-
-        public Blister CutOut { get; private set; }
-        public Blister Current { get; private set; }
-        public List<Blister> ExtraBlisters { get; private set; }
-
-        public BlisterCutProposal(PillCutter cutter, Blister blister) : base(cutter)
-        {
-            _blister = blister;
-        }
-
-        public bool IsValidCut()
-        {
-            // Inspect leftovers.
-            foreach (PolylineCurve leftover in BestCuttingData.BlisterLeftovers)
-            {
-                Blister newBli = new Blister(_blister.Pills, leftover, _blister._workspace);
-                if (!newBli.CheckConnectivityIntegrity(_pill))
-                {
-                    log.Warn("CheckConnectivityIntegrity failed. Propsed cut cause inconsistency in leftovers");
-                    return false;
-                }
-                // BEFORE THIS I NEED TO UPDATE ANCHORS.
-                // If after cutting none pill in leftovers has HasPosibleAnchor false, this mean BAAAAAD
-                if (!newBli.HasActiveAnchor)
-                {
-                    log.Warn("No Anchor found for this leftover. Skip this cutting.");
-                    return false;
-                }
-            }
-            return true;
-        }
-
-        public void Approve()
-        {
-            if (State == CutState.Failed)
-            {
-                throw new Exception("Cannot approve failed cut. Big mistake!!!!");
-            }
-
-            ExtraBlisters = new List<Blister>();
-            if (State == CutState.Alone)
-            {
-                CutOut = _blister;
-                Current = null;
-                return;
-            }
-            #region Update Pill
-            log.Debug("Removing Connection data from cutted Pill. Updating pill status to Cutted");
-            _pill.State = PillState.Cutted;
-            _pill.RemoveConnectionData();
-            #endregion
-
-            #region Update Current
-            log.Debug("Updating current Blister outline and remove cutted Pill from blister");
-            _blister.Outline = BestCuttingData.BlisterLeftovers[0];
-            int locationIndex = _blister.Pills.FindIndex(pill => pill.Id == _pill.Id);
-            _blister.Pills.RemoveAt(locationIndex);
-
-            // Case if Blister is splited because of this cut.
-            log.Debug("Remove all cells which are not belong to this Blister anymore.");
-            List<Pill> removerdPills = new List<Pill>(_blister.Pills.Count);
-            for (int i = 0; i < _blister.Pills.Count; i++)
-            {
-                // If cell is no more inside this Blister, remove it.
-                if (!Geometry.InclusionTest(_blister.Pills[i], _blister))
-                {
-                    // check if cell is aimed to cut. For 100% all cells in Blister should be Queue.. If not it;s BUGERSON
-                    if (_blister.Pills[i].State != PillState.Queue) continue;
-                    removerdPills.Add(_blister.Pills[i]);
-                    _blister.Pills.RemoveAt(i);
-                    i--;
-                }
-            }
-            #endregion
-            #region create CutOut
-            CutOut = new Blister(_pill, BestCuttingData.Polygon, _blister._workspace);
-            #endregion
-
-            #region Leftovers
-            for (int j = 1; j < BestCuttingData.BlisterLeftovers.Count; j++)
-            {
-                PolylineCurve blisterLeftover = BestCuttingData.BlisterLeftovers[j];
-                Blister newBli = new Blister(removerdPills, blisterLeftover, _blister._workspace);
-                // Verify if new Blister is attachetd to anchor
-                if (newBli.HasPossibleAnchor)
-                {
-                };
-                ExtraBlisters.Add(newBli);
-            }
-            #endregion
-        }
-
-        /*
-        public void ApplyCut(Pill foundCell, CutState foundCellState, int locationIndex)
-        {
-            List<Blister> newBlisters = new List<Blister>();
-            // Ok. If cell is not alone, and Anchor requerments are met. Set cell status as Cutted, and remove all connection with this cell.
-            if (foundCellState == CutState.Succeed)
-            {
-                foundCell.State = PillState.Cutted;
-                foundCell.RemoveConnectionData();
-            }
-
-            log.Info("Updating current Blister outline. Creating cutout Blister to store.");
-
-            // If more cells are on Blister, replace outline of current Blister by first curve from the list...
-            // Update current Blister outline
-            Outline = foundCell.bestCuttingData.BlisterLeftovers[0];
-            // If all was ok, Create new Blister with cutted Outline
-            Blister cutted = new Blister(foundCell, foundCell.bestCuttingData.Polygon, blister);
-            // Remove this cell from current Blister
-            pills.RemoveAt(locationIndex);
-            // Deal with more then one leftover
-            // Remove other cells which are not belong to this Blister anymore...
-            log.Debug("Remove all cells which are not belong to this Blister anymore.");
-            log.Debug(String.Format("Before removal {0}", pills.Count));
-            List<Pill> removerdCells = new List<Pill>(pills.Count);
-            for (int i = 0; i < pills.Count; i++)
-            {
-                // If cell is no more inside this Blister, remove it.
-                if (!Geometry.InclusionTest(pills[i], this))
-                {
-                    // check if cell is aimed to cut. For 100% all cells in Blister should be Queue.. If not it;s BUGERSON
-                    if (pills[i].State != PillState.Queue) continue;
-                    removerdCells.Add(pills[i]);
-                    pills.RemoveAt(i);
-                    i--;
-                }
-            }
-            // Check if any form remaining cells in current Blister has Active anchore. /It is not alone/ If doesent, return nulllllls 
-            //  if (!this.HasActiveAnchor) return Tuple.Create<Blister, Blister, List<Blister>>(null, null, null);
-
-            //  log.Debug(String.Format("After removal {0} - Removed Cells {1}", cells.Count, removerdCells.Count));
-            //  log.Debug(String.Format("Loop by Leftovers  [{0}] (ommit first, it is current Blister) and create new blisters.", foundCell.bestCuttingData.BlisterLeftovers.Count - 1));
-            //int cellCount = 0;
-            // Loop by Leftovers (ommit first, it is current Blister) and create new blisters.
-            //List<Blister> newBlisters = new List<Blister>();
-            for (int j = 1; j < foundCell.bestCuttingData.BlisterLeftovers.Count; j++)
-            {
-                PolylineCurve blisterLeftover = foundCell.bestCuttingData.BlisterLeftovers[j];
-                Blister newBli = new Blister(removerdCells, blisterLeftover, blister);
-                // Verify if new Blister is attachetd to anchor
-                //    if (!newBli.HasActiveAnchor) return Tuple.Create<Blister, Blister, List<Blister>>(null, null, null);
-                //cellCount += newBli.Cells.Count;
-                newBlisters.Add(newBli);
-            }
-            return new CutResult(cutted, this, newBlisters);
-        }
-        */
-    }
-
-    public class BlisterCutter
-    {
-        private static readonly ILog log = LogManager.GetLogger("Cutter.BlisterCutter");
-
-        private PillCutProposals _cutProposals;
-        private readonly Blister _blisterToCut;
-        private PillCutter _pillCutter;
-
-        public BlisterCutter(Blister blisterTotCut)
-        {
-            _blisterToCut = blisterTotCut;
-        }
-
-        public BlisterCutProposal CutNext(bool onlyAnchor = false)
-        {
-            if (!onlyAnchor)
-            {
-                for (int i = 0; i < _blisterToCut.Pills.Count; i++)
-                {
-                    Pill currentPill = _blisterToCut.Pills[i];
-                    if (currentPill.IsAnchored) continue;
-                    BlisterCutProposal proposal = CutPill(currentPill);
-                    if (proposal == null) continue;
-                    else
-                    {
-                        log.Info(String.Format("Cut Path found for pill {0} after checking {1} pills", currentPill.Id, i));
-                        return proposal;
-                    }
-                }
-                // If nothing, try to cut anchored ones...
-                log.Warn("No cutting data generated for whole Blister. Try to find cutting data in anchored...");
-            }
-            for (int i = 0; i < _blisterToCut.Pills.Count; i++)
-            {
-                Pill currentPill = _blisterToCut.Pills[i];
-                if (!currentPill.IsAnchored) continue;
-                BlisterCutProposal proposal = CutPill(currentPill);
-                if (proposal == null) continue;
-                else
-                {
-                    log.Info(String.Format("Cut Path found for pill {0} after checking {1} anchored pills", currentPill.Id, i));
-                    return proposal;
-                }
-            }
-            log.Warn("No cutting data generated for whole Blister.");
-            throw new Exception("No cutting data generated for whole Blister.");
-        }
-
-        private BlisterCutProposal CutPill(Pill currentPill)
-        {
-            PillCutter pillCutter = new PillCutter(currentPill);
-            pillCutter.TryCut();
-            if (pillCutter.State == CutState.Failed)
-            {
-                return null;
-            }
-            else
-            {
-                BlisterCutProposal proposal = new BlisterCutProposal(pillCutter, _blisterToCut);
-                if (proposal.IsValidCut()) return proposal;
-                else return null;
-            }
-        }
-        /*
-        public CutResult CutNext()
-        {
-            log.Debug(String.Format("There is still {0} cells on Blister", pills.Count));
-            // Try cutting only AnchorInactive cells
-            for (int i = 0; i < pills.Count; i++)
-            {
-                Pill currentPill = pills[i];
-                if (currentPill.IsAnchored) continue;
-                CutState tryCutState = currentPill.TryCut(true);
-
-                if (tryCutState != CutState.Failed)
-                {
-                    CutResult data = CuttedCellProcessing(currentPill, tryCutState, i);
-                    if (data.State == CutState.Failed)
-                    {
-                        continue;
-                    }
-                    else
-                    {
-                        log.Info(String.Format("Cut Path found for pill {0} after checking {1} pills", currentPill.Id, i));
-                        return data;
-                    }
-                }
-                else
-                {
-                    continue;
-                }
-            }
-            // If nothing, try to cut anchored ones...
-            log.Warn("No cutting data generated for whole Blister. Try to find cutting data in anchored ...");
-
-            for (int i = 0; i < pills.Count; i++)
-            {
-                Pill currentPill = pills[i];
-                if (!currentPill.IsAnchored) continue;
-                CutState tryCutState = currentPill.TryCut(false);
-                if (currentPill.IsAnchored && tryCutState != CutState.Failed)
-                {
-                    CutResult data = CuttedCellProcessing(currentPill, tryCutState, i);
-                    if (data.State == CutState.Failed)
-                    {
-                        continue;
-                    }
-                    else
-                    {
-                        log.Info(String.Format("Cut Path found for pill {0} after checking {1} pills", currentPill.Id, i));
-                        return data;
-                    }
-                }
-                else
-                {
-                    continue;
-                }
-            }
-            log.Warn("No cutting data generated for whole Blister.");
-            return new CutResult(null, this, new List<Blister>());
-        }
-        */
-        /*
-        public CutResult CheckIfAlone()
-        {
-            if (tryCutState != CutState.Alone)
-            {
-                currentCell.State = PillState.Alone;
-                log.Info(String.Format("Cell {0}. That was last cell on Blister.", currentCell.id));
-
-                return new CutResult(this, null, new List<Blister>(), CutState.Alone);
-            }
-        }
-        */
-
-
-        private CutResult CuttedCellProcessing(Pill foundCell, CutState foundCellState, int locationIndex)
-        {
-            List<Blister> newBlisters = new List<Blister>();
-            // If on Blister was only one cell, after cutting is status change to Alone, so just return it, without any leftover blisters. 
-            if (foundCellState == CutState.Alone)
-            {
-                foundCell.State = PillState.Alone;
-                log.Info(String.Format("Cell {0}. That was last cell on Blister.", foundCell.Id));
-
-                return new CutResult(this, null, newBlisters, CutState.Alone);
-            }
-
-            log.Info(String.Format("Cell {0}. That was NOT last cell on Blister.", foundCell.Id));
-
-            // Inspect leftovers.
-            foreach (PolylineCurve leftover in foundCell.bestCuttingData.BlisterLeftovers)
-            {
-                Blister newBli = new SubBlister(pills, leftover, blister);
-                if (!newBli.CheckConnectivityIntegrity(foundCell)) return new CutResult();
-                if (!newBli.HasActiveAnchor)
-                {
-                    log.Warn("No Anchor found for this leftover. Skip this cutting.");
-                    return new CutResult();
-                }
-            }
-            return new CutResult(this, null, null, CutState.Proposal);
-        }
-
-
-        #region PREVIEW STUFF FOR DEBUG MOSTLY
-
-        public List<PolylineCurve> GetCuttingPath()
-        {
-            // !!!============If cell is anchor it probably doesn't have cutting stuff... To validate===========!!!!
-            if (pills[0].bestCuttingData == null) return new List<PolylineCurve>();
-
-            // cells[0].bestCuttingData.GenerateBladeFootPrint();
-            return pills[0].bestCuttingData.Path;
-        }
-
-        public List<LineCurve> GetCuttingLines()
-        {
-            // !!!============If cell is anchor it probably doesn't have cutting stuff... To validate===========!!!!
-            if (pills[0].bestCuttingData == null) return new List<LineCurve>();
-
-            // cells[0].bestCuttingData.GenerateBladeFootPrint();
-            return pills[0].bestCuttingData.bladeFootPrint;
-        }
-        public List<LineCurve> GetIsoRays()
-        {
-            // !!!============If cell is anchor it probably doesn't have cutting stuff... To validate===========!!!!
-            if (pills[0].bestCuttingData == null) return new List<LineCurve>();
-            // cells[0].bestCuttingData.GenerateBladeFootPrint();
-            return pills[0].bestCuttingData.IsoSegments;
-            //return cells[0].bestCuttingData.IsoRays;
-
-        }
-        public List<PolylineCurve> GetLeftOvers()
-        {
-            if (pills[0].bestCuttingData == null) return new List<PolylineCurve>();
-            return pills[0].bestCuttingData.BlisterLeftovers;
-        }
-        public List<PolylineCurve> GetAllPossiblePolygons()
-        {
-            // !!!============If cell is anchor it probably doesn't have cutting stuff... To validate===========!!!!
-            // cells[0].bestCuttingData.GenerateBladeFootPrint();
-            if (pills[0].bestCuttingData == null) return new List<PolylineCurve>();
-            return pills[0].bestCuttingData.BlisterLeftovers;
-        }
-
-        #endregion
     }
 
     public class Blister
     {
         private static readonly ILog log = LogManager.GetLogger("Cutter.Blister");
 
+        internal Anchor anchor;
         internal Workspace _workspace;
         private readonly bool toTight = false;
         private PolylineCurve outline;
@@ -536,7 +76,7 @@ namespace Blistructor
         }
 
         /// <summary>
-        /// Contructor mostly to create cut out blisters with one cell
+        /// Contructor mostly to create cut out blisters with one pill
         /// </summary>
         /// <param name="pillsOutline"></param>
         /// <param name="outline"></param>
@@ -561,7 +101,7 @@ namespace Blistructor
                 // If cell is not cutOut, check if belong to this Blister.
                 if (Geometry.InclusionTest(pill, this))
                 {
-                    pill.SubBlister = this;
+                    pill.Blister = this;
                     this.pills.Add(pill);
                 }
 
@@ -892,7 +432,7 @@ namespace Blistructor
                     // If proxCell is cut out or cutCell is same as proxCell, next cell...
                     if (proxPill.State == PillState.Cutted || proxPill.Id == currentPill.Id) continue;
                     // log.Debug(String.Format("Checking pill: {0}", currentCell.id));
-                    Line line = new Line(currentPill.PillCenter, proxPill.PillCenter);
+                    Line line = new Line(currentPill.Center, proxPill.Center);
                     Point3d midPoint = line.PointAt(0.5);
                     double t;
                     if (currentPill.voronoi.ClosestPoint(midPoint, out t, 2.000))
