@@ -81,6 +81,7 @@ namespace Blistructor
 
         public CutProposal TryCut(Pill pillToCut)
         {
+            // Create obstacles (limiters) for cutting process.
             WorkingObstacles = new List<Curve>(FixedObstacles);
             pillToCut.UpdateObstacles();
             WorkingObstacles.AddRange(pillToCut.obstacles);
@@ -88,7 +89,7 @@ namespace Blistructor
             CuttingData = new List<CutData>();
             Pill = pillToCut;
             log.Info(String.Format("Trying to cut Outline id: {0} with status: {1}", pillToCut.Id, pillToCut.State));
-            // If Outline is cutted, dont try to cut it again... It supose to be in cutted blisters list...
+            // If Outline is cut, don't try to cut it again. It suppose to be in chunk blisters list.
             if (pillToCut.State == PillState.Cut)
             {
                 return new CutProposal(pillToCut, CuttingData, CutState.Succeed);
@@ -103,6 +104,7 @@ namespace Blistructor
             }
             // If still here, try to cut 
             log.Debug("Perform cutting data generation");
+            // TODO: Change implicit CuttingData filling into explicit
             if (GenerateSimpleCuttingData_v2())
             {
                 return new CutProposal(pillToCut, CuttingData, CutState.Succeed);
@@ -119,9 +121,9 @@ namespace Blistructor
             // Stage I - naive Cutting
 
             PolygonBuilder_v2(GenerateIsoCurvesStage1());
-            log.Info(String.Format(">>>After STAGE_1: {0} cuttng possibilietes<<<", CuttingData.Count));
+            log.Info(String.Format(">>>After STAGE_1: {0} cutting possibilities<<<", CuttingData.Count));
             PolygonBuilder_v2(GenerateIsoCurvesStage2());
-            log.Info(String.Format(">>>After STAGE_2: {0} cuttng possibilietes<<<", CuttingData.Count));
+            log.Info(String.Format(">>>After STAGE_2: {0} cutting possibilities<<<", CuttingData.Count));
             IEnumerable<IEnumerable<LineCurve>> isoLines = GenerateIsoCurvesStage3a(1, 2.0);
             foreach (List<LineCurve> isoLn in isoLines)
             {
@@ -130,7 +132,7 @@ namespace Blistructor
             //TODO: Tu mozna sprawdzać kolizję z łapkami dogenerowac niekolizyjne cięcia.
 
             //PolygonBuilder_v2(GenerateIsoCurvesStage3a(1, 2.0));
-            log.Info(String.Format(">>>After STAGE_3: {0} cuttng possibilietes<<<", CuttingData.Count));
+            log.Info(String.Format(">>>After STAGE_3: {0} cutting possibilities<<<", CuttingData.Count));
             if (CuttingData.Count > 0) return true;
             else return false;
         }
@@ -162,7 +164,7 @@ namespace Blistructor
 
         #region Polygon Builder Stuff
 
-        // All methods will generat full Rays, without trimming to blister! PoligonBuilder is responsible for trimming.
+        // All methods will generate full Rays, without trimming to blister! PoligonBuilder is responsible for trimming.
         private List<LineCurve> GenerateIsoCurvesStage0()
         {
 
@@ -323,7 +325,7 @@ namespace Blistructor
         /// <param name="rays"></param>
         private void PolygonBuilder_v2(List<LineCurve> rays)
         {
-            // Trim incomming rays and build current working full ray aray.
+            // Trim incoming rays and build current working full ray aray.
             List<LineCurve> trimedRays = new List<LineCurve>(rays.Count);
             List<LineCurve> fullRays = new List<LineCurve>(rays.Count);
             foreach (LineCurve ray in rays)

@@ -113,7 +113,7 @@ namespace Blistructor
         /// </summary>
         /// <param name="anchors"></param>
         /// <returns>List of Point3d with JAws in global CS</returns>
-        public static List<Point3d> ComputeGlobalAnchors(List<AnchorPoint> anchors)
+        public static List<Point3d> ComputeGlobalAnchors(List<JawPoint> anchors)
         {
             // Compute Global location for JAW_1
             Point3d blisterCS;
@@ -123,7 +123,7 @@ namespace Blistructor
             
             List<Point3d> globalAnchors = new List<Point3d>(anchors.Count);
 
-            foreach (AnchorPoint anchor in anchors)
+            foreach (JawPoint anchor in anchors)
             {
                 // NOTE: Switching X and Y !
                 Point3d flipedPoint = new Point3d(anchor.location.Y, anchor.location.X, 0);

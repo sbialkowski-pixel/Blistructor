@@ -5,9 +5,9 @@ using System.Linq;
 
 namespace Blistructor
 {
-    public enum AnchorSite { JAW_1 = 0, JAW_2 = 1, Unset = 2 };
+    public enum JawSite { JAW_1 = 0, JAW_2 = 1, Unset = 2 };
     
-    public enum AnchorState { Active = 0, Inactive = 1, Cut = 2 };
+    public enum JawState { Active = 0, Inactive = 1, Cut = 2 };
 
     public enum PillState { Queue = 0, Cut = 1, Alone = 2 };
     public enum CutState { Failed = 0, Succeed = 1, Last = 2 };

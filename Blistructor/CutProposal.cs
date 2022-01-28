@@ -34,7 +34,7 @@ namespace Blistructor
         #region CONTRUCTORS
         public CutProposal(Pill proposedPillToCut, List<CutData> cuttingData, CutState state)
         {
-            // if _pill.state is cutted, dont do normal stuff, just rewrite fields...
+            // if _pill.state is CUT, just rewrite fields...
             _pill = proposedPillToCut;
             State = state;
             _cuttingData = SortCuttingData(cuttingData);
@@ -69,7 +69,7 @@ namespace Blistructor
         #endregion
 
         /// <summary>
-        /// Sort cutted data, so the best is first on list.
+        /// Sort cutting data, so the best is first on list.
         /// </summary>
         private List<CutData> SortCuttingData(List<CutData> cuttingData)
         {
@@ -78,7 +78,7 @@ namespace Blistructor
         }
 
         /// <summary>
-        /// Get best Cutting Data from all generated and asign it to /bestCuttingData/ field.
+        /// Get best Cutting Data from all generated and assign it to /bestCuttingData/ field.
         /// </summary>
         private CutData FindBestCut()
         {
@@ -91,11 +91,11 @@ namespace Blistructor
         }
 
         /// <summary>
-        /// Check if proposed Cuting is Valid. If not update State property to FALSE
+        /// Check if proposed cutting is Valid. If not update State property to FALSE
         /// </summary>
         public void ValidateCut()
         {
-            // If nothing was cutted, ommit validation
+            // If nothing was cut, omit validation
             if (State != CutState.Succeed) return;
             // Inspect leftovers.
             foreach (PolylineCurve leftover in BestCuttingData.BlisterLeftovers)
@@ -103,7 +103,7 @@ namespace Blistructor
                 Blister newBli = new Blister(Pill.blister.Pills, leftover);
                 if (!newBli.CheckConnectivityIntegrity(_pill))
                 {
-                    log.Warn("CheckConnectivityIntegrity failed. Propsed cut cause inconsistency in leftovers");
+                    log.Warn("CheckConnectivityIntegrity failed. Proposed cut cause inconsistency in leftovers");
                     State = CutState.Failed;
                     return;
                 }
@@ -119,10 +119,10 @@ namespace Blistructor
         }
 
         /// <summary>
-        /// Get Cutout and remove Pill and any connection data for that pill from current blister. 
+        /// Get Chunk and remove Pill and any connection data for that pill from current blister. 
         /// </summary>
         /// <returns></returns>
-        public CutBlister GetCutoutAndRemoveFomBlister()
+        public CutBlister GetCutChunkAndRemoveItFomBlister()
         {
             switch (State)
             {
@@ -161,9 +161,9 @@ namespace Blistructor
                 case CutState.Last:
                     return new List<Blister>();
                 case CutState.Succeed:
-                    log.Debug("Updating current Blister outline and remove cutted Pill from blister");
+                    log.Debug("Updating current Blister outline and remove cut Pill from blister");
                     Blister.Outline = BestCuttingData.BlisterLeftovers[0];
-                    // Case if Blister is splited because of this cut.
+                    // Case if Blister is split because of this cut.
                     log.Debug("Remove all cells which are not belong to this Blister anymore.");
                     List<Pill> removerdPills = new List<Pill>(Blister.Pills.Count);
                     for (int i = 0; i < Blister.Pills.Count; i++)
@@ -174,7 +174,7 @@ namespace Blistructor
                             // check if cell is aimed to cut. For 100% all cells in Blister should be Queue.
                             if (Blister.Pills[i].State != PillState.Queue)
                             {
-                                throw new Exception($"Found Pill with state {Blister.Pills[i].State} in queued blister. All pills should have stat QUEUED!. Unknow error.");
+                                throw new Exception($"Found Pill with state {Blister.Pills[i].State} in queued blister. All pills should have status QUEUED!. Unknown error.");
                             }
                             //Remove pill reference to current blister
                             Blister.Pills[i].blister = null;
@@ -191,7 +191,7 @@ namespace Blistructor
                     {
                         PolylineCurve blisterLeftover = BestCuttingData.BlisterLeftovers[j];
                         Blister newBli = new Blister(removerdPills, blisterLeftover);
-                        // Verify if new Blister is attachetd to anchor
+                        // Verify if new Blister is attached to anchor
                         if (newBli.HasPossibleAnchor)
                         {
                         };
@@ -200,7 +200,7 @@ namespace Blistructor
                     List<Pill> abandonePills = removerdPills.Where(pill => pill.blister == null).ToList();
                     if (abandonePills.Count > 0)
                     {
-                        throw new Exception($"Abandone pills after applying cutting data: {abandonePills.Count}");
+                        throw new Exception($"Abandon pills after applying cutting data: {abandonePills.Count}");
                     }
                     return leftovers;
                 default:
@@ -210,7 +210,7 @@ namespace Blistructor
 
         public List<BoundingBox> ComputGrasperRestrictedAreas()
         {
-            // Thicken paths from cutting data anch check how this influance 
+            // Thicken paths from cutting data and check how this influence 
             List<BoundingBox> allRestrictedArea = new List<BoundingBox>(_bestCuttingData.Segments.Count);
             foreach (PolylineCurve ply in _bestCuttingData.Segments)
             {
@@ -221,10 +221,10 @@ namespace Blistructor
                 double knifeY = ply.ToPolyline().OrderBy(pt => pt.Y).First().Y;
                 LineCurve lowerLimitLine = new LineCurve(new Line(new Point3d(-Setups.IsoRadius, knifeY, 0), Vector3d.XAxis, 2 * Setups.IsoRadius));
 
-                //Check if knife semgnet intersect with Upper line = knife-jwa colision can occure
+                //Check if knife segment intersect with Upper line = knife-jaw collision can occur
                 List<IntersectionEvent> checkIntersect = Intersection.CurveCurve(uppeLimitLine, ply, Setups.IntersectionTolerance);
 
-                // If intersection occures, any
+                // If intersection occurs, any
                 if (checkIntersect.Count > 0)
                 {
 
@@ -235,7 +235,7 @@ namespace Blistructor
 
                     if (knifeFootprint == null) continue;
 
-                    LineCurve cartesianLimitLine = Anchor.CreateCartesianLimitLine();
+                    LineCurve cartesianLimitLine = Grasper.CreateCartesianLimitLine();
                     // Split knifeFootprint by upper and lower line
                     List<PolylineCurve> splited = (List<PolylineCurve>)Geometry.SplitRegion(knifeFootprint, cartesianLimitLine).Select(crv => (PolylineCurve)crv);
 
@@ -251,8 +251,8 @@ namespace Blistructor
 
                     PolylineCurve grasperRestrictedArea = splited.OrderBy(pline => pline.CenterPoint().Y).First();
 
-                    // After spliting, there is area where knife can operate.
-                    // Transform ia to Interval as min, max values where jaw should not appear
+                    // After split, there is area where knife can operate.
+                    // Transform into Interval as min, max values where jaw should not appear
 
                     BoundingBox grasperRestrictedAreaBBox = grasperRestrictedArea.GetBoundingBox(false);
                     /*
@@ -269,7 +269,7 @@ namespace Blistructor
         }
 
         #region PREVIEW STUFF FOR DEBUG MOSTLY
-
+        /*
         public List<PolylineCurve> GetCuttingPath()
         {
             // !!!============If cell is anchor it probably doesn't have cutting stuff... To validate===========!!!!
@@ -307,7 +307,7 @@ namespace Blistructor
             if (BestCuttingData == null) return new List<PolylineCurve>();
             return BestCuttingData.BlisterLeftovers;
         }
-
+        */
         #endregion
     }
 

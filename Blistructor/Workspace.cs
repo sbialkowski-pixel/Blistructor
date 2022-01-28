@@ -20,7 +20,7 @@ namespace Blistructor
     public class Workspace
     {
         private static readonly ILog log = LogManager.GetLogger("Cutter.Main");
-        public Anchor anchor;
+        public Grasper anchor;
 
         public Workspace()
         {

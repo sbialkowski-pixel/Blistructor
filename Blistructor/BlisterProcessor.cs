@@ -15,7 +15,7 @@ namespace Blistructor
         private static readonly ILog log = LogManager.GetLogger("Cutter.BlisterProcessor");
         public List<Blister> Queue = new List<Blister>();
         public List<CutBlister> Chunks = new List<CutBlister>();
-        public Anchor Anchor { get; private set;}
+        public Grasper Anchor { get; private set;}
 
         public BlisterProcessor()
         {
@@ -28,7 +28,7 @@ namespace Blistructor
             initialBlister.SortPillsByCoordinates(true);
             log.Info(String.Format("New blister with {0} pills", pillsOutlines.Count));
             Queue.Add(initialBlister);
-            Anchor = new Anchor(Queue);
+            Anchor = new Grasper(Queue);
         }
 
         public BlisterProcessor(Blister blisterToCut)
@@ -112,7 +112,7 @@ namespace Blistructor
                     }
                     catch (Exception)
                     {
-                        log.Error("!!!Cannot cut blister Anymore!!!");
+                        log.Error("!!!Cannot cut blister anymore!!!");
                         return CuttingState.CTR_FAILED;
                     }
 
@@ -125,7 +125,7 @@ namespace Blistructor
                     }
                     */
     
-                    CutBlister chunk = cutProposal.GetCutoutAndRemoveFomBlister();
+                    CutBlister chunk = cutProposal.GetCutChunkAndRemoveItFomBlister();
 
                     // If anything was cut, add to list
                     if (chunk != null)

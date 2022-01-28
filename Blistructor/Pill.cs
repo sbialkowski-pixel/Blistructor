@@ -34,7 +34,7 @@ namespace Blistructor
         internal Blister blister ;
 
         // States
-        public List<AnchorPoint> Anchors;
+        public List<JawPoint> Anchors;
         public bool possibleAnchor;
 
         // Pill Stuff
@@ -75,7 +75,7 @@ namespace Blistructor
             Geometry.UnifyCurve(Outline);
 
             //Anchor = new AnchorPoint();
-            Anchors = new List<AnchorPoint>(2);
+            Anchors = new List<JawPoint>(2);
             possibleAnchor = false;
 
             Center = Outline.ToPolyline().CenterPoint();
@@ -133,7 +133,7 @@ namespace Blistructor
         {
             get
             {
-                return Anchors.Any(anchor => anchor.state == AnchorState.Active);
+                return Anchors.Any(anchor => anchor.state == JawState.Active);
             }
         }
 
@@ -370,7 +370,7 @@ namespace Blistructor
         {
             Point3d Jaw1_Local = Anchors[0].location;
             //Get JAW2
-            Jaw1_Local = Anchors.Where(anchor => anchor.orientation == AnchorSite.JAW_2).First().location;
+            Jaw1_Local = Anchors.Where(anchor => anchor.orientation == JawSite.JAW_2).First().location;
 
             JObject data = new JObject();
             data.Add("pillIndex", this.Id);
