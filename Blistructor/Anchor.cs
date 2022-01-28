@@ -38,12 +38,12 @@ namespace Blistructor
         // Keep grasper in max position => Y = Setups.JawDepth
         public List<LineCurve> GrasperPossibleLocation;
         public List<AnchorPoint> anchors;
-        public List<Point3d> GlobalAnchors;
+        // TODO: Adding Setups.CartesianJawYLimit as a limit for JAW_1 (Or 2)
+        // TODO: Uspójnić nazewnictwo: Grasper, JAw, ANchor...
 
         public Anchor(List<Blister> blisterQueue)
         {
             BlisterQueue = blisterQueue;
-            GlobalAnchors = new List<Point3d>(2);
             // Create Cartesian Limit Line
             cartesianLimitLine = Anchor.CreateCartesianLimitLine();
 
@@ -147,7 +147,7 @@ namespace Blistructor
             // List<AnchorPoint> outputGrasperPoints = new List<AnchorPoint>();
             List<Interval> grasperPossibleLocation = ConvertGrasperstoInterval();
 
-            // TODO: Adding Setups.CartesianJawYLimit as a limit for JAW_1 (Or 2)
+            
 
             //Get Extreme Points and create Spectrum line
             List<double> allStart = grasperPossibleLocation.OrderBy(spacing => spacing.T0).Select(spacing => spacing.T0).ToList();
@@ -501,7 +501,6 @@ namespace Blistructor
                     //pill.Anchor = new AnchorPoint();
                     foreach (AnchorPoint pt in anchors)
                     {
-                        //TODO : Problem z tym ze sprawdzma punkt który lezy na Y=0 i nie jak nie przecina sie z voronoiem...
                         PointContainment result = pill.voronoi.Contains(pt.location, Plane.WorldXY, Setups.IntersectionTolerance);
                         if (result == PointContainment.Inside)
                         {
@@ -618,7 +617,7 @@ namespace Blistructor
         }
 
         #endregion
-        //TODO: To nie jest najszczęśliwsze....
+        //TODO: Lepsza analiza czy Blister jest prosto i można go złapać łapkami. Moze trzeba liczyc powierzchnie stylku miedzy łakpa a blistrem i jak jest mniej niż 50% to uchwyt niepewny.
         public bool IsBlisterStraight(double maxDeviation)
         {
             if ((aaBBox.Area() / maBBox.Area()) > maxDeviation) return false;
@@ -626,65 +625,7 @@ namespace Blistructor
         }
 
         #region CoordiantesTransform
-        public Point3d GlobalLocalCSTransform(Point3d point, Point3d csLoc, double csAngle)
-        {
-            Vector3d pt = point - csLoc;
-            double newX = pt.X * Math.Cos(csAngle) + pt.Y * Math.Sin(csAngle);
-            double newY = -pt.X * Math.Sin(csAngle) + pt.Y * Math.Cos(csAngle);
-            return new Point3d(newX, newY, 0);
-        }
-
-        public Point3d LocalGlobalCSTransform(Point3d point, Point3d csLoc, double csAngle)
-        {
-            //Vector3d pt = point - csLoc;
-            double newX = point.X * Math.Cos(csAngle) - point.Y * Math.Sin(csAngle);
-            double newY = point.X * Math.Sin(csAngle) + point.Y * Math.Cos(csAngle);
-            Point3d pt = new Point3d(newX, newY, 0);
-            return pt + csLoc;
-        }
-
-        public Vector3d CartesianWorkPickVector(Vector3d PivotJawVector, double pickAngle)
-        {
-            Point3d pt = GlobalLocalCSTransform((Point3d)PivotJawVector, new Point3d(0, 0, 0), pickAngle);
-            return (Vector3d)pt - PivotJawVector;
-        }
-
-        public Vector3d CartesianPickWorkVector(Vector3d PivotJawVector, double pickAngle)
-        {
-            Vector3d vec = CartesianWorkPickVector(PivotJawVector, pickAngle);
-            vec.Reverse();
-            return vec;
-        }
-
-        public Point3d CartesianGlobalJaw1L(Point3d localJaw1, Point3d blisterCSLocation, double blisterCSangle, Vector3d PivotJawVector)
-        {
-            Point3d globalJaw1 = LocalGlobalCSTransform(localJaw1, blisterCSLocation, blisterCSangle);
-            Vector3d correctionVector = CartesianWorkPickVector(PivotJawVector, -blisterCSangle);
-            return globalJaw1 - correctionVector;
-        }
-
-        private Point3d computeGlobalBlisterPossition()
-        {
-            Vector3d correctionVector = CartesianWorkPickVector(Setups.CartesianPivotJawVector, -Setups.CartesianPickModeAngle);
-            return new Point3d(Setups.BlisterGlobalPick + correctionVector);
-        }
-
-        public void computeGlobalAnchors()
-        {
-            // Compute Global location for JAW_1
-            Point3d blisterCS = new Point3d();
-            if (Setups.BlisterGlobalSystem == "PICK") blisterCS = computeGlobalBlisterPossition();
-            else if (Setups.BlisterGlobalSystem == "WORK") blisterCS = new Point3d(Setups.BlisterGlobal);
-            else throw new NotImplementedException("PICK or WORK mode for blister coordiante system has to be chosen");
-
-            foreach (AnchorPoint pt in anchors)
-            {
-                //NOTE: Zamiana X, Y, należy sprawdzić czy to jest napewno dobrze. Wg. moich danych i opracowanej logiki tak...
-                Point3d flipedPoint = new Point3d(anchors[0].location.Y, anchors[0].location.X, 0);
-                Point3d globalJawLocation = CartesianGlobalJaw1L(flipedPoint, blisterCS, Setups.CartesianPickModeAngle, Setups.CartesianPivotJawVector);
-                GlobalAnchors.Add(globalJawLocation);
-            }
-        }
+        
         #endregion
 
         public JObject GetJSON()
@@ -692,12 +633,12 @@ namespace Blistructor
             anchors = FindAnchorPoints();
             JObject jawPoints = new JObject();
             if (anchors.Count == 0) return jawPoints;
-            computeGlobalAnchors();
+            List<Point3d> globalAnchors = CoordianteSystem.ComputeGlobalAnchors(anchors);
             // JAW1 Stuff
             // 1 i 2 sa zamienione na zyczenie Artura
             JArray jaw1_PointArray = new JArray();
-            jaw1_PointArray.Add(GlobalAnchors[0].X);
-            jaw1_PointArray.Add(GlobalAnchors[0].Y);
+            jaw1_PointArray.Add(globalAnchors[0].X);
+            jaw1_PointArray.Add(globalAnchors[0].Y);
             jawPoints.Add("jaw_2", jaw1_PointArray);
             // JAW2 Stuff
             // Calculate distance between JAW1 and JAW2
@@ -705,14 +646,6 @@ namespace Blistructor
             double distance = Math.Abs((anchors[0].location - anchors[1].location).Length);
             jawPoints.Add("jaw_1", distance);
 
-            //foreach (AnchorPoint pt in anchors)
-            //{
-            //    JArray pointArray = new JArray();
-            //    pointArray.Add(pt.location.X);
-            //    pointArray.Add(pt.location.Y);
-            //    anchorPoints.Add(pt.orientation.ToString(), pointArray);
-            //}
-            //return anchorPoints;
             return jawPoints;
         }
     }
