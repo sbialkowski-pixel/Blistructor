@@ -16,6 +16,9 @@ namespace Blistructor
     public class CutBlister : Blister
     {
         private static readonly ILog log = LogManager.GetLogger("Cutter.CuttedPill");
+        /// <summary>
+        /// Confirmed CutData (BestCutData from CutPpoposal)
+        /// </summary>
         public CutData CutData { get; set; }
 
         public CutBlister(Pill cuttedPill, CutData cutData) : base(cuttedPill, cutData.Polygon)
@@ -28,7 +31,7 @@ namespace Blistructor
         {
             JObject data = Pill.GetDisplayJSON();
             // Add displayCut data
-            if (CutData != null) data.Add("displayCut", CutData.GetDisplayJSON(anchor.jaws[0].location));
+            if (CutData != null) data.Add("displayCut", CutData.GetDisplayJSON(anchor.Jaws[0].Location));
             else data.Add("displayCut", new JArray());
             return data;
         }
@@ -36,7 +39,7 @@ namespace Blistructor
         public JObject GetJSON(Grasper anchor)
         {
             JObject data = Pill.GetJSON();
-            Point3d Jaw1_Local = anchor.jaws[0].location;
+            Point3d Jaw1_Local = anchor.Jaws[0].Location;
             // Add Cutting Instruction
             if (CutData != null) data.Add("cutInstruction", CutData.GetJSON(Jaw1_Local));
             else data.Add("cutInstruction", new JArray());

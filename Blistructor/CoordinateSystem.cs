@@ -126,7 +126,7 @@ namespace Blistructor
             foreach (JawPoint anchor in anchors)
             {
                 // NOTE: Switching X and Y !
-                Point3d flipedPoint = new Point3d(anchor.location.Y, anchor.location.X, 0);
+                Point3d flipedPoint = new Point3d(anchor.Location.Y, anchor.Location.X, 0);
                 Point3d globalJawLocation = CartesianGlobalJaw1L(flipedPoint, blisterCS, Setups.CartesianPickModeAngle, Setups.CartesianPivotJawVector);
                 globalAnchors.Add(globalJawLocation);
             }
