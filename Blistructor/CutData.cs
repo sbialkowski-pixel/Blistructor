@@ -18,25 +18,25 @@ namespace Blistructor
     public class CutData
     {
         private static readonly ILog log = LogManager.GetLogger("Cutter.CutData");
-        private List<PolylineCurve> path;
-        private PolylineCurve polygon;
-        public List<PolylineCurve> BlisterLeftovers;
-        public List<LineCurve> bladeFootPrint;
-        public List<Curve> obstacles;
-        public List<Line> isoSegments;
+        private List<Line> isoSegments;
         public List<Line> segments;
+        public List<PolylineCurve> BlisterLeftovers { private set; get; }
+        public List<LineCurve> BladeFootPrint { private set; get; }
+        public List<PolylineCurve> Path { private set; get; }
+        public PolylineCurve Polygon { private set;  get; }
+        public List<Curve> Obstacles { set; private get; }
 
         public CutData()
         {
             segments = new List<Line>();
             isoSegments = new List<Line>();
-            bladeFootPrint = new List<LineCurve>();
+            BladeFootPrint = new List<LineCurve>();
         }
 
         private CutData(PolylineCurve polygon, List<PolylineCurve> path) : this()
         {
-            this.path = path;
-            this.polygon = polygon;
+            this.Path = path;
+            this.Polygon = polygon;
         }
 
         public CutData(PolylineCurve polygon, List<PolylineCurve> path, PolylineCurve blisterLeftover) : this(polygon, path)
@@ -50,12 +50,6 @@ namespace Blistructor
             BlisterLeftovers = blisterLeftovers;
             // GenerateBladeFootPrint();
         }
-
-        public List<PolylineCurve> Path { get { return path; } }
-
-        public PolylineCurve Polygon { get { return polygon; } }
-
-        public List<Curve> Obstacles { set { obstacles = value; } }
 
         public int EstimatedCuttingCount
         {
@@ -77,8 +71,8 @@ namespace Blistructor
         {
             get
             {
-                if (bladeFootPrint == null) return -1;
-                return bladeFootPrint.Count;
+                if (BladeFootPrint == null) return -1;
+                return BladeFootPrint.Count;
             }
         }
 
@@ -86,7 +80,7 @@ namespace Blistructor
         {
             get
             {
-                return polygon.PointCount - 1;
+                return Polygon.PointCount - 1;
             }
         }
 
@@ -109,15 +103,15 @@ namespace Blistructor
             {
                 List<LineCurve> footPrint = GetKnifeprintPerSegment(segments[i], isoSegments[i]);
                 if (footPrint.Count == 0) return false;
-                bladeFootPrint.AddRange(footPrint);
+                BladeFootPrint.AddRange(footPrint);
             }
-            log.Info(String.Format("Generated {0} Blade Footprints.", bladeFootPrint.Count));
+            log.Info(String.Format("Generated {0} Blade Footprints.", BladeFootPrint.Count));
             return true;
         }
 
         public bool GenerateSegments()
         {
-            if (path == null) return false;
+            if (Path == null) return false;
             // Loop by all paths and generate Segments
             segments = new List<Line>();
             foreach (PolylineCurve pline in Path)
@@ -132,7 +126,7 @@ namespace Blistructor
 
         public bool RecalculateIsoSegments(Curve orientationGuideCurve)
         {
-            if (polygon == null || path == null) return false;
+            if (Polygon == null || Path == null) return false;
             //  log.Info("Data are ok.");
             // Loop by all paths and generate Segments and IsoSegments
             segments = new List<Line>();
@@ -142,7 +136,7 @@ namespace Blistructor
                 foreach (Line ln in pline.ToPolyline().GetSegments())
                 {
                     segments.Add(ln);
-                    LineCurve cIsoLn = Geometry.GetIsoLine(ln.PointAt(0.5), ln.UnitTangent, Setups.IsoRadius, obstacles);
+                    LineCurve cIsoLn = Geometry.GetIsoLine(ln.PointAt(0.5), ln.UnitTangent, Setups.IsoRadius, Obstacles);
                     if (cIsoLn == null) return false;
                     Geometry.FlipIsoRays(orientationGuideCurve, cIsoLn);
                     Line isoLn = cIsoLn.Line;
@@ -243,12 +237,12 @@ namespace Blistructor
 
         public double GetArea()
         {
-            return polygon.Area();
+            return Polygon.Area();
         }
 
         public double GetPerimeter()
         {
-            return polygon.GetLength();
+            return Polygon.GetLength();
         }
 
         /// <summary>
@@ -257,9 +251,9 @@ namespace Blistructor
         /// <returns>Point3d. Point3d(NaN,NaN,NaN) if there is no cutting data. </returns>
         public Point3d GetLastKnifePossition()
         {
-            if (bladeFootPrint == null) return new Point3d(double.NaN, double.NaN, double.NaN);
-            if (bladeFootPrint.Count == 0) return new Point3d(double.NaN, double.NaN, double.NaN);
-            return bladeFootPrint.Last().PointAtNormalizedLength(0.5);
+            if (BladeFootPrint == null) return new Point3d(double.NaN, double.NaN, double.NaN);
+            if (BladeFootPrint.Count == 0) return new Point3d(double.NaN, double.NaN, double.NaN);
+            return BladeFootPrint.Last().PointAtNormalizedLength(0.5);
         }
 
         private double CalculateAngle(LineCurve line)
@@ -283,10 +277,10 @@ namespace Blistructor
         public JObject GetDisplayJSON(Point3d Jaw1_Local)
         {
             JObject displayData = new JObject();
-            if (bladeFootPrint.Count == 0) return displayData;
+            if (BladeFootPrint.Count == 0) return displayData;
             JArray cutLineDisplayData = new JArray();
             // CutLine stuff
-            foreach (LineCurve line in bladeFootPrint)
+            foreach (LineCurve line in BladeFootPrint)
             {
                 LineCurve imageline = (LineCurve)Geometry.ReverseCalibration(line, Setups.ZeroPosition, Setups.PixelSpacing, Setups.CartesianPickModeAngle);
                 //Display Part
@@ -302,7 +296,7 @@ namespace Blistructor
             }
             displayData.Add("cutLines", cutLineDisplayData);
             // Polygon stuff
-            BoundingBox bbox = this.polygon.GetBoundingBox(false);
+            BoundingBox bbox = this.Polygon.GetBoundingBox(false);
             Point3d minBBoxPoint = ((Point)Geometry.ReverseCalibration(new Point(bbox.Min), Setups.ZeroPosition, Setups.PixelSpacing, Setups.CartesianPickModeAngle)).Location;
             Point3d maxBBoxPoint = ((Point)Geometry.ReverseCalibration(new Point(bbox.Max), Setups.ZeroPosition, Setups.PixelSpacing, Setups.CartesianPickModeAngle)).Location;
 
@@ -353,8 +347,8 @@ namespace Blistructor
             //JObject totalData = new JObject();
             JArray instructionsArray = new JArray();
             JArray displayArray = new JArray();
-            if (bladeFootPrint.Count == 0) return instructionsArray;
-            foreach (LineCurve line in bladeFootPrint)
+            if (BladeFootPrint.Count == 0) return instructionsArray;
+            foreach (LineCurve line in BladeFootPrint)
             {
                 //Angle
                 JObject cutData = new JObject();
