@@ -125,7 +125,7 @@ namespace Blistructor
 
             foreach (AnchorPoint anchor in anchors)
             {
-                //NOTE: Zamiana X, Y, należy sprawdzić czy to jest napewno dobrze. Wg. moich danych i opracowanej logiki tak...
+                // NOTE: Switching X and Y !
                 Point3d flipedPoint = new Point3d(anchor.location.Y, anchor.location.X, 0);
                 Point3d globalJawLocation = CartesianGlobalJaw1L(flipedPoint, blisterCS, Setups.CartesianPickModeAngle, Setups.CartesianPivotJawVector);
                 globalAnchors.Add(globalJawLocation);
@@ -133,5 +133,20 @@ namespace Blistructor
             return globalAnchors;
         }
 
+        /// <summary>
+        /// Compute cut coordinates based on GlobalKnife location.
+        /// </summary>
+        /// <param name="localCoordinates">Cut in local CS</param>
+        /// <param name="Jaw1_Local">Jaw1 in local CS</param>
+        /// <returns>Cut in global CS </returns>
+        public static Point3d GlobalCutCoordinates(Point3d localCoordinates, Point3d Jaw1_Local)
+        {
+            // A = (Point3d)KnifeCenterG - CutL + JawL;
+            Point3d knifeCenter = new Point3d(Setups.BladeGlobal);
+            // NOTE: Switching X and Y !
+            Point3d flipedLocalCoordinates = new Point3d(localCoordinates.Y, localCoordinates.X, 0);
+            Point3d fliped_Jaw1 = new Point3d(Jaw1_Local.Y, Jaw1_Local.X, 0);
+            return knifeCenter - flipedLocalCoordinates + fliped_Jaw1;
+        }
     }
 }

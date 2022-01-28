@@ -262,16 +262,6 @@ namespace Blistructor
             return bladeFootPrint.Last().PointAtNormalizedLength(0.5);
         }
 
-        public Point3d GlobalCutCoordinates(Point3d localCoordinates, Point3d Jaw1_Local)
-        {
-            // A = (Point3d)KnifeCenterG - CutL + JawL;
-            Point3d knifeCenter = new Point3d(Setups.BladeGlobal);
-            //NOTE: Zamiana X, Y, należy sprawdzić czy to jest napewno dobrze. Wg. moich danych i opracowanej logiki tak...
-            Point3d flipedLocalCoordinates = new Point3d(localCoordinates.Y, localCoordinates.X, 0);
-            Point3d fliped_Jaw1 = new Point3d(Jaw1_Local.Y, Jaw1_Local.X, 0);
-            return knifeCenter - flipedLocalCoordinates + fliped_Jaw1;                                                                    
-        }
-
         private double CalculateAngle(LineCurve line)
         {
             // TODO: Tu moze byc potrzeba zmiany vectora z X na Y w zalzenosci gdzie jest 0 stopni noża
@@ -289,6 +279,7 @@ namespace Blistructor
             return angleDegree;
         }
 
+        #region JSON
         public JObject GetDisplayJSON(Point3d Jaw1_Local)
         {
             JObject displayData = new JObject();
@@ -302,7 +293,7 @@ namespace Blistructor
                 JObject localCutLineDisplayData = new JObject();
                 JArray startPointArray = new JArray() { imageline.PointAtStart.X, imageline.PointAtStart.Y };
                 JArray endPointArray = new JArray() { imageline.PointAtEnd.X, imageline.PointAtEnd.Y };
-                Point3d globalMidPt = GlobalCutCoordinates(line.Line.PointAt(0.5), Jaw1_Local);
+                Point3d globalMidPt = CoordinateSystem.GlobalCutCoordinates(line.Line.PointAt(0.5), Jaw1_Local);
                 JArray midPointArray = new JArray() { globalMidPt.X, globalMidPt.Y };
                 localCutLineDisplayData.Add("cutLine", new JArray() { startPointArray, endPointArray });
                 localCutLineDisplayData.Add("midPoint", midPointArray);
@@ -371,7 +362,7 @@ namespace Blistructor
                 //Point 
                 JArray pointArray = new JArray();
                 // Apply transformation to global
-                Point3d globalMidPt = GlobalCutCoordinates(line.Line.PointAt(0.5), Jaw1_Local);
+                Point3d globalMidPt = CoordinateSystem.GlobalCutCoordinates(line.Line.PointAt(0.5), Jaw1_Local);
                 // X i Y zamienione już GlobalCutCoordinates...
                 pointArray.Add(globalMidPt.X);
                 pointArray.Add(globalMidPt.Y);
@@ -380,6 +371,7 @@ namespace Blistructor
             }
             return instructionsArray;
         }
+        #endregion
     }
 
 }
