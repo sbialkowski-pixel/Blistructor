@@ -25,17 +25,13 @@ namespace Blistructor
     public class Workspace
     {
         private static readonly ILog log = LogManager.GetLogger("Cutter.Main");
-
-        public PolylineCurve mainOutline;
-
-        private int loopTolerance = 5;
         public Anchor anchor;
 
         public Workspace()
         {
         }
  
-
+        /*
         private Blister InitialiseNewBlister(List<PolylineCurve> pillsOutlines, PolylineCurve blisterOutlines)
         {
             Blister initialBlister = new Blister(pillsOutlines, blisterOutlines, this);
@@ -46,12 +42,12 @@ namespace Blistructor
             log.Info(String.Format("New blister with {0} pills", pillsOutlines.Count));
             return initialBlister;
         }
+        */
         
         public JObject CutBlister(string JSON)
         {
             try
             {
-                InitialiseNewCut();
                 Dictionary<string, string> jsonCategoryMap = new Dictionary<string, string>
                 {
                     { "blister", "blister" },
@@ -65,8 +61,8 @@ namespace Blistructor
                 Tuple<PolylineCurve, List<PolylineCurve>> pLines = GetContursBasedOnJSON(content, jsonCategoryMap);
 
                 // Simplyfy paths on blister and pills
-                PolylineCurve blister = SimplifyContours2(pLines.Item1, Setups.CurveReduceTolerance, Setups.CurveSmoothTolerance);
-                List<PolylineCurve> pills = pLines.Item2.Select(pill => SimplifyContours2(pill, Setups.CurveReduceTolerance, Setups.CurveSmoothTolerance)).ToList();
+                PolylineCurve blister = Geometry.SimplifyContours2(pLines.Item1, Setups.CurveReduceTolerance, Setups.CurveSmoothTolerance);
+                List<PolylineCurve> pills = pLines.Item2.Select(pill => Geometry.SimplifyContours2(pill, Setups.CurveReduceTolerance, Setups.CurveSmoothTolerance)).ToList();
 
                 // Apply calibration on blister and pills
                 // Vector3d calibrationVector = new Vector3d(rX, calibrationVectorY, 0);
@@ -97,7 +93,6 @@ namespace Blistructor
         {
             try
             {
-                InitialiseNewCut();
                 return CutBlisterWorker(pills, blister);
             }
             catch (Exception ex)
@@ -110,7 +105,6 @@ namespace Blistructor
         {
             try
             {
-                InitialiseNewCut();
                 return CutBlisterWorker(pills, blister);
             }
             catch (Exception ex)
@@ -126,25 +120,22 @@ namespace Blistructor
 
         private JObject CutBlisterWorker(List<PolylineCurve> pillsOutlines, PolylineCurve blisterOutlines)
         {
-            Blister initialBlister = InitialiseNewBlister(pillsOutlines, blisterOutlines);
-            BlisterProcessor cutter = new BlisterProcessor(initialBlister);
+            BlisterProcessor cutter = new BlisterProcessor(pillsOutlines, blisterOutlines);
             CuttingState status = cutter.PerformCut();
             JObject cuttingResult = PrepareStatus(status);
             cuttingResult.Merge(PrepareEmptyJSON());
             cuttingResult["pillsDetected"] = pillsOutlines.Count;
             cuttingResult["pillsCutted"] = cutter.Cutted.Count;
-            cuttingResult["jawsLocation"] = anchor.GetJSON();
+            cuttingResult["jawsLocation"] = cutter.Anchor.GetJSON();
             // If all alright, populate by cutting data
             if (status == CuttingState.CTR_SUCCESS)
             {
-
                 JArray allCuttingInstruction = new JArray();
                 JArray allDisplayInstruction = new JArray();
-                foreach (Blister bli in cutter.Cutted)
+                foreach (CuttedBlister bli in cutter.Cutted)
                 {
-                    // Pass to JsonCretors JAW_1 Local coordinate for proper global coordinates calculation...
-                    allCuttingInstruction.Add(bli.Pills[0].GetJSON());
-                    allDisplayInstruction.Add(bli.Pills[0].GetDisplayJSON());
+                    allCuttingInstruction.Add(bli.GetJSON(anchor));
+                    allDisplayInstruction.Add(bli.GetDisplayJSON(anchor));
                 }
                 cuttingResult["cuttingData"] = allCuttingInstruction;
                 cuttingResult["displayData"] = allDisplayInstruction;
@@ -294,23 +285,6 @@ namespace Blistructor
             };
 
             return data;
-        }
-
-        private PolylineCurve SimplifyContours(PolylineCurve curve)
-        {
-            Polyline reduced = Geometry.DouglasPeuckerReduce(curve.ToPolyline(), 0.2);
-            Point3d[] points;
-            double[] param = reduced.ToPolylineCurve().DivideByLength(2.0, true, out points);
-            return (new Polyline(points)).ToPolylineCurve();
-
-        }
-
-        private PolylineCurve SimplifyContours2(PolylineCurve curve, double reductionTolerance = 0.0, double smoothTolerance = 0.0)
-        {
-            Polyline pline = curve.ToPolyline();
-            pline.ReduceSegments(reductionTolerance);
-            pline.Smooth(smoothTolerance);
-            return pline.ToPolylineCurve();
         }
 
         public Tuple<JObject, JArray> ParseJson(string json)

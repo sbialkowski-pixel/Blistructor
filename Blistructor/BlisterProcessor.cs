@@ -15,11 +15,25 @@ namespace Blistructor
 {
     class BlisterProcessor
     {
-        private static readonly ILog log = LogManager.GetLogger("Cutter.BlisterCutter2");
+        private static readonly ILog log = LogManager.GetLogger("Cutter.BlisterProcessor");
         public List<Blister> Queue = new List<Blister>();
         public List<CuttedBlister> Cutted = new List<CuttedBlister>();
-        public Anchor anchor;
-        private int loopTolerance = 5;
+        public Anchor Anchor { get; private set;}
+        // private int loopTolerance = 5;
+
+        public BlisterProcessor()
+        {
+            
+        }
+
+        public BlisterProcessor(List<PolylineCurve> pillsOutlines, PolylineCurve blisterOutlines): this()
+        {
+            Blister initialBlister = new Blister(pillsOutlines, blisterOutlines);
+            initialBlister.SortPillsByCoordinates(true);
+            log.Info(String.Format("New blister with {0} pills", pillsOutlines.Count));
+            Queue.Add(initialBlister);
+            Anchor = new Anchor(Queue);
+        }
 
         public BlisterProcessor(Blister blisterToCut)
         {
@@ -68,12 +82,12 @@ namespace Blistructor
         public CuttingState PerformCut()
         {
             // Check if blister is correctly allign
-            if (!anchor.IsBlisterStraight(Setups.MaxBlisterPossitionDeviation)) return CuttingState.CTR_WRONG_BLISTER_POSSITION;
+            if (!Anchor.IsBlisterStraight(Setups.MaxBlisterPossitionDeviation)) return CuttingState.CTR_WRONG_BLISTER_POSSITION;
             log.Info(String.Format("=== Start Cutting ==="));
             int initialPillCount = Queue[0].Pills.Count;
             if (Queue[0].ToTight) return CuttingState.CTR_TO_TIGHT;
             if (Queue[0].LeftPillsCount == 1) return CuttingState.CTR_ONE_PILL;
-            if (!anchor.ApplyAnchorOnBlister()) return CuttingState.CTR_ANCHOR_LOCATION_ERR;
+            if (!Anchor.ApplyAnchorOnBlister()) return CuttingState.CTR_ANCHOR_LOCATION_ERR;
 
             int n = 0; // control
                        // Main Loop
@@ -81,25 +95,24 @@ namespace Blistructor
             {
                 //if (n > mainLimit && mainLimit != -1) break;
                 // Extra control to not loop forever...
-                if (n > initialPillCount + loopTolerance) break;
+                if (n > 2*initialPillCount) break;
                 log.Info(String.Format(String.Format("<<<<<<Blisters Count: Queue: {0}, Cutted {1}>>>>>>>>>>>>>>>>>>>>>>>>", Queue.Count, Cutted.Count)));
                 // InnerLoop - Queue Blisters
 
                 for (int i = 0; i < Queue.Count; i++)
                 {
-                    Blister subBlister = Queue[i];
-                    log.Info(String.Format("{0} pills left to cut on on Blister:{1}", subBlister.Pills.Count, i));
-                    if (subBlister.IsDone)
+                    Blister blisterToCut = Queue[i];
+                    log.Info(String.Format("{0} pills left to cut on on Blister:{1}", blisterToCut.Pills.Count, i));
+                    if (blisterToCut.IsDone)
                     {
                         log.Info("Blister is already cutted or is to tight for cutting.");
                         continue;
                     }
-                    // In tuple I have | CutOut Blister | Current Updated Blister | Extra Blisters to Cut (recived by spliting currentBlister) 
-                    Cutter cutter = new Cutter(subBlister);
+                    Cutter cutter = new Cutter(Anchor.GetCartesianAsObstacle());
                     CutProposal cutProposal;
                     try
                     {
-                        cutProposal = cutter.CutNext(onlyAnchor: false);
+                        cutProposal = cutter.CutNext(blisterToCut, onlyAnchor: false);
                     }
                     catch (Exception)
                     {
@@ -107,11 +120,14 @@ namespace Blistructor
                         return CuttingState.CTR_FAILED;
                     }
 
+
+                    /*TODO: Implement collision check.
                     if (cutProposal.HasGrasperCollisions())
                     {
-                        subBlister.RemoveCollision(CutProposals);
-                        cutProposal = cutter.CutNext(onlyAnchor: true);
+                        blisterToCut.RemoveCollision(CutProposals);
+                        cutProposal = cutter.CutNext(blisterToCut, onlyAnchor: true);
                     }
+                    */
     
                     CuttedBlister cutOut = cutProposal.GetCutoutAndRemoveFomBlister();
 
@@ -123,9 +139,9 @@ namespace Blistructor
                         {
                             log.Debug("Anchor - Update Pred Line");
 
-                            anchor.Update(cutOut);
+                            Anchor.Update(cutOut);
                         }
-                        if (cuttedPill.IsAnchored && cuttedPill.State != PillState.Alone && CuttablePillsLeft == 2) anchor.FindNewAnchorAndApplyOnBlister(cutOut);
+                        if (cuttedPill.IsAnchored && cuttedPill.State != PillState.Alone && CuttablePillsLeft == 2) Anchor.FindNewAnchorAndApplyOnBlister(cutOut);
                         log.Debug("Adding new CutOut subBlister to Cutted list");
                         Cutted.Add(cutOut);
                     }
@@ -142,7 +158,7 @@ namespace Blistructor
                     if (Queue.Count() > 0) 
                     {
                         Point3d lastKnifePossition = cutOut.Pill.Center;
-                        if (lastKnifePossition.X != double.NaN) subBlister.SortPillsByPointDirection(lastKnifePossition, false);
+                        if (lastKnifePossition.X != double.NaN) blisterToCut.SortPillsByPointDirection(lastKnifePossition, false);
                     }
                     if (Queue.Count() >= 2) break;
                 }

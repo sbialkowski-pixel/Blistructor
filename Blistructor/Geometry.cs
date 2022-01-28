@@ -806,6 +806,23 @@ namespace Blistructor
             newGeometry.Translate(calibrationVector);
             return newGeometry;
         }
+        public static PolylineCurve SimplifyContours(PolylineCurve curve)
+        {
+            Polyline reduced = Geometry.DouglasPeuckerReduce(curve.ToPolyline(), 0.2);
+            Point3d[] points;
+            double[] param = reduced.ToPolylineCurve().DivideByLength(2.0, true, out points);
+            return (new Polyline(points)).ToPolylineCurve();
+
+        }
+
+        public static PolylineCurve SimplifyContours2(PolylineCurve curve, double reductionTolerance = 0.0, double smoothTolerance = 0.0)
+        {
+            Polyline pline = curve.ToPolyline();
+            pline.ReduceSegments(reductionTolerance);
+            pline.Smooth(smoothTolerance);
+            return pline.ToPolylineCurve();
+        }
+
     }
 
 }

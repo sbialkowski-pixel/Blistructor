@@ -26,7 +26,10 @@ namespace Blistructor
 
         public LineCurve cartesianLimitLine;
 
-        private Workspace _workspace;
+        //private Workspace _workspace;
+
+        private List<Blister> BlisterQueue { get; set; }
+
         public PolylineCurve mainOutline;
         public PolylineCurve aaBBox;
         public PolylineCurve maBBox;
@@ -37,16 +40,17 @@ namespace Blistructor
         public List<AnchorPoint> anchors;
         public List<Point3d> GlobalAnchors;
 
-        public Anchor(Workspace workspace)
+        public Anchor(List<Blister> blisterQueue)
         {
+            BlisterQueue = blisterQueue;
             GlobalAnchors = new List<Point3d>(2);
             // Create Cartesian Limit Line
             cartesianLimitLine = Anchor.CreateCartesianLimitLine();
 
-            _workspace = workspace;
+            //_workspace = workspace;
             GrasperPossibleLocation = new List<LineCurve>();
 
-            mainOutline = _workspace.Queue[0].Outline;
+            mainOutline = BlisterQueue[0].Outline;
 
             // Generate BBoxes
             BoundingBox blisterBB = mainOutline.GetBoundingBox(false);
@@ -90,7 +94,7 @@ namespace Blistructor
             fullPredLine.SetEndPoint(new Point3d(maxCartesianDistanceX, Setups.JawDepth, 0));
 
             // NOTE: Check intersection with pills (Or maybe with pillsOffset. Rethink problem)
-            Tuple<List<Curve>, List<Curve>> trimResult = Geometry.TrimWithRegions(fullPredLine, workspace.Queue[0].GetPills(false));
+            Tuple<List<Curve>, List<Curve>> trimResult = Geometry.TrimWithRegions(fullPredLine, BlisterQueue[0].GetPills(false));
             // Gather all parts outsite (not in pills) shrink curve on both sides by half of Grasper width and move it back to mid position 
             foreach (Curve crv in trimResult.Item2)
             {
@@ -105,6 +109,12 @@ namespace Blistructor
             anchors = FindAnchorPoints();
             GuideLine.Translate(new Vector3d(0, -Setups.JawDepth, 0));
             log.Info(String.Format("Anchors found: {0}", anchors.Count));
+        }
+
+
+        public List<Curve> GetCartesianAsObstacle()
+        {
+            return new List<Curve> { CreateCartesianLimitLine() };
         }
 
         public static LineCurve CreateCartesianLimitLine()
@@ -231,11 +241,11 @@ namespace Blistructor
         /// </summary>
         /// <param name="pill">Pill aimed to be cutted</param>
         /// <returns>List of restricted area intervals</returns>
-        public List<Interval> ComputeRestrictedIntervals(Pill pill)
+        public List<Interval> ComputeRestrictedIntervals(CutData cutProposal)
         {
             // Thicken paths from cutting data anch check how this influance 
-            List<Interval> allRestrictedArea = new List<Interval>(pill.bestCuttingData.Segments.Count);
-            foreach (PolylineCurve ply in pill.bestCuttingData.Segments)
+            List<Interval> allRestrictedArea = new List<Interval>(cutProposal.Segments.Count);
+            foreach (PolylineCurve ply in cutProposal.Segments)
             {
                 //Create upperLine - max distance where Jaw can operate
                 LineCurve uppeLimitLine = new LineCurve(new Line(new Point3d(-Setups.IsoRadius, Setups.JawDepth, 0), Vector3d.XAxis, 2 * Setups.IsoRadius));
@@ -290,7 +300,7 @@ namespace Blistructor
         /// </summary>
         public void GuessAnchorPossiblityOnCell()
         {
-            foreach (Blister subBlister in _workspace.Queue)
+            foreach (Blister subBlister in BlisterQueue)
             {
                 foreach (Pill pill in subBlister.Pills)
                 {
@@ -480,7 +490,7 @@ namespace Blistructor
         {
             if (anchors.Count == 0) return false;
             // NOTE: For loop by all queue blisters.
-            foreach (Blister subBlister in _workspace.Queue)
+            foreach (Blister subBlister in BlisterQueue)
             {
                 if (subBlister.Pills == null) return false;
                 if (subBlister.Pills.Count == 0) return false;
@@ -508,10 +518,11 @@ namespace Blistructor
         }
 
 
-        public void Update(Blister cuttedBlister)
+        public void Update(CuttedBlister cuttedBlister)
         {
-            Pill pill = cuttedBlister.Pills[0];
-            List<Interval> restrictedAreas = ComputeRestrictedIntervals(pill);
+            //Pill pill = cuttedBlister.Pills[0];
+            List<Interval> restrictedAreas = ComputeRestrictedIntervals(cuttedBlister.CutData);
+            if (restrictedAreas.Count == 0) return;
             Interval restrictedArea = IntervalsInterval(restrictedAreas);
             List<Interval> grasperIntervals = ConvertGrasperstoInterval();
             List<Interval> remainingGraspersLocation = new List<Interval>(grasperIntervals.Count);
@@ -599,7 +610,7 @@ namespace Blistructor
         }
         */
 
-        public void FindNewAnchorAndApplyOnBlister(Blister cuttedBlister)
+        public void FindNewAnchorAndApplyOnBlister(CuttedBlister cuttedBlister)
         {
             Update(cuttedBlister);
             anchors = FindAnchorPoints();

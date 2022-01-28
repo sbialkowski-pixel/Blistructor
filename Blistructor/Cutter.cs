@@ -32,9 +32,13 @@ namespace Blistructor
 
         private Pill Pill { get; set; }
 
-        public Cutter(Blister blisterTotCut)
+        private List<Curve> FixedObstacles { get; set; }
+        private List<Curve> WorkingObstacles { get; set; }
+
+        public Cutter(List<Curve> fixedObstacles)
         {
-            Blister = blisterTotCut;
+            FixedObstacles = fixedObstacles;
+            WorkingObstacles = new List<Curve>(FixedObstacles);
         }
 
         public CutProposal CutNext(Blister blisterTotCut, bool onlyAnchor = false)
@@ -77,13 +81,16 @@ namespace Blistructor
 
         public CutProposal TryCut(Pill pillToCut)
         {
+            WorkingObstacles = new List<Curve>(FixedObstacles);
+            pillToCut.UpdateObstacles();
+            WorkingObstacles.AddRange(pillToCut.obstacles);
+            
             CuttingData = new List<CutData>();
             Pill = pillToCut;
             log.Info(String.Format("Trying to cut Outline id: {0} with status: {1}", pillToCut.Id, pillToCut.State));
             // If Outline is cutted, dont try to cut it again... It supose to be in cutted blisters list...
             if (pillToCut.State == PillState.Cutted)
             {
-                // State = CutState.Succeed;
                 return new CutProposal(pillToCut, CuttingData, CutState.Succeed);
             }
 
@@ -91,38 +98,27 @@ namespace Blistructor
             log.Debug(String.Format("Check if Outline is alone on blister: No. adjacent pills: {0}", pillToCut.adjacentPills.Count));
             if (pillToCut.adjacentPills.Count == 0)
             {
-                //state = PillState.Alone;
                 log.Debug("This is last Outline on blister.");
-                //State = CutState.Alone;
-                //return;
                 return new CutProposal(pillToCut, CuttingData, CutState.Last);
             }
-
             // If still here, try to cut 
             log.Debug("Perform cutting data generation");
             if (GenerateSimpleCuttingData_v2())
             {
-                //State = CutState.Succeed;
-                // return;
                 return new CutProposal(pillToCut, CuttingData, CutState.Succeed);
-
             }
-            //State = CutState.Failed;
-            //return;
             return new CutProposal(pillToCut, CuttingData, CutState.Failed);
         }
 
         #region CUT STUFF
         private bool GenerateSimpleCuttingData_v2()
         {
-            Pill.UpdateObstacles();
+            
 
-            log.Debug(String.Format("Obstacles count {0}", Pill.obstacles.Count));
+            log.Debug(String.Format("Obstacles count {0}", WorkingObstacles.Count));
             CuttingData = new List<CutData>();
             // Stage I - naive Cutting
-            // Get cutting Directions
-            //PolygonBuilder_v2(GenerateIsoCurvesStage0());
-            //log.Info(String.Format(">>>After STAGE_0: {0} cuttng possibilietes<<<", cuttingData.Count));
+
             PolygonBuilder_v2(GenerateIsoCurvesStage1());
             log.Info(String.Format(">>>After STAGE_1: {0} cuttng possibilietes<<<", CuttingData.Count));
             PolygonBuilder_v2(GenerateIsoCurvesStage2());
@@ -132,6 +128,7 @@ namespace Blistructor
             {
                 PolygonBuilder_v2(isoLn);
             }
+            //TODO: TU mozna dac sprawdzenie kolicji z łapkami i jak cos dogenerowac niekolizyjne.
 
             //PolygonBuilder_v2(GenerateIsoCurvesStage3a(1, 2.0));
             log.Info(String.Format(">>>After STAGE_3: {0} cuttng possibilietes<<<", CuttingData.Count));
@@ -175,7 +172,7 @@ namespace Blistructor
             {
                 Vector3d direction = Vector3d.CrossProduct((Pill.connectionLines[i].PointAtEnd - Pill.connectionLines[i].PointAtStart), Vector3d.ZAxis);
                 //direction = StraigtenVector(direction);
-                LineCurve isoLine = Geometry.GetIsoLine(Pill.samplePoints[i], direction, Setups.IsoRadius, Pill.obstacles);
+                LineCurve isoLine = Geometry.GetIsoLine(Pill.samplePoints[i], direction, Setups.IsoRadius, WorkingObstacles);
                 if (isoLine == null) continue;
                 isoLines.Add(isoLine);
             }
@@ -190,7 +187,7 @@ namespace Blistructor
             {
                 Vector3d direction = Vector3d.CrossProduct((Pill.connectionLines[i].PointAtEnd - Pill.connectionLines[i].PointAtStart), Vector3d.ZAxis);
                 //direction = StraigtenVector(direction);
-                LineCurve isoLine = Geometry.GetIsoLine(Pill.samplePoints[i], direction, Setups.IsoRadius, Pill.obstacles);
+                LineCurve isoLine = Geometry.GetIsoLine(Pill.samplePoints[i], direction, Setups.IsoRadius, WorkingObstacles);
                 if (isoLine == null) continue;
                 isoLines.Add(isoLine);
             }
@@ -204,7 +201,7 @@ namespace Blistructor
             {
                 Vector3d direction = Vector3d.CrossProduct((Pill.proxLines[i].PointAtEnd - Pill.proxLines[i].PointAtStart), Vector3d.ZAxis);
                 //direction = StraigtenVector(direction);
-                LineCurve isoLine = Geometry.GetIsoLine(Pill.samplePoints[i], direction, Setups.IsoRadius, Pill.obstacles);
+                LineCurve isoLine = Geometry.GetIsoLine(Pill.samplePoints[i], direction, Setups.IsoRadius, WorkingObstacles);
                 if (isoLine == null) continue;
                 isoLines.Add(isoLine);
             }
@@ -220,7 +217,7 @@ namespace Blistructor
                 Vector3d direction2 = Vector3d.CrossProduct((Pill.connectionLines[i].PointAtEnd - Pill.connectionLines[i].PointAtStart), Vector3d.ZAxis);
                 //Vector3d sum_direction = StraigtenVector(direction + direction2);
                 Vector3d sum_direction = direction + direction2;
-                LineCurve isoLine = Geometry.GetIsoLine(Pill.samplePoints[i], sum_direction, Setups.IsoRadius, Pill.obstacles);
+                LineCurve isoLine = Geometry.GetIsoLine(Pill.samplePoints[i], sum_direction, Setups.IsoRadius, WorkingObstacles);
                 if (isoLine == null) continue;
                 isoLines.Add(isoLine);
             }
@@ -243,7 +240,7 @@ namespace Blistructor
                 foreach (double angle in Enumerable.Range(0, (2 * raysCount) + 1))
                 {
                     if (!sum_direction.Rotate(stepAngleInRadians, Vector3d.ZAxis)) continue;
-                    LineCurve isoLine = Geometry.GetIsoLine(Pill.samplePoints[i], sum_direction, Setups.IsoRadius, Pill.obstacles);
+                    LineCurve isoLine = Geometry.GetIsoLine(Pill.samplePoints[i], sum_direction, Setups.IsoRadius, WorkingObstacles);
                     if (isoLine == null) continue;
                     currentIsoLines.Add(isoLine);
                 }
@@ -266,7 +263,7 @@ namespace Blistructor
                 for (int j = 0; j < t.Length; j++)
                 {
                     Point3d Pt = arc.PointAt(t[j]);
-                    LineCurve ray = Geometry.GetIsoLine(Pill.samplePoints[i], Pt - Pill.samplePoints[i], Setups.IsoRadius, Pill.obstacles);
+                    LineCurve ray = Geometry.GetIsoLine(Pill.samplePoints[i], Pt - Pill.samplePoints[i], Setups.IsoRadius, WorkingObstacles);
                     if (ray != null)
                     {
                         LineCurve t_ray = TrimIsoCurve(ray);
@@ -327,17 +324,6 @@ namespace Blistructor
         /// <param name="rays"></param>
         private void PolygonBuilder_v2(List<LineCurve> rays)
         {
-            /*
-             String path = String.Format("D:\\PIXEL\\Blistructor\\DebugModels\\PolygonBuilder_Rays_{0}.3dm", id);
-             File3dm file = new File3dm();
-             if (File.Exists(path)) { 
-                file = File3dm.Read(path); 
-                 file.Objects.AddCurve(subBlister.Outline);
-                 file.Objects.AddCurve(pillOffset);
-                 this.obstacles.ForEach(crv => file.Objects.AddCurve(crv)) ;
-             }
-             */
-            // file.Dump();
             // Trim incomming rays and build current working full ray aray.
             List<LineCurve> trimedRays = new List<LineCurve>(rays.Count);
             List<LineCurve> fullRays = new List<LineCurve>(rays.Count);
@@ -351,8 +337,6 @@ namespace Blistructor
                 // file.Objects.AddLine(ray.Line);
             }
             if (trimedRays.Count != rays.Count) log.Warn("After trimming there is less rays!");
-
-
 
             List<int> raysIndicies = Enumerable.Range(0, trimedRays.Count).ToList();
 
@@ -410,11 +394,10 @@ namespace Blistructor
                     if (cutData == null) continue;
                     //cutData.TrimmedIsoRays = currentTimmedIsoRays;
                     cutData.IsoSegments = currentFullIsoRays;
-                    cutData.Obstacles = Pill.obstacles;
+                    cutData.Obstacles = WorkingObstacles;
                     CuttingData.Add(cutData);
                 }
             }
-            // file.Write(path, 6);
         }
 
         /// <summary>
@@ -465,16 +448,6 @@ namespace Blistructor
         }
         private CutData VerifyPath(List<PolylineCurve> pathCrv)
         {
-            /*
-            String path = String.Format("D:\\PIXEL\\Blistructor\\DebugModels\\VerifyPath_{0}.3dm", id);
-            File3dm file = new File3dm();
-            if (File.Exists(path))
-            {
-                file = File3dm.Read(path);
-            }
-            */
-
-
             log.Debug(string.Format("Verify path. Segments: {0}", pathCrv.Count));
             if (pathCrv == null) return null;
             // Check if this curves creates closed polygon with blister edge.
@@ -484,7 +457,6 @@ namespace Blistructor
             if (splited_blister == null) return null;
             //splitters.ForEach(crv => file.Objects.AddCurve(crv));
             //splited_blister.ForEach(crv => file.Objects.AddCurve(crv));
-            // file.Write(path, 6);
             if (splited_blister.Count < 2) return null;
 
             log.Debug(string.Format("Blister splitited onto {0} parts", splited_blister.Count));

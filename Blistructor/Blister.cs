@@ -16,31 +16,29 @@ namespace Blistructor
     public class CuttedBlister : Blister
     {
         private static readonly ILog log = LogManager.GetLogger("Cutter.CuttedPill");
-        private readonly CutData _cutData;
+        public CutData CutData { get; set; }
 
-        public CuttedBlister(Pill cuttedPill, CutData cutData, Workspace workspace) : base(cuttedPill, cutData.Polygon, workspace)
+        public CuttedBlister(Pill cuttedPill, CutData cutData) : base(cuttedPill, cutData.Polygon)
         {
-            _cutData = cutData;
+            CutData = cutData;
         }
         public Pill Pill { get => Pills[0]; }
 
-        private List<AnchorPoint> Anchors { get => _workspace.anchor.anchors; }
-
-        public JObject GetDisplayJSON()
+        public JObject GetDisplayJSON(Anchor anchor)
         {
             JObject data = Pill.GetDisplayJSON();
             // Add displayCut data
-            if (_cutData != null) data.Add("displayCut", _cutData.GetDisplayJSON(Anchors[0].location));
+            if (CutData != null) data.Add("displayCut", CutData.GetDisplayJSON(anchor.anchors[0].location));
             else data.Add("displayCut", new JArray());
             return data;
         }
 
-        public JObject GetJSON()
+        public JObject GetJSON(Anchor anchor)
         {
             JObject data = Pill.GetJSON();
-            Point3d Jaw1_Local = _workspace.anchor.anchors[0].location;
+            Point3d Jaw1_Local = anchor.anchors[0].location;
             // Add Cutting Instruction
-            if (_cutData != null) data.Add("cutInstruction", _cutData.GetJSON(Jaw1_Local));
+            if (CutData != null) data.Add("cutInstruction", CutData.GetJSON(Jaw1_Local));
             else data.Add("cutInstruction", new JArray());
             return data;
         }
@@ -50,8 +48,7 @@ namespace Blistructor
     {
         private static readonly ILog log = LogManager.GetLogger("Cutter.Blister");
 
-        internal Anchor anchor;
-        internal Workspace _workspace;
+        //internal Anchor Anchor { get; private set; }
         private readonly bool toTight = false;
         private PolylineCurve outline;
         private List<Pill> pills;
@@ -59,16 +56,16 @@ namespace Blistructor
 
 
         #region CONSTRUCTORS
-        private Blister(Workspace workspace)
-        {
-            _workspace = workspace;
-        }
+        //private Blister(Anchor anchor)
+        //{
+        //    //Anchor = anchor;
+        //}
 
         /// <summary>
         /// Internal constructor for non-Outline stuff
         /// </summary>
         /// <param name="outline">Blister Shape</param>
-        private Blister(PolylineCurve outline, Workspace workspace) : this(workspace)
+        private Blister(PolylineCurve outline) //: this(anchor)
         {
             pills = new List<Pill>();
             Geometry.UnifyCurve(outline);
@@ -80,7 +77,7 @@ namespace Blistructor
         /// </summary>
         /// <param name="pillsOutline"></param>
         /// <param name="outline"></param>
-        public Blister(Pill pillsOutline, PolylineCurve outline, Workspace workspace) : this(outline, workspace)
+        public Blister(Pill pillsOutline, PolylineCurve outline) : this(outline)
         {
             this.pills = new List<Pill>(1) { pillsOutline };
         }
@@ -90,7 +87,7 @@ namespace Blistructor
         /// </summary>
         /// <param name="pillsOutline">Existing cells</param>
         /// <param name="outline">Blister edge outline</param>
-        public Blister(List<Pill> pillsOutline, PolylineCurve outline, Workspace workspace) : this(outline, workspace)
+        public Blister(List<Pill> pillsOutline, PolylineCurve outline) : this(outline)
         {
             log.Debug("Creating new Blister");
             this.pills = new List<Pill>(pillsOutline.Count);
@@ -122,7 +119,7 @@ namespace Blistructor
         /// </summary>
         /// <param name="pillsOutline">Pills outline</param>
         /// <param name="outline">Blister edge outline</param>
-        public Blister(List<PolylineCurve> pillsOutline, Polyline outline, Workspace workspace) : this(pillsOutline, outline.ToPolylineCurve(), workspace)
+        public Blister(List<PolylineCurve> pillsOutline, Polyline outline) : this(pillsOutline, outline.ToPolylineCurve())
         {
         }
 
@@ -131,7 +128,7 @@ namespace Blistructor
         /// </summary>
         /// <param name="pillsOutline">Pills outline</param>
         /// <param name="outline">Blister edge outline</param>
-        public Blister(List<PolylineCurve> pillsOutline, PolylineCurve outline, Workspace blister) : this(outline, blister)
+        public Blister(List<PolylineCurve> pillsOutline, PolylineCurve outline) : this(outline)
         {
             log.Debug("Creating new Blister");
             // Cells Creation
@@ -226,6 +223,8 @@ namespace Blistructor
             return null;
         }
 
+       // protected List<AnchorPoint> Anchors { get => Anchor.anchors; }
+       
         public bool HasActiveAnchor
         {
             get

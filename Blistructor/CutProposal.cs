@@ -95,10 +95,12 @@ namespace Blistructor
         /// </summary>
         public void ValidateCut()
         {
+            // If nothing was cutted, ommit validation
+            if (State != CutState.Succeed) return;
             // Inspect leftovers.
             foreach (PolylineCurve leftover in BestCuttingData.BlisterLeftovers)
             {
-                Blister newBli = new Blister(Pill.blister.Pills, leftover, Pill.blister._workspace);
+                Blister newBli = new Blister(Pill.blister.Pills, leftover);
                 if (!newBli.CheckConnectivityIntegrity(_pill))
                 {
                     log.Warn("CheckConnectivityIntegrity failed. Propsed cut cause inconsistency in leftovers");
@@ -127,7 +129,7 @@ namespace Blistructor
                 case CutState.Failed:
                     throw new Exception("Cannot apply cutting on failed CutStates proposal. Big mistake!!!!");
                 case CutState.Last:
-                    return new CuttedBlister(_pill, BestCuttingData, Blister._workspace);
+                    return new CuttedBlister(_pill, BestCuttingData);
                 case CutState.Succeed:
                     // Update Pill & Create CutOut
                     log.Debug("Removing Connection data from cutted Pill. Updating pill status to Cutted");
@@ -138,7 +140,7 @@ namespace Blistructor
                     int locationIndex = Blister.Pills.FindIndex(pill => pill.Id == _pill.Id);
                     Blister.Pills.RemoveAt(locationIndex);
 
-                    return new CuttedBlister(_pill, BestCuttingData, Blister._workspace);
+                    return new CuttedBlister(_pill, BestCuttingData);
                 default:
                     throw new NotImplementedException($"This state {State} is not implemented!");
             }
@@ -188,7 +190,7 @@ namespace Blistructor
                     for (int j = 1; j < BestCuttingData.BlisterLeftovers.Count; j++)
                     {
                         PolylineCurve blisterLeftover = BestCuttingData.BlisterLeftovers[j];
-                        Blister newBli = new Blister(removerdPills, blisterLeftover, Blister._workspace);
+                        Blister newBli = new Blister(removerdPills, blisterLeftover);
                         // Verify if new Blister is attachetd to anchor
                         if (newBli.HasPossibleAnchor)
                         {

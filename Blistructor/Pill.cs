@@ -303,7 +303,7 @@ namespace Blistructor
         }
         private List<Curve> BuildObstacles_v2()
         {
-            List<Curve> worldObstacles = new List<Curve>() { this.blister._workspace.anchor.cartesianLimitLine };
+            List<Curve> worldObstacles = new List<Curve>();
             // TODO: Adding All Pils Offsets as obstaces...
             List<Curve> limiters = new List<Curve> { Offset };
             if (worldObstacles != null) limiters.AddRange(worldObstacles);
@@ -347,7 +347,6 @@ namespace Blistructor
         }
         public JObject GetDisplayJSON()
         {
-            List<AnchorPoint>  anchors = blister._workspace.anchor.anchors;
             JObject data = new JObject();
             data.Add("pillIndex", this.Id);
             //Pill
@@ -359,8 +358,8 @@ namespace Blistructor
                 pillDisplayData.Add(new JArray() { pt.X, pt.Y });
             }
             data.Add("processingPill", pillDisplayData);
-            Point3d jaw2 = ((Point)Geometry.ReverseCalibration(new Point(anchors[0].location), Setups.ZeroPosition, Setups.PixelSpacing, Setups.CartesianPickModeAngle)).Location;
-            Point3d jaw1 = ((Point)Geometry.ReverseCalibration(new Point(anchors[1].location), Setups.ZeroPosition, Setups.PixelSpacing, Setups.CartesianPickModeAngle)).Location;
+            Point3d jaw2 = ((Point)Geometry.ReverseCalibration(new Point(Anchors[0].location), Setups.ZeroPosition, Setups.PixelSpacing, Setups.CartesianPickModeAngle)).Location;
+            Point3d jaw1 = ((Point)Geometry.ReverseCalibration(new Point(Anchors[1].location), Setups.ZeroPosition, Setups.PixelSpacing, Setups.CartesianPickModeAngle)).Location;
 
             JArray anchorPossitions = new JArray() {
                 new JArray() { jaw2.X, jaw2.Y },
@@ -372,9 +371,9 @@ namespace Blistructor
 
         public JObject GetJSON()
         {
-            Point3d Jaw1_Local = blister._workspace.anchor.anchors[0].location;
+            Point3d Jaw1_Local = Anchors[0].location;
             //Get JAW2
-            Jaw1_Local = blister._workspace.anchor.anchors.Where(anchor => anchor.orientation == AnchorSite.JAW_2).First().location;
+            Jaw1_Local = Anchors.Where(anchor => anchor.orientation == AnchorSite.JAW_2).First().location;
 
             JObject data = new JObject();
             data.Add("pillIndex", this.Id);
