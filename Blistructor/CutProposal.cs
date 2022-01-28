@@ -122,25 +122,25 @@ namespace Blistructor
         /// Get Cutout and remove Pill and any connection data for that pill from current blister. 
         /// </summary>
         /// <returns></returns>
-        public CuttedBlister GetCutoutAndRemoveFomBlister()
+        public CutBlister GetCutoutAndRemoveFomBlister()
         {
             switch (State)
             {
                 case CutState.Failed:
                     throw new Exception("Cannot apply cutting on failed CutStates proposal. Big mistake!!!!");
                 case CutState.Last:
-                    return new CuttedBlister(_pill, BestCuttingData);
+                    return new CutBlister(_pill, BestCuttingData);
                 case CutState.Succeed:
                     // Update Pill & Create CutOut
-                    log.Debug("Removing Connection data from cutted Pill. Updating pill status to Cutted");
-                    _pill.State = PillState.Cutted;
+                    log.Debug("Removing Connection data from cut Pill. Updating pill status to Cut");
+                    _pill.State = PillState.Cut;
                     _pill.RemoveConnectionData();
                     //Update Current
 
                     int locationIndex = Blister.Pills.FindIndex(pill => pill.Id == _pill.Id);
                     Blister.Pills.RemoveAt(locationIndex);
 
-                    return new CuttedBlister(_pill, BestCuttingData);
+                    return new CutBlister(_pill, BestCuttingData);
                 default:
                     throw new NotImplementedException($"This state {State} is not implemented!");
             }
@@ -150,7 +150,7 @@ namespace Blistructor
         /// !!!! This method has to be used after GetCutoutAndRemoveFomBlister!!!!
         /// Apply all leftovers on current blister.
         /// </summary>
-        /// <returns>List of blister, where firts element is Curent Updated blister. Other elemnts are parts of current blister after cutting.</returns>
+        /// <returns>List of blister, where first element is Current Updated blister. Other elements are parts of current blister after cutting.</returns>
         public List<Blister> GetLeftoversAndUpdateCurrentBlister()
         {
             switch (State)

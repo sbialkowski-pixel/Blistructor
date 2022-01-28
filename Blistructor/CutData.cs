@@ -252,7 +252,7 @@ namespace Blistructor
         }
 
         /// <summary>
-        /// Get last possition of blade.
+        /// Get last position of blade.
         /// </summary>
         /// <returns>Point3d. Point3d(NaN,NaN,NaN) if there is no cutting data. </returns>
         public Point3d GetLastKnifePossition()

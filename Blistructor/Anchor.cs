@@ -517,7 +517,7 @@ namespace Blistructor
         }
 
 
-        public void Update(CuttedBlister cuttedBlister)
+        public void Update(CutBlister cuttedBlister)
         {
             //Pill pill = cuttedBlister.Pills[0];
             List<Interval> restrictedAreas = ComputeRestrictedIntervals(cuttedBlister.CutData);
@@ -609,7 +609,7 @@ namespace Blistructor
         }
         */
 
-        public void FindNewAnchorAndApplyOnBlister(CuttedBlister cuttedBlister)
+        public void FindNewAnchorAndApplyOnBlister(CutBlister cuttedBlister)
         {
             Update(cuttedBlister);
             anchors = FindAnchorPoints();
@@ -624,16 +624,12 @@ namespace Blistructor
             else return true;
         }
 
-        #region CoordiantesTransform
-        
-        #endregion
-
         public JObject GetJSON()
         {
             anchors = FindAnchorPoints();
             JObject jawPoints = new JObject();
             if (anchors.Count == 0) return jawPoints;
-            List<Point3d> globalAnchors = CoordianteSystem.ComputeGlobalAnchors(anchors);
+            List<Point3d> globalAnchors = CoordinateSystem.ComputeGlobalAnchors(anchors);
             // JAW1 Stuff
             // 1 i 2 sa zamienione na zyczenie Artura
             JArray jaw1_PointArray = new JArray();

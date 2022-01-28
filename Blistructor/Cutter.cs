@@ -89,7 +89,7 @@ namespace Blistructor
             Pill = pillToCut;
             log.Info(String.Format("Trying to cut Outline id: {0} with status: {1}", pillToCut.Id, pillToCut.State));
             // If Outline is cutted, dont try to cut it again... It supose to be in cutted blisters list...
-            if (pillToCut.State == PillState.Cutted)
+            if (pillToCut.State == PillState.Cut)
             {
                 return new CutProposal(pillToCut, CuttingData, CutState.Succeed);
             }
@@ -114,7 +114,6 @@ namespace Blistructor
         private bool GenerateSimpleCuttingData_v2()
         {
             
-
             log.Debug(String.Format("Obstacles count {0}", WorkingObstacles.Count));
             CuttingData = new List<CutData>();
             // Stage I - naive Cutting
@@ -128,7 +127,7 @@ namespace Blistructor
             {
                 PolygonBuilder_v2(isoLn);
             }
-            //TODO: TU mozna dac sprawdzenie kolicji z łapkami i jak cos dogenerowac niekolizyjne.
+            //TODO: Tu mozna sprawdzać kolizję z łapkami dogenerowac niekolizyjne cięcia.
 
             //PolygonBuilder_v2(GenerateIsoCurvesStage3a(1, 2.0));
             log.Info(String.Format(">>>After STAGE_3: {0} cuttng possibilietes<<<", CuttingData.Count));

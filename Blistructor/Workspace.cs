@@ -11,13 +11,8 @@ using log4net;
 
 // TODO: -WIP-: Przejechanie wszystkich blistrów i sprawdzenie jak działa -> szukanie błedów
 // TODO: AdvancedCutting -> blister 19.
-
-//
-// TODO: Zle sie wyliczaja Anchor Pointy - trzeba dodac grasperPredLine na górze i na dole  i brac mina z obu extremalnych konców...
-
 // TODO: -WIP-: Adaptacyjna kolejność ciecia - po każdej wycietej tabletce, nalezało by przesortowac cell tak aby wubierał najbliższe - Nadal kolejnosc ciecia jest do kitu ...
 // TODO: "ładne" logowanie produkcyjne jak i debugowe.
-// TODO: Posprzątanie w klasach.
 
 
 namespace Blistructor
@@ -125,14 +120,14 @@ namespace Blistructor
             JObject cuttingResult = PrepareStatus(status);
             cuttingResult.Merge(PrepareEmptyJSON());
             cuttingResult["pillsDetected"] = pillsOutlines.Count;
-            cuttingResult["pillsCutted"] = cutter.Cutted.Count;
+            cuttingResult["pillsCutted"] = cutter.Chunks.Count;
             cuttingResult["jawsLocation"] = cutter.Anchor.GetJSON();
             // If all alright, populate by cutting data
             if (status == CuttingState.CTR_SUCCESS)
             {
                 JArray allCuttingInstruction = new JArray();
                 JArray allDisplayInstruction = new JArray();
-                foreach (CuttedBlister bli in cutter.Cutted)
+                foreach (CutBlister bli in cutter.Chunks)
                 {
                     allCuttingInstruction.Add(bli.GetJSON(anchor));
                     allDisplayInstruction.Add(bli.GetDisplayJSON(anchor));

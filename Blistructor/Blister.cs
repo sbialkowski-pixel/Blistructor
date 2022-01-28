@@ -13,12 +13,12 @@ using Newtonsoft.Json.Linq;
 
 namespace Blistructor
 {
-    public class CuttedBlister : Blister
+    public class CutBlister : Blister
     {
         private static readonly ILog log = LogManager.GetLogger("Cutter.CuttedPill");
         public CutData CutData { get; set; }
 
-        public CuttedBlister(Pill cuttedPill, CutData cutData) : base(cuttedPill, cutData.Polygon)
+        public CutBlister(Pill cuttedPill, CutData cutData) : base(cuttedPill, cutData.Polygon)
         {
             CutData = cutData;
         }
@@ -94,7 +94,7 @@ namespace Blistructor
             // Loop by all given cells
             foreach (Pill pill in pillsOutline)
             {
-                if (pill.State == PillState.Cutted) continue;
+                if (pill.State == PillState.Cut) continue;
                 // If cell is not cutOut, check if belong to this Blister.
                 if (Geometry.InclusionTest(pill, this))
                 {
@@ -421,7 +421,7 @@ namespace Blistructor
             foreach (Pill currentPill in pills)
             {
                 // If current pill is cut out... go to next one.
-                if (currentPill.State == PillState.Cutted) continue;
+                if (currentPill.State == PillState.Cut) continue;
                 // log.Debug(String.Format("Checking pill: {0}", currentCell.id));
                 List<Point3d> currentMidPoints = new List<Point3d>();
                 List<Curve> currentConnectionLines = new List<Curve>();
@@ -429,7 +429,7 @@ namespace Blistructor
                 foreach (Pill proxPill in pills)
                 {
                     // If proxCell is cut out or cutCell is same as proxCell, next cell...
-                    if (proxPill.State == PillState.Cutted || proxPill.Id == currentPill.Id) continue;
+                    if (proxPill.State == PillState.Cut || proxPill.Id == currentPill.Id) continue;
                     // log.Debug(String.Format("Checking pill: {0}", currentCell.id));
                     Line line = new Line(currentPill.Center, proxPill.Center);
                     Point3d midPoint = line.PointAt(0.5);

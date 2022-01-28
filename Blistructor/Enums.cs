@@ -6,9 +6,10 @@ using System.Linq;
 namespace Blistructor
 {
     public enum AnchorSite { JAW_1 = 0, JAW_2 = 1, Unset = 2 };
-    public enum AnchorState { Active = 0, Inactive = 1, Cutted = 2 };
+    
+    public enum AnchorState { Active = 0, Inactive = 1, Cut = 2 };
 
-    public enum PillState { Queue = 0, Cutted = 1, Alone = 2 };
+    public enum PillState { Queue = 0, Cut = 1, Alone = 2 };
     public enum CutState { Failed = 0, Succeed = 1, Last = 2 };
 
     public enum CuttingState
@@ -19,9 +20,9 @@ namespace Blistructor
         CTR_TO_TIGHT = 1,
         [Description("One Outline on blister only. Nothing to do.")]
         CTR_ONE_PILL = 2,
-        [Description("Cutting Failed. Cannot Found cutting paths for all pills. Blister is to complicated or it is uncuttable.")]
+        [Description("Cutting Failed. Cannot Found cutting paths for all pills. Blister is to complicated or it is impossible to cut.")]
         CTR_FAILED = 3,
-        [Description("Blister side to small to pick by both graspers or No place for graspers.")]
+        [Description("Blister side to small to pick by both grasper or No place for graspers.")]
         CTR_ANCHOR_LOCATION_ERR = 4,
         [Description("Other Error. Check log file")]
         CTR_OTHER_ERR = 5,

@@ -22,7 +22,7 @@ namespace Blistructor
 {
     public static class Geometry
     {
-        //TODO: SnapToPoints could not check only poilt-point realtion byt also point-cyrve... to investigate
+        //TODO: SnapToPoints could not check only point-point realtion but also point-curve... to investigate
         //public static PolylineCurve SnapToPoints_v2(PolylineCurve moving, PolylineCurve stationary, double tolerance)
         //{
         //    stationary.ClosestPoint()
