@@ -303,10 +303,7 @@ namespace Blistructor
         }
         private List<Curve> BuildObstacles_v2()
         {
-            List<Curve> worldObstacles = new List<Curve>();
-            // TODO: Adding All Pils Offsets as obstaces...
             List<Curve> limiters = new List<Curve> { Offset };
-            if (worldObstacles != null) limiters.AddRange(worldObstacles);
             Dictionary<int, Curve> uniquePillsOffset = new Dictionary<int, Curve>();
 
             for (int i = 0; i < adjacentPills.Count; i++)
