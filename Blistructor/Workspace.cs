@@ -121,7 +121,7 @@ namespace Blistructor
             cuttingResult.Merge(PrepareEmptyJSON());
             cuttingResult["pillsDetected"] = pillsOutlines.Count;
             cuttingResult["pillsCutted"] = cutter.Chunks.Count;
-            cuttingResult["jawsLocation"] = cutter.Anchor.GetJSON();
+            cuttingResult["jawsLocation"] = cutter.Grasper.GetJSON();
             // If all alright, populate by cutting data
             if (status == CuttingState.CTR_SUCCESS)
             {

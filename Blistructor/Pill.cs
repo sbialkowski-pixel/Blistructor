@@ -34,8 +34,8 @@ namespace Blistructor
         internal Blister blister ;
 
         // States
-        public List<JawPoint> Anchors;
-        public bool possibleAnchor;
+        public List<JawPoint> Anchors { get; set; }
+        public bool PossibleAnchor { get; set; }
 
         // Pill Stuff
         public PolylineCurve Outline { get; private set; }
@@ -44,7 +44,7 @@ namespace Blistructor
         public Point3d Center { get; private set; }
 
         // Connection and Adjacent Stuff
-        public PolylineCurve voronoi;
+        public PolylineCurve Voronoi { get; set; }
         //!!connectionLines, proxLines, adjacentPills, samplePoints <- all same sizes, and order!!
         public List<Curve> connectionLines;
         public List<Curve> proxLines;
@@ -58,7 +58,7 @@ namespace Blistructor
             Id = pill.Id;
             blister = pill.blister;
             Anchors = pill.Anchors;
-            possibleAnchor = pill.possibleAnchor;
+            PossibleAnchor = pill.PossibleAnchor;
             Outline = pill.Outline;
             Offset = pill.Offset;
             Center = pill.Center;
@@ -76,7 +76,7 @@ namespace Blistructor
 
             //Anchor = new AnchorPoint();
             Anchors = new List<JawPoint>(2);
-            possibleAnchor = false;
+            PossibleAnchor = false;
 
             Center = Outline.ToPolyline().CenterPoint();
 
@@ -368,6 +368,7 @@ namespace Blistructor
 
         public JObject GetJSON()
         {
+            // TODO: Move this all stuff connected with JSON to JawPoint! 
             Point3d Jaw1_Local = Anchors[0].Location;
             //Get JAW2
             Jaw1_Local = Anchors.Where(anchor => anchor.Orientation == JawSite.JAW_2).First().Location;

@@ -29,17 +29,97 @@ namespace Blistructor
         private static readonly ILog log = LogManager.GetLogger("Cutter.PillCutter");
         private List<CutData> CuttingData { get; set; }
         private Blister Blister { get; set; }
-
         private Pill Pill { get; set; }
 
+        //private Grasper Grasper { get; set; }
         private List<Curve> FixedObstacles { get; set; }
         private List<Curve> WorkingObstacles { get; set; }
 
+        private List<CutProposal> AlreadyCut { get; set; }
+
         public Cutter(List<Curve> fixedObstacles)
         {
+            AlreadyCut = new List<CutProposal>();
             FixedObstacles = fixedObstacles;
             WorkingObstacles = new List<Curve>(FixedObstacles);
         }
+
+        //Pomysł jest taki zeby cąła walidacja odbyła sie w processorze, on ma obiekt Gtasper i to bedzie naturalne, ALbo wytworznienie Validoatoraz z propzycja ciecia i grasper i tam cała logika walidacji. Ale na pewno nie w cutProposal i cutter... TO jest pokretne...
+        //Cutter powinien tylko ciac i dawac wynik jak success, potem nastepuje walidacja na zewnatrz, jak nie tak to jeszcze raz metoda CutNext  i lecimy dalej...
+
+        /// <summary>
+        /// Cutting with idea to keep each cutting state.
+        /// </summary>
+        /// <param name="blisterTotCut"></param>
+        /// <returns></returns>
+        public CutProposal CutNextt(Blister blisterTotCut)
+        {
+            Blister = blisterTotCut;
+            // Get all Uncut pills, and try to cut.
+            List<Pill> pillsToProcess = Blister.Pills.Where(x => AlreadyCut.All(y => y.Pill.Id != x.Id)).ToList();
+            foreach (Pill pill in pillsToProcess)
+            {
+                CutProposal proposal = TryCut(pill);
+                AlreadyCut.Add(proposal);
+                if (proposal.State == CutState.Failed) continue;
+                else return proposal;
+            }
+
+            return null;
+            //log.Warn("No cutting data generated for whole Blister.");
+            // throw new Exception("No cutting data generated for whole Blister.");
+        }
+
+        public CutProposal GetNextSuccessfulCut
+        {
+            get { return AlreadyCut.FirstOrDefault(proposal => proposal.State == CutState.Succeed); }
+        }
+
+        public List<CutProposal> GetSuccesfullyCuts
+        {
+            get { return AlreadyCut.Where(proposal => proposal.State == CutState.Succeed).ToList(); }
+        }
+
+        /*
+        public CutProposal NewNextCut(Blister blisterTotCut, bool omitFixed = true)
+        {
+            // Maybe this cutter should hold all cutProposal
+            Blister = blisterTotCut;
+            List<Pill> fixedPills = new List<Pill>(Blister.Pills.Count);
+
+            for (int i = 0; i < Blister.Pills.Count; i++)
+            {
+                Pill currentPill = Blister.Pills[i];
+                CutProposal proposal = TryCut(currentPill);
+                if (omitFixed && Grasper.HasPossibleJaw(proposal.BestCuttingData))
+                {
+                    fixedPills.Add(currentPill);
+                    continue;
+                }
+                  
+                proposal.ValidateCut(Grasper); // need to reimplement HasActiveAnchor!!!
+
+                if (proposal.State == CutState.Failed) continue;
+                else
+                {
+                    log.Info(String.Format("Cut Path found for pill {0} after checking {1} pills", currentPill.Id, i));
+                    return proposal;
+                }
+            }
+            foreach (Pill currentPill in fixedPills)
+            {
+                CutProposal proposal = TryCut(currentPill);
+                proposal.ValidateCut(Grasper); // need to reimplement HasActiveAnchor!!!
+                if (proposal.State == CutState.Failed) continue;
+                else
+                {
+                    log.Info(String.Format("Cut Path found for pill {0} after checking {1} pills", currentPill.Id, i));
+                    return proposal;
+                }
+            }
+
+        }
+        */
 
         public CutProposal CutNext(Blister blisterTotCut, bool onlyAnchor = false)
         {
@@ -85,7 +165,7 @@ namespace Blistructor
             WorkingObstacles = new List<Curve>(FixedObstacles);
             pillToCut.UpdateObstacles();
             WorkingObstacles.AddRange(pillToCut.obstacles);
-            
+
             CuttingData = new List<CutData>();
             Pill = pillToCut;
             log.Info(String.Format("Trying to cut Outline id: {0} with status: {1}", pillToCut.Id, pillToCut.State));
@@ -115,7 +195,7 @@ namespace Blistructor
         #region CUT STUFF
         private bool GenerateSimpleCuttingData_v2()
         {
-            
+
             log.Debug(String.Format("Obstacles count {0}", WorkingObstacles.Count));
             CuttingData = new List<CutData>();
             // Stage I - naive Cutting

@@ -1,14 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.IO;
 
 #if PIXEL
-using Pixel.Rhino;
-using Pixel.Rhino.FileIO;
 using Pixel.Rhino.Geometry;
-using Pixel.Rhino.Geometry.Intersect;
-using ExtraMath = Pixel.Rhino.RhinoMath;
 #else
 using Rhino;
 using Rhino.Geometry;
@@ -17,50 +12,44 @@ using ExtraMath = Rhino.RhinoMath;
 #endif
 
 using log4net;
-using Newtonsoft.Json.Linq;
-
-using Combinators;
-using Pixel.Rhino.DocObjects;
 
 namespace Blistructor
 {
     public class CutProposal
     {
         private static readonly ILog log = LogManager.GetLogger("Cutter.PillCutProposals");
-        protected List<CutData> _cuttingData;
-        protected CutData _bestCuttingData;
-        protected readonly Pill _pill;
+        private List<CutData> CuttingData { get; set; }
 
         #region CONTRUCTORS
         public CutProposal(Pill proposedPillToCut, List<CutData> cuttingData, CutState state)
         {
             // if _pill.state is CUT, just rewrite fields...
-            _pill = proposedPillToCut;
+            Pill = proposedPillToCut;
             State = state;
-            _cuttingData = SortCuttingData(cuttingData);
-            _bestCuttingData = FindBestCut();
+            CuttingData = SortCuttingData(cuttingData);
+            BestCuttingData = FindBestCut();
         }
         protected CutProposal(CutProposal proposal)
         {
-            _pill = proposal._pill;
-            _cuttingData = proposal._cuttingData;
-            _bestCuttingData = proposal._bestCuttingData;
+            Pill = proposal.Pill;
+            CuttingData = proposal.CuttingData;
+            BestCuttingData = proposal.BestCuttingData;
             State = proposal.State;
         }
         #endregion
 
         #region PROPERTIES
         public CutState State { get; private set; }
-        public CutData BestCuttingData { get => _bestCuttingData; }
+        public CutData BestCuttingData { get; private set; }
 
-        public Pill Pill { get => _pill; }
+        public Pill Pill { get; private set; }
 
-        public Blister Blister { get => _pill.blister; }
+        public Blister Blister { get => Pill.blister; }
 
         public List<PolylineCurve> GetPaths()
         {
             List<PolylineCurve> output = new List<PolylineCurve>();
-            foreach (CutData cData in _cuttingData)
+            foreach (CutData cData in CuttingData)
             {
                 output.AddRange(cData.Path);
             }
@@ -82,7 +71,7 @@ namespace Blistructor
         /// </summary>
         private CutData FindBestCut()
         {
-            foreach (CutData cData in _cuttingData)
+            foreach (CutData cData in CuttingData)
             {
                 if (!cData.GenerateBladeFootPrint()) continue;
                 return cData;
@@ -91,31 +80,39 @@ namespace Blistructor
         }
 
         /// <summary>
-        /// Check if proposed cutting is Valid. If not update State property to FALSE
+        /// Check Pills connection intrgrity in each leftoves after current cutting.
         /// </summary>
-        public void ValidateCut()
+        /// <returns> If there is no integrity, update State property to FALSE and return false.</returns>
+        public bool ValidateConnectivityIntegrityInLeftovers()
         {
-            // If nothing was cut, omit validation
-            if (State != CutState.Succeed) return;
             // Inspect leftovers.
             foreach (PolylineCurve leftover in BestCuttingData.BlisterLeftovers)
             {
                 Blister newBli = new Blister(Pill.blister.Pills, leftover);
-                if (!newBli.CheckConnectivityIntegrity(_pill))
+                if (!newBli.CheckConnectivityIntegrity(Pill))
                 {
                     log.Warn("CheckConnectivityIntegrity failed. Proposed cut cause inconsistency in leftovers");
                     State = CutState.Failed;
-                    return;
+                    return false;
                 }
                 // BEFORE THIS I NEED TO UPDATE ANCHORS.
                 // If after cutting none pill in leftovers has HasPosibleAnchor false, this mean BAAAAAD
+                /*
                 if (!newBli.HasActiveAnchor)
                 {
                     log.Warn("No Anchor found for this leftover. Skip this cutting.");
                     State = CutState.Failed;
                     return;
                 }
+                */
             }
+            return true;
+        }
+
+        public bool ValidateJawExistanceInLeftovers(Grasper grasper)
+        {
+
+            return true;
         }
 
         /// <summary>
@@ -129,18 +126,18 @@ namespace Blistructor
                 case CutState.Failed:
                     throw new Exception("Cannot apply cutting on failed CutStates proposal. Big mistake!!!!");
                 case CutState.Last:
-                    return new CutBlister(_pill, BestCuttingData);
+                    return new CutBlister(Pill, BestCuttingData);
                 case CutState.Succeed:
                     // Update Pill & Create CutOut
                     log.Debug("Removing Connection data from cut Pill. Updating pill status to Cut");
-                    _pill.State = PillState.Cut;
-                    _pill.RemoveConnectionData();
+                    Pill.State = PillState.Cut;
+                    Pill.RemoveConnectionData();
                     //Update Current
 
-                    int locationIndex = Blister.Pills.FindIndex(pill => pill.Id == _pill.Id);
+                    int locationIndex = Blister.Pills.FindIndex(pill => pill.Id == Pill.Id);
                     Blister.Pills.RemoveAt(locationIndex);
 
-                    return new CutBlister(_pill, BestCuttingData);
+                    return new CutBlister(Pill, BestCuttingData);
                 default:
                     throw new NotImplementedException($"This state {State} is not implemented!");
             }
@@ -157,7 +154,6 @@ namespace Blistructor
             {
                 case CutState.Failed:
                     throw new Exception("Cannot apply cutting on failed CutStates proposal. Big mistake!!!!");
-
                 case CutState.Last:
                     return new List<Blister>();
                 case CutState.Succeed:
@@ -192,9 +188,9 @@ namespace Blistructor
                         PolylineCurve blisterLeftover = BestCuttingData.BlisterLeftovers[j];
                         Blister newBli = new Blister(removerdPills, blisterLeftover);
                         // Verify if new Blister is attached to anchor
-                        if (newBli.HasPossibleAnchor)
-                        {
-                        };
+                        //if (newBli.HasPossibleAnchor)
+                        //{
+                        //};
                         leftovers.Add(newBli);
                     }
                     List<Pill> abandonePills = removerdPills.Where(pill => pill.blister == null).ToList();
@@ -208,6 +204,7 @@ namespace Blistructor
             }
         }
 
+        /*
         public List<BoundingBox> ComputGrasperRestrictedAreas()
         {
             // Thicken paths from cutting data and check how this influence 
@@ -255,18 +252,12 @@ namespace Blistructor
                     // Transform into Interval as min, max values where jaw should not appear
 
                     BoundingBox grasperRestrictedAreaBBox = grasperRestrictedArea.GetBoundingBox(false);
-                    /*
-                    Interval restrictedInterval = new Interval(grasperRestrictedAreaBBox.Min.Y,
-                        grasperRestrictedAreaBBox.Max.Y);
-                    restrictedInterval.MakeIncreasing();
-                    allRestrictedArea.Add(restrictedInterval);
-
-                    */
                     allRestrictedArea.Add(grasperRestrictedAreaBBox);
                 }
             }
             return allRestrictedArea;
         }
+*/
 
         #region PREVIEW STUFF FOR DEBUG MOSTLY
         /*

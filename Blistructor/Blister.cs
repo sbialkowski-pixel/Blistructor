@@ -21,6 +21,8 @@ namespace Blistructor
         /// </summary>
         public CutData CutData { get; set; }
 
+        public List<JawPoint> Jaws { get; set; }
+
         public CutBlister(Pill cuttedPill, CutData cutData) : base(cuttedPill, cutData.Polygon)
         {
             CutData = cutData;
@@ -51,7 +53,6 @@ namespace Blistructor
     {
         private static readonly ILog log = LogManager.GetLogger("Cutter.Blister");
 
-        //internal Anchor Anchor { get; private set; }
         private readonly bool toTight = false;
         private PolylineCurve outline;
         private List<Pill> pills;
@@ -59,11 +60,6 @@ namespace Blistructor
 
 
         #region CONSTRUCTORS
-        //private Blister(Anchor anchor)
-        //{
-        //    //Anchor = anchor;
-        //}
-
         /// <summary>
         /// Internal constructor for non-Outline stuff
         /// </summary>
@@ -219,6 +215,11 @@ namespace Blistructor
 
         public List<Pill> Pills { get { return pills; } }
 
+        /// <summary>
+        /// Get Pill by its unique ID.
+        /// </summary>
+        /// <param name="id">Pill ID</param>
+        /// <returns>Pill</returns>
         public Pill PillByID(int id)
         {
             List<Pill> a = pills.Where(cell => cell.Id == id).ToList();
@@ -240,7 +241,7 @@ namespace Blistructor
         {
             get
             {
-                return pills.Any(cell => cell.possibleAnchor);
+                return pills.Any(cell => cell.PossibleAnchor);
             }
         }
 
@@ -437,7 +438,7 @@ namespace Blistructor
                     Line line = new Line(currentPill.Center, proxPill.Center);
                     Point3d midPoint = line.PointAt(0.5);
                     double t;
-                    if (currentPill.voronoi.ClosestPoint(midPoint, out t, 2.000))
+                    if (currentPill.Voronoi.ClosestPoint(midPoint, out t, 2.000))
                     {
                         // log.Debug(String.Format("Checking pill: {0}", currentCell.id));
                         currenAdjacentPills.Add(proxPill);

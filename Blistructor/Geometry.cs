@@ -295,7 +295,7 @@ namespace Blistructor
             else
             {
                 Point3d testPt = crv.PointAtNormalizedLength(0.5);
-                PointContainment result = region.Contains(testPt, Plane.WorldXY, 0.0001);
+                PointContainment result = region.Contains(testPt, Plane.WorldXY, Setups.IntersectionTolerance);
                 if (result == PointContainment.Inside) inside.Add(crv);
                 else if (result == PointContainment.Outside) outside.Add(crv);
                 else if (result == PointContainment.Unset) throw new InvalidOperationException("Unset");
@@ -579,7 +579,7 @@ namespace Blistructor
                 poly.Add(poly[0]);
                 poly.ReduceSegments(tolerance);
                 vCells.Add(new PolylineCurve(poly));
-                pills[i].voronoi = new PolylineCurve(poly);
+                pills[i].Voronoi = new PolylineCurve(poly);
             }
             return vCells;
         }
