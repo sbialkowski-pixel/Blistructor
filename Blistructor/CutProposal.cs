@@ -109,9 +109,32 @@ namespace Blistructor
             return true;
         }
 
+
         public bool ValidateJawExistanceInLeftovers(Grasper grasper)
         {
+            List<Interval> currentJawPosibleIntervals = grasper.GetJawPossibleIntervals();
 
+            List<Interval> cutImpactIntervals = Grasper.ComputCutImpactInterval(BestCuttingData);
+            Interval blisterImpactInterval = Grasper.ComputeTotalCutImpactInterval(BestCuttingData, cutImpactIntervals);
+            // Cut not influancing grasper
+            if (!blisterImpactInterval.IsValid) return true;
+            // If this cut will remove whole jawPossibleLocation line, its is not good, at least it is last blister...
+            if (blisterImpactInterval.IncludesInterval(Grasper.IntervalsInterval(currentJawPosibleIntervals), true)) return false;
+
+            // Check for collision between current Jaws and cutImpactIntervals.
+            List<JawPoint> currentJaws = Grasper.FindJawPoints(currentJawPosibleIntervals);
+            List<Interval> currentJawsInterval = Grasper.GetRestrictedIntervals(currentJaws);
+            if (Grasper.CollisionCheck(currentJawsInterval, cutImpactIntervals)) return false;
+            //TODO: Update currentJawPosibleIntervals and chack if all Leftovers has Jaw.
+
+
+            List<Interval> futureJawPosibleIntervals = Grasper.ApplyCutOnGrasperLocation(currentJawPosibleIntervals, BestCuttingData);
+            List<LineCurve> futureJawPosibleLocation = Grasper.ConvertIntervalsToLines(futureJawPosibleIntervals);
+
+            foreach (PolylineCurve leftover in BestCuttingData.BlisterLeftovers)
+            {
+                if (!Grasper.HasPlaceForJaw(futureJawPosibleLocation, leftover)) return false;
+            }
             return true;
         }
 

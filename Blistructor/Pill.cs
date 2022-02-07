@@ -34,7 +34,7 @@ namespace Blistructor
         internal Blister blister ;
 
         // States
-        public List<JawPoint> Anchors { get; set; }
+        //public List<JawPoint> Anchors { get; set; }
         public bool PossibleAnchor { get; set; }
 
         // Pill Stuff
@@ -57,7 +57,7 @@ namespace Blistructor
         {
             Id = pill.Id;
             blister = pill.blister;
-            Anchors = pill.Anchors;
+           // Anchors = pill.Anchors;
             PossibleAnchor = pill.PossibleAnchor;
             Outline = pill.Outline;
             Offset = pill.Offset;
@@ -75,7 +75,7 @@ namespace Blistructor
             Geometry.UnifyCurve(Outline);
 
             //Anchor = new AnchorPoint();
-            Anchors = new List<JawPoint>(2);
+            //Anchors = new List<JawPoint>(2);
             PossibleAnchor = false;
 
             Center = Outline.ToPolyline().CenterPoint();
@@ -129,6 +129,7 @@ namespace Blistructor
         }
         */
 
+        /*
         public bool IsAnchored
         {
             get
@@ -136,6 +137,7 @@ namespace Blistructor
                 return Anchors.Any(anchor => anchor.State == JawState.Active);
             }
         }
+        */
 
         #region DISTANCES
         public double GetDirectionIndicator(Point3d pt)
@@ -355,28 +357,22 @@ namespace Blistructor
                 pillDisplayData.Add(new JArray() { pt.X, pt.Y });
             }
             data.Add("processingPill", pillDisplayData);
-            Point3d jaw2 = ((Point)Geometry.ReverseCalibration(new Point(Anchors[0].Location), Setups.ZeroPosition, Setups.PixelSpacing, Setups.CartesianPickModeAngle)).Location;
-            Point3d jaw1 = ((Point)Geometry.ReverseCalibration(new Point(Anchors[1].Location), Setups.ZeroPosition, Setups.PixelSpacing, Setups.CartesianPickModeAngle)).Location;
-
-            JArray anchorPossitions = new JArray() {
-                new JArray() { jaw2.X, jaw2.Y },
-                new JArray() { jaw1.X, jaw1.Y }
-            };
-            data.Add("anchors", anchorPossitions);
             return data;
         }
 
         public JObject GetJSON()
         {
             // TODO: Move this all stuff connected with JSON to JawPoint! 
-            Point3d Jaw1_Local = Anchors[0].Location;
+            // Point3d Jaw1_Local = Anchors[0].Location;
             //Get JAW2
-            Jaw1_Local = Anchors.Where(anchor => anchor.Orientation == JawSite.JAW_2).First().Location;
+            //Jaw1_Local = Anchors.Where(anchor => anchor.Orientation == JawSite.JAW_2).First().Location;
 
-            JObject data = new JObject();
-            data.Add("pillIndex", this.Id);
+            JObject data = new JObject
+            {
+                { "pillIndex", this.Id }
+            };
             // Add Anchor Data <- to be implement.
-            data.Add("openJaw", new JArray(Anchors.Select(anchor => anchor.Orientation.ToString().ToLower())));
+            // data.Add("openJaw", new JArray(Anchors.Select(anchor => anchor.Orientation.ToString().ToLower())));
             return data;
         }
     }

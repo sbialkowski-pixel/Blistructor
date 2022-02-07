@@ -52,7 +52,7 @@ namespace Blistructor
         /// </summary>
         /// <param name="blisterTotCut"></param>
         /// <returns></returns>
-        public CutProposal CutNextt(Blister blisterTotCut)
+        public CutProposal CutNext(Blister blisterTotCut)
         {
             Blister = blisterTotCut;
             // Get all Uncut pills, and try to cut.
@@ -72,7 +72,7 @@ namespace Blistructor
 
         public CutProposal GetNextSuccessfulCut
         {
-            get { return AlreadyCut.FirstOrDefault(proposal => proposal.State == CutState.Succeed); }
+            get { return AlreadyCut.FirstOrDefault(proposal => proposal.State != CutState.Failed); }
         }
 
         public List<CutProposal> GetSuccesfullyCuts
@@ -121,6 +121,7 @@ namespace Blistructor
         }
         */
 
+        /*
         public CutProposal CutNext(Blister blisterTotCut, bool onlyAnchor = false)
         {
             Blister = blisterTotCut;
@@ -158,6 +159,7 @@ namespace Blistructor
             log.Warn("No cutting data generated for whole Blister.");
             throw new Exception("No cutting data generated for whole Blister.");
         }
+        */
 
         public CutProposal TryCut(Pill pillToCut)
         {

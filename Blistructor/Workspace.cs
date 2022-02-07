@@ -20,24 +20,10 @@ namespace Blistructor
     public class Workspace
     {
         private static readonly ILog log = LogManager.GetLogger("Cutter.Main");
-        public Grasper anchor;
 
         public Workspace()
         {
         }
- 
-        /*
-        private Blister InitialiseNewBlister(List<PolylineCurve> pillsOutlines, PolylineCurve blisterOutlines)
-        {
-            Blister initialBlister = new Blister(pillsOutlines, blisterOutlines, this);
-            initialBlister.SortPillsByCoordinates(true);
-            //Queue.Add(initialBlister);
-            anchor = new Anchor(this);
-
-            log.Info(String.Format("New blister with {0} pills", pillsOutlines.Count));
-            return initialBlister;
-        }
-        */
         
         public JObject CutBlister(string JSON)
         {
@@ -129,8 +115,8 @@ namespace Blistructor
                 JArray allDisplayInstruction = new JArray();
                 foreach (CutBlister bli in cutter.Chunks)
                 {
-                    allCuttingInstruction.Add(bli.GetJSON(anchor));
-                    allDisplayInstruction.Add(bli.GetDisplayJSON(anchor));
+                    allCuttingInstruction.Add(bli.GetJSON(cutter.Grasper));
+                    allDisplayInstruction.Add(bli.GetDisplayJSON(cutter.Grasper));
                 }
                 cuttingResult["cuttingData"] = allCuttingInstruction;
                 cuttingResult["displayData"] = allDisplayInstruction;

@@ -30,6 +30,8 @@ namespace Blistructor
         CTR_NO_BLISTER  = 6,
         [Description("Blister badly aligned.")]
         CTR_WRONG_BLISTER_POSSITION = 7,
+        [Description("Durring cuting, to much leftovers achived. Some part of blister was not attached to grasper.")]
+        CTR_LEFTOVERS_FAILURE = 8,
         [Description("Unknown")]
         CTR_UNSET = -1
     };

@@ -20,8 +20,6 @@ using Newtonsoft.Json.Linq;
 
 namespace Blistructor
 {
-
-
     public class Grasper
     {
         private static readonly ILog log = LogManager.GetLogger("Cutter.Anchor");
@@ -99,7 +97,6 @@ namespace Blistructor
             }
             //GuessJawPossiblityOnPill();
             Jaws = FindJawPoints();
-            //GuideLine.Translate(new Vector3d(0, -Setups.JawDepth, 0));
             log.Info(String.Format("Anchors found: {0}", Jaws.Count));
         }
 
@@ -134,6 +131,10 @@ namespace Blistructor
         /// </summary>
         public List<LineCurve> JawsPossibleLocation { get; private set; }
 
+        public JawPoint Jaw1 { get; private set; }
+
+        public JawPoint Jaw2 { get; private set; }
+
         public List<JawPoint> Jaws { get; private set; }
         #endregion
 
@@ -147,12 +148,12 @@ namespace Blistructor
             return new LineCurve(new Line(new Point3d(-Setups.IsoRadius, -Setups.BlisterCartesianDistance, 0), Vector3d.XAxis, 2 * Setups.IsoRadius));
         }
 
-        private List<Interval> GetJawPossibleIntervals()
+        public List<Interval> GetJawPossibleIntervals()
         {
             return ConvertLinesToIntervals(JawsPossibleLocation);
         }
 
-        private static List<Interval> ConvertLinesToIntervals(List<LineCurve> lines)
+        public static List<Interval> ConvertLinesToIntervals(List<LineCurve> lines)
         {
             List<Interval> intervals = lines.Select(line => new Interval(line.PointAtStart.X, line.PointAtEnd.X)).ToList();
             intervals = intervals.Select(spacing => { spacing.MakeIncreasing(); return spacing; }).ToList();
@@ -165,7 +166,7 @@ namespace Blistructor
         /// </summary>
         /// <param name="intervals"></param>
         /// <returns></returns>
-        private static List<LineCurve> ConvertIntervalsToLines(List<Interval> intervals)
+        public static List<LineCurve> ConvertIntervalsToLines(List<Interval> intervals)
         {
             //TODO: Implement body ConvertIntervalsToLines
             throw new NotImplementedException("No body for ConvertIntervalsToLines implemented.");
@@ -174,7 +175,7 @@ namespace Blistructor
 
 
         #region RESTRICTION METHODS
-        
+
         /// <summary>
         /// Get restricted area, based on actual jaws location as Polyline (rectangle)
         /// To update Jaws location use UpdateJawPoints before using this method.
@@ -205,7 +206,7 @@ namespace Blistructor
             }
             return restrictedAreas;
         }
-        
+
         /// <summary>
         /// Get restricted area, based on actual jaws location as Interval
         /// To update Jaws location use UpdateJawPoints before using this method.
@@ -265,9 +266,9 @@ namespace Blistructor
         {
             // Thicken paths from cutting data and check how this influence 
             List<BoundingBox> allRestrictedArea = new List<BoundingBox>(cutData.Segments.Count);
-            
+
             LineCurve cartesianLimitLine = Grasper.CreateCartesianLimitLine();
-            
+
             foreach (PolylineCurve ply in cutData.Segments)
             {
                 //Create upperLine - max distance where Jaw can operate
@@ -317,7 +318,7 @@ namespace Blistructor
         /// </summary>
         /// <param name="cutData"></param>
         /// <returns></returns>
-        private static Interval ComputeTotalCutImpactInterval(CutData cutData, List<Interval> cutImpactIntervals)
+        public static Interval ComputeTotalCutImpactInterval(CutData cutData, List<Interval> cutImpactIntervals)
         {
 
             // Cut paths does not interact with Grasper
@@ -337,7 +338,7 @@ namespace Blistructor
             }
         }
 
-        private static Interval ComputeTotalCutImpactInterval(CutData cutData)
+        public static Interval ComputeTotalCutImpactInterval(CutData cutData)
         {
             List<Interval> cutImpactIntervals = ComputCutImpactInterval(cutData);
             return ComputeTotalCutImpactInterval(cutData, cutImpactIntervals);
@@ -346,7 +347,7 @@ namespace Blistructor
         #endregion
 
         #region COLLISION/VALIDATION
-
+        /*
         /// <summary>
         /// Validate cut against collision, and impossible to hold cuts
         /// </summary>
@@ -368,15 +369,16 @@ namespace Blistructor
             return true;
 
         }
+        */
 
         /// <summary>
         /// Check collision with curent cutData
         /// </summary>
         /// <param name="cutData"></param>
         /// <returns></returns>
-        public bool IsColliding(CutData cutData)
+        public bool IsColliding(CutData cutData, bool updateJaws = true)
         {
-            UpdateJawsPoints();
+            if (updateJaws) UpdateJawsPoints();
             List<Interval> currentJawsInterval = GetRestrictedIntervals();
             List<Interval> cutImpactIntervals = ComputCutImpactInterval(cutData);
             return CollisionCheck(currentJawsInterval, cutImpactIntervals);
@@ -388,7 +390,7 @@ namespace Blistructor
         /// <param name="currentJawsInterval">Intervals where Jaws are placed. This is restriction areas</param>
         /// <param name="cutImpactIntervals">Intervals </param>
         /// <returns></returns>
-        private bool CollisionCheck(List<Interval> currentJawsInterval, List<Interval> cutImpactIntervals)
+        public static bool CollisionCheck(List<Interval> currentJawsInterval, List<Interval> cutImpactIntervals)
         {
             foreach (Interval currentInterval in currentJawsInterval)
             {
@@ -411,9 +413,15 @@ namespace Blistructor
             return false;
         }
 
-        public bool HasPlaceForJaw(PolylineCurve regionToEvaluate)
+        /// <summary>
+        /// Check if region (closed PolylineCurve) contains any part of jawsPossibleLocation.
+        /// </summary>
+        /// <param name="jawsPossibleLocation">List of jawsPossibleLocation as LineCurves</param>
+        /// <param name="regionToEvaluate">Region to evaluate</param>
+        /// <returns>True if any part of jawsPossibleLocation will be inside regionToEvaluate</returns>
+        public static bool HasPlaceForJaw(List<LineCurve> jawsPossibleLocation, PolylineCurve regionToEvaluate)
         {
-            foreach (LineCurve ln in JawsPossibleLocation)
+            foreach (LineCurve ln in jawsPossibleLocation)
             {
                 Tuple<List<Curve>, List<Curve>> trim = Geometry.TrimWithRegion(ln, regionToEvaluate);
                 if (trim.Item1.Count == 0) continue;
@@ -424,6 +432,11 @@ namespace Blistructor
                 }
             }
             return false;
+        }
+
+        public bool HasPlaceForJaw(PolylineCurve regionToEvaluate)
+        {
+            return HasPlaceForJaw(JawsPossibleLocation, regionToEvaluate);
         }
 
         public bool HasBlisterPlaceForJaw(Blister blister)
@@ -442,14 +455,27 @@ namespace Blistructor
         /// </summary>
         /// <param name="cutData">CutData to check</param>
         /// <returns>True if any Jaw is associeted with this cutData.Polygon</returns>
-        public bool HasPossibleJaw(CutData cutData)
+        public bool ContainsJaw(CutData cutData)
         {
+            if (ContainsJaws(cutData).Count > 0) return true;
+            else return false;
+
+        }
+
+        /// <summary>
+        /// Get Jaw associated with this cutData.
+        /// </summary>
+        /// <param name="cutData">CutData to check</param>
+        /// <returns>List of JawPoints inside cutData</returns>
+        public List<JawPoint> ContainsJaws(CutData cutData)
+        {
+            List<JawPoint> output = new List<JawPoint>(2);
             foreach (JawPoint pt in Jaws)
             {
                 PointContainment pointContainment = cutData.Polygon.Contains(pt.Location, Plane.WorldXY, Setups.IntersectionTolerance);
-                if (PointContainment.Inside == pointContainment) return true;
+                if (PointContainment.Inside == pointContainment) output.Add(pt);
             }
-            return false;
+            return output;
         }
 
 
@@ -510,7 +536,7 @@ namespace Blistructor
         public static List<JawPoint> FindJawPoints(List<Interval> grasperPossibleLocation)
         {
             // List<AnchorPoint> outputGrasperPoints = new List<AnchorPoint>();
-           // List<Interval> grasperPossibleLocation = GetJawPossibleIntervals();
+            // List<Interval> grasperPossibleLocation = GetJawPossibleIntervals();
 
             //Get Extreme Points and create Spectrum line
             List<double> allStart = grasperPossibleLocation.OrderBy(spacing => spacing.T0).Select(spacing => spacing.T0).ToList();
@@ -523,7 +549,7 @@ namespace Blistructor
 
             //If spectrum smaller then CartesianMaxWidth, and bigger then CartesianMinWidth, just give me spectrumLine as Locations.
             if (spectrumLine.Length < Setups.CartesianMaxWidth && spectrumLine.Length > Setups.CartesianMinWidth) return ConvertIntervalToJawPoints(spectrumLine);
-            //If spectrum smaller then CartesianMinWidth, return null
+            //If spectrum smaller then CartesianMinWidth, return empty list
             else if (spectrumLine.Length < Setups.CartesianMinWidth) return new List<JawPoint>();
             else
             {
@@ -707,7 +733,7 @@ namespace Blistructor
         /// <param name="toEvaluate">Intervals to check for inclusion</param>
         /// <param name="bounds">Main interval</param>
         /// <returns>List of interval in bounds of main </returns>
-        private static List<Interval> CommonIntervals(List<Interval> toEvaluate, Interval bounds)
+        public static List<Interval> CommonIntervals(List<Interval> toEvaluate, Interval bounds)
         {
 
             List<Interval> output = new List<Interval>(toEvaluate.Count);
@@ -725,7 +751,7 @@ namespace Blistructor
         /// <param name="intervals">List of Intervals to find Min and Max from them.
         /// All intervals must be in increasing flavour</param>
         /// <returns>Min Max interval</returns>
-        private static Interval IntervalsInterval(List<Interval> intervals)
+        public static Interval IntervalsInterval(List<Interval> intervals)
         {
             double minValue = intervals.OrderBy(interval => interval.T0).First().T0;
             double maxValue = intervals.OrderBy(interval => interval.T1).First().T1;
@@ -738,13 +764,15 @@ namespace Blistructor
         }
         #endregion
 
-        #region ANCHOR UPDATE
+        #region JAWS UPDATE
+        /*
         /// <summary>
         /// Check which Jaw belongs to which pill and reset other cells anchors. 
         /// </summary>
         /// <returns></returns>
         public bool ApplyAnchorOnBlister()
         {
+            // THIS WHOLE METHOD IS NOT NEEDED ANY MORE....
             if (Jaws.Count == 0) return false;
             // NOTE: For loop by all queue blisters.
             foreach (Blister blister in BlisterQueue)
@@ -772,6 +800,7 @@ namespace Blistructor
             }
             return true;
         }
+        */
 
         public void UpdateJawsPoints()
         {
@@ -779,25 +808,50 @@ namespace Blistructor
         }
 
 
-        // TODO: UpdateJawsPoints should be called inside Update??? So the Jaws property is always up to date after Update.
-        /// <summary>
-        /// Update grasper with confirmed to cut piece of blister.
-        /// </summary>
-        /// <param name="chunk">Confirmed cut piece of blister.</param>
-        public void Update(CutBlister chunk)
+        public static List<Interval> ApplyCutOnGrasperLocation(List<Interval> grasperIntervals, CutData cutData)
         {
-            Interval restrictedArea = ComputeTotalCutImpactInterval(chunk.CutData);
-            if (!restrictedArea.IsValid) return;
-            List<Interval> grasperIntervals = GetJawPossibleIntervals();
+            Interval restrictedArea = ComputeTotalCutImpactInterval(cutData);
+            if (!restrictedArea.IsValid) return null;
+            //List<Interval> grasperIntervals = GetJawPossibleIntervals();
             List<Interval> remainingGraspersLocation = new List<Interval>(grasperIntervals.Count);
             foreach (Interval currentGraspersLocation in grasperIntervals)
             {
                 remainingGraspersLocation.AddRange(Interval.FromSubstraction(currentGraspersLocation, restrictedArea).Where(interval => interval.Length > 0).ToList());
             }
             remainingGraspersLocation = remainingGraspersLocation.Select(spacing => { spacing.MakeIncreasing(); return spacing; }).ToList();
-            remainingGraspersLocation = remainingGraspersLocation.OrderBy(spacing => spacing.T0).ToList();
-            JawsPossibleLocation = remainingGraspersLocation.Select(interval => new LineCurve(new Point2d(interval.T0, Setups.JawDepth), new Point2d(interval.T1, Setups.JawDepth))).ToList();
+            return remainingGraspersLocation.OrderBy(spacing => spacing.T0).ToList();
         }
+
+        public void ApplyCut(CutBlister chunk, bool updateJaws = true)
+        {
+            List<Interval> grasperIntervals = GetJawPossibleIntervals();
+            List<Interval> remainingGraspersLocation = ApplyCutOnGrasperLocation(grasperIntervals, chunk.CutData);
+            if (remainingGraspersLocation == null) return;
+            JawsPossibleLocation = remainingGraspersLocation.Select(interval => new LineCurve(new Point2d(interval.T0, Setups.JawDepth), new Point2d(interval.T1, Setups.JawDepth))).ToList();
+            if (updateJaws) Jaws = FindJawPoints();
+        }
+
+        /*
+         /// <summary>
+         /// Update grasper with confirmed to cut piece of blister.
+         /// </summary>
+         /// <param name="chunk">Confirmed cut piece of blister.</param>
+         public void Update(CutBlister chunk)
+         {
+             Interval restrictedArea = ComputeTotalCutImpactInterval(chunk.CutData);
+             if (!restrictedArea.IsValid) return;
+             List<Interval> grasperIntervals = GetJawPossibleIntervals();
+             List<Interval> remainingGraspersLocation = new List<Interval>(grasperIntervals.Count);
+             foreach (Interval currentGraspersLocation in grasperIntervals)
+             {
+                 remainingGraspersLocation.AddRange(Interval.FromSubstraction(currentGraspersLocation, restrictedArea).Where(interval => interval.Length > 0).ToList());
+             }
+             remainingGraspersLocation = remainingGraspersLocation.Select(spacing => { spacing.MakeIncreasing(); return spacing; }).ToList();
+             remainingGraspersLocation = remainingGraspersLocation.OrderBy(spacing => spacing.T0).ToList();
+             JawsPossibleLocation = remainingGraspersLocation.Select(interval => new LineCurve(new Point2d(interval.T0, Setups.JawDepth), new Point2d(interval.T1, Setups.JawDepth))).ToList();
+         }
+
+         */
 
         /*
         public void Update_Legacy(Blister cuttedBlister)
@@ -874,16 +928,18 @@ namespace Blistructor
         }
         */
 
+        /*
         /// <summary>
         /// 
         /// </summary>
         /// <param name="cuttedBlister"></param>
         public void FindNewAnchorAndApplyOnBlister(CutBlister cuttedBlister)
         {
-            Update(cuttedBlister);
+            ApplyCut(cuttedBlister);
             Jaws = FindJawPoints();
             ApplyAnchorOnBlister();
         }
+        */
 
         #endregion
         //TODO: Lepsza analiza czy Blister jest prosto i można go złapać łapkami. Moze trzeba liczyc powierzchnie stylku miedzy łakpa a blistrem i jak jest mniej niż 50% to uchwyt niepewny.

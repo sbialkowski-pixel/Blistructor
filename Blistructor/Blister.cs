@@ -21,29 +21,51 @@ namespace Blistructor
         /// </summary>
         public CutData CutData { get; set; }
 
+        public bool HasJaws { get; set; }
+
+        //public bool OpenJaw1 { get; set; }
+        //public bool OpenJaw2 { get; set; }
+
         public List<JawPoint> Jaws { get; set; }
 
         public CutBlister(Pill cuttedPill, CutData cutData) : base(cuttedPill, cutData.Polygon)
         {
             CutData = cutData;
+            Jaws = new List<JawPoint>();
         }
         public Pill Pill { get => Pills[0]; }
 
-        public JObject GetDisplayJSON(Grasper anchor)
+        public JObject GetDisplayJSON(Grasper grasper)
         {
             JObject data = Pill.GetDisplayJSON();
+
+            Point3d jaw2 = ((Point)Geometry.ReverseCalibration(new Point(grasper.Jaws[0].Location), Setups.ZeroPosition, Setups.PixelSpacing, Setups.CartesianPickModeAngle)).Location;
+            Point3d jaw1 = ((Point)Geometry.ReverseCalibration(new Point(grasper.Jaws[1].Location), Setups.ZeroPosition, Setups.PixelSpacing, Setups.CartesianPickModeAngle)).Location;
+
+            JArray anchorPossitions = new JArray() {
+                new JArray() { jaw2.X, jaw2.Y },
+                new JArray() { jaw1.X, jaw1.Y }
+            };
+            data.Add("anchors", anchorPossitions);
+
             // Add displayCut data
-            if (CutData != null) data.Add("displayCut", CutData.GetDisplayJSON(anchor.Jaws[0].Location));
+            if (CutData != null) data.Add("displayCut", CutData.GetDisplayJSON(grasper.Jaws[0].Location));
             else data.Add("displayCut", new JArray());
             return data;
         }
 
-        public JObject GetJSON(Grasper anchor)
+        public JObject GetJSON(Grasper grasper)
         {
             JObject data = Pill.GetJSON();
-            Point3d Jaw1_Local = anchor.Jaws[0].Location;
+
+            //Get JAW2
+            data.Add("openJaw", new JArray(Jaws.Select(jaw => jaw.Orientation.ToString().ToLower())));
+
             // Add Cutting Instruction
-            if (CutData != null) data.Add("cutInstruction", CutData.GetJSON(Jaw1_Local));
+            //Point3d Jaw1_Local = grasper.Jaws[0].Location;
+            Point3d Jaw2_Local = grasper.Jaws.Where(jaw => jaw.Orientation == JawSite.JAW_2).First().Location;
+
+            if (CutData != null) data.Add("cutInstruction", CutData.GetJSON(Jaw2_Local));
             else data.Add("cutInstruction", new JArray());
             return data;
         }
@@ -225,24 +247,6 @@ namespace Blistructor
             List<Pill> a = pills.Where(cell => cell.Id == id).ToList();
             if (a.Count == 1) return a[0];
             return null;
-        }
-
-       // protected List<AnchorPoint> Anchors { get => Anchor.anchors; }
-       
-        public bool HasActiveAnchor
-        {
-            get
-            {
-                return pills.Any(cell => cell.IsAnchored);
-            }
-        }
-
-        public bool HasPossibleAnchor
-        {
-            get
-            {
-                return pills.Any(cell => cell.PossibleAnchor);
-            }
         }
 
         public PolylineCurve Outline { get { return outline; } set { outline = value; } }
