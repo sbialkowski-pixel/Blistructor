@@ -143,6 +143,11 @@ namespace Blistructor
             return new List<Curve> { CreateCartesianLimitLine() };
         }
 
+        public static LineCurve CreateCartesianOperationLine()
+        {
+            return new LineCurve(new Line(new Point3d(-Setups.IsoRadius, Setups.JawDepth, 0), Vector3d.XAxis, 2 * Setups.IsoRadius));
+        }
+
         public static LineCurve CreateCartesianLimitLine()
         {
             return new LineCurve(new Line(new Point3d(-Setups.IsoRadius, -Setups.BlisterCartesianDistance, 0), Vector3d.XAxis, 2 * Setups.IsoRadius));
@@ -196,9 +201,10 @@ namespace Blistructor
         {
             //List<JawPoint> a_points = FindJawPoints();
             List<Polyline> restrictedAreas = new List<Polyline>(2);
-            foreach (JawPoint anchor in jaws)
+            foreach (JawPoint jaw in jaws)
             {
-                Plane grasperPlane = new Plane(anchor.Location, Vector3d.XAxis, Vector3d.YAxis);
+                Point3d origin = new Point3d(jaw.Location.X, 0, 0);
+                Plane grasperPlane = new Plane(origin, Vector3d.XAxis, Vector3d.YAxis);
                 Interval jawWidth = new Interval(t0: -(additionalSafeDistance + (Setups.JawWidth / 2)), t1: additionalSafeDistance + Setups.JawWidth / 2);
                 Interval jawHeight = new Interval(t0: -(additionalSafeDistance + Setups.BlisterCartesianDistance), t1: additionalSafeDistance + Setups.JawDepth);
                 Rectangle3d area = new Rectangle3d(grasperPlane, jawWidth, jawHeight);
@@ -230,8 +236,8 @@ namespace Blistructor
             List<Interval> restrictedIntervals = new List<Interval>(restrictedAreas.Count);
             foreach (Polyline restrictedArea in restrictedAreas)
             {
-                Interval restrictedInterval = new Interval(restrictedArea.BoundingBox.Min.Y,
-                    restrictedArea.BoundingBox.Max.Y);
+                Interval restrictedInterval = new Interval(restrictedArea.BoundingBox.Min.X,
+                    restrictedArea.BoundingBox.Max.X);
                 restrictedInterval.MakeIncreasing();
                 restrictedIntervals.Add(restrictedInterval);
             }
@@ -249,8 +255,8 @@ namespace Blistructor
             List<Interval> restrictedIntervals = new List<Interval>(restrictedAreas.Count);
             foreach (BoundingBox restrictedArea in restrictedAreas)
             {
-                Interval restrictedInterval = new Interval(restrictedArea.Min.Y,
-                    restrictedArea.Max.Y);
+                Interval restrictedInterval = new Interval(restrictedArea.Min.X,
+                    restrictedArea.Max.X);
                 restrictedInterval.MakeIncreasing();
                 restrictedIntervals.Add(restrictedInterval);
             }
@@ -264,49 +270,49 @@ namespace Blistructor
         /// <returns>List of restricted areas as BBox</returns>
         public static List<BoundingBox> ComputeCutImpactAreas(CutData cutData)
         {
+            // TODO: Add Boundary on each side of BBox to not allow jaw anter this restrictedArea.
             // Thicken paths from cutting data and check how this influence 
             List<BoundingBox> allRestrictedArea = new List<BoundingBox>(cutData.Segments.Count);
 
-            LineCurve cartesianLimitLine = Grasper.CreateCartesianLimitLine();
+            LineCurve cartesianLimitLine = CreateCartesianLimitLine();
+            //Create upperLine - max distance where Jaw can operate
+            LineCurve upperCartesianLimitLine = CreateCartesianOperationLine();
 
             foreach (PolylineCurve ply in cutData.Segments)
             {
-                //Create upperLine - max distance where Jaw can operate
-                LineCurve uppeLimitLine = new LineCurve(new Line(new Point3d(-Setups.IsoRadius, Setups.JawDepth, 0), Vector3d.XAxis, 2 * Setups.IsoRadius));
-
                 //Check if knife segment intersect with Upper line = knife-jaw collision can occur
-                List<IntersectionEvent> checkIntersect = Intersection.CurveCurve(uppeLimitLine, ply, Setups.IntersectionTolerance);
+                List<IntersectionEvent> checkIntersect = Intersection.CurveCurve(upperCartesianLimitLine, ply, Setups.IntersectionTolerance);
 
                 // If intersection occurs, any
                 if (checkIntersect.Count > 0)
                 {
-                    //Create lowerLimitLine - lower line where for this segment knife can operate
-                    //double knifeY = ply.ToPolyline().OrderBy(pt => pt.Y).First().Y;
-                    //LineCurve lowerLimitLine = new LineCurve(new Line(new Point3d(-Setups.IsoRadius, knifeY, 0), Vector3d.XAxis, 2 * Setups.IsoRadius));
 
                     PolylineCurve extPly = (PolylineCurve)ply.Extend(CurveEnd.Both, 100);
 
                     // create knife "impact area"
                     PolylineCurve knifeFootprint = Geometry.PolylineThicken(extPly, Setups.BladeWidth / 2);
 
+                    // TODO: Check if this condition is ok.
                     if (knifeFootprint == null) continue;
 
-                    // Split knifeFootprint by upper and lower line
-                    List<PolylineCurve> splited = (List<PolylineCurve>)Geometry.SplitRegion(knifeFootprint, cartesianLimitLine).Select(crv => (PolylineCurve)crv);
+                    /*
+                    List<PolylineCurve> splited = Geometry.SplitRegion(knifeFootprint, cartesianLimitLine).Select(crv => (PolylineCurve)crv).ToList();
 
                     if (splited.Count != 2) continue;
 
                     PolylineCurve forFurtherSplit = splited.OrderBy(pline => pline.CenterPoint().Y).Last();
 
-                    LineCurve upperCartesianLimitLine = new LineCurve(cartesianLimitLine);
-
-                    splited = (List<PolylineCurve>)Geometry.SplitRegion(forFurtherSplit, upperCartesianLimitLine).Select(crv => (PolylineCurve)crv);
+                    splited = Geometry.SplitRegion(forFurtherSplit, upperCartesianLimitLine).Select(crv => (PolylineCurve)crv).ToList();
 
                     if (splited.Count != 2) continue;
-
                     PolylineCurve grasperRestrictedArea = splited.OrderBy(pline => pline.CenterPoint().Y).First();
+                    */
 
-                    BoundingBox grasperRestrictedAreaBBox = grasperRestrictedArea.GetBoundingBox(false);
+                    PolylineCurve region = new PolylineCurve(new List<Point3d> { upperCartesianLimitLine.PointAtStart, upperCartesianLimitLine.PointAtEnd, cartesianLimitLine.PointAtEnd, cartesianLimitLine.PointAtStart, upperCartesianLimitLine.PointAtStart });
+
+                    List<Curve> intersect = Curve.CreateBooleanIntersection(region, knifeFootprint);
+                    BoundingBox grasperRestrictedAreaBBox = intersect[0].GetBoundingBox(false);
+
                     allRestrictedArea.Add(grasperRestrictedAreaBBox);
                 }
             }
@@ -326,11 +332,50 @@ namespace Blistructor
             // Only one cut Path interact, that means this is side pill. I need to find other side, to remove jawPossibleLocation inside this cutData.  
             if (cutImpactIntervals.Count == 1)
             {
+                LineCurve limitLine = CreateCartesianOperationLine();
+                Curve offset = cutData.Polygon.Offset(Plane.WorldXY, Setups.BladeWidth / 2);
+                if (offset == null)
+                {
+                    offset = cutData.Polygon;
+                    log.Warn("Offset failed during ComputeTotalCutImpactInterval. Using pure Polygon.");
+                }
+                Tuple<List<Curve>, List<Curve>> blisterGrasperIntersection = Geometry.TrimWithRegion(limitLine, offset);
+                List<LineCurve> common = blisterGrasperIntersection.Item1.Select(crv => (LineCurve)crv).ToList();
+
+                List<Interval> impactIntervals = ConvertLinesToIntervals(common);
+                impactIntervals.AddRange(cutImpactIntervals);
+                Interval restrictedArea = IntervalsInterval(impactIntervals);
+                return restrictedArea;
+
+
+
+                //Tuple<List<Curve>, List<Curve>> blisterGrasperIntersection = Geometry.TrimWithRegion(limitLine, cutData.Polygon);
+
+                //List<Curve> common = blisterGrasperIntersection.Item2;
+                /*
+                double minX = common.Select(pt => pt.X).Min();
+                double maxX = common.Select(pt => pt.X).Max();
+
+                List<IntersectionEvent> inter = Intersection.CurveCurve(limitLine, cutData.Polygon, Setups.IntersectionTolerance);
+
+                if (inter.Count > 0)
+                {
+                    List<Point3d> interPointsi = inter.Select(iEvent => iEvent.PointA).ToList();
+                    double minX = interPointsi.Select(pt => pt.X).Min();
+                    double maxX = interPointsi.Select(pt => pt.X).Max();
+
+                    Interval range = new Interval(minX, maxX);
+                    range.MakeIncreasing();
+                    Interval restrictedAreaNew = Interval.FromUnion(range, cutImpactIntervals[0]);
+                }
+
+
                 BoundingBox bbox = cutData.Polygon.GetBoundingBox(false);
                 Interval bboxInterval = new Interval(bbox.Min.Y, bbox.Max.Y);
                 Interval restrictedArea = Interval.FromUnion(bboxInterval, cutImpactIntervals[0]);
                 restrictedArea.MakeIncreasing();
                 return restrictedArea;
+                */
             }
             else
             {
@@ -754,7 +799,7 @@ namespace Blistructor
         public static Interval IntervalsInterval(List<Interval> intervals)
         {
             double minValue = intervals.OrderBy(interval => interval.T0).First().T0;
-            double maxValue = intervals.OrderBy(interval => interval.T1).First().T1;
+            double maxValue = intervals.OrderBy(interval => interval.T1).Last().T1;
             return new Interval(minValue, maxValue);
         }
 
@@ -806,7 +851,6 @@ namespace Blistructor
         {
             Jaws = FindJawPoints();
         }
-
 
         public static List<Interval> ApplyCutOnGrasperLocation(List<Interval> grasperIntervals, CutData cutData)
         {

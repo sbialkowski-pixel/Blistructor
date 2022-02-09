@@ -91,25 +91,19 @@ namespace Blistructor
                 Blister newBli = new Blister(Pill.blister.Pills, leftover);
                 if (!newBli.CheckConnectivityIntegrity(Pill))
                 {
-                    log.Warn("CheckConnectivityIntegrity failed. Proposed cut cause inconsistency in leftovers");
+                    log.Warn("This cut failed: CheckConnectivityIntegrity failed. Proposed cut cause inconsistency in leftovers");
                     State = CutState.Failed;
                     return false;
                 }
-                // BEFORE THIS I NEED TO UPDATE ANCHORS.
-                // If after cutting none pill in leftovers has HasPosibleAnchor false, this mean BAAAAAD
-                /*
-                if (!newBli.HasActiveAnchor)
-                {
-                    log.Warn("No Anchor found for this leftover. Skip this cutting.");
-                    State = CutState.Failed;
-                    return;
-                }
-                */
             }
             return true;
         }
 
-
+        /// <summary>
+        /// CHeck if there is any collision between Jaw and cut path. Additionaly validate if all leftovers has any chance to get Jaw.
+        /// </summary>
+        /// <param name="grasper"></param>
+        /// <returns>If any test failed, update State property to FALSE and return false.</returns>
         public bool ValidateJawExistanceInLeftovers(Grasper grasper)
         {
             List<Interval> currentJawPosibleIntervals = grasper.GetJawPossibleIntervals();
@@ -117,23 +111,42 @@ namespace Blistructor
             List<Interval> cutImpactIntervals = Grasper.ComputCutImpactInterval(BestCuttingData);
             Interval blisterImpactInterval = Grasper.ComputeTotalCutImpactInterval(BestCuttingData, cutImpactIntervals);
             // Cut not influancing grasper
-            if (!blisterImpactInterval.IsValid) return true;
+            if (!blisterImpactInterval.IsValid)
+            {
+                return true;
+            }
             // If this cut will remove whole jawPossibleLocation line, its is not good, at least it is last blister...
-            if (blisterImpactInterval.IncludesInterval(Grasper.IntervalsInterval(currentJawPosibleIntervals), true)) return false;
+            if (blisterImpactInterval.IncludesInterval(Grasper.IntervalsInterval(currentJawPosibleIntervals), true))
+            {
+                log.Warn("This cut failed: Proposed cut removes whole jawPossibleLocation. No place to grab blister.");
+                State = CutState.Failed;
+                return false;
+            }
 
             // Check for collision between current Jaws and cutImpactIntervals.
             List<JawPoint> currentJaws = Grasper.FindJawPoints(currentJawPosibleIntervals);
+            // TODO: Error in GetRestrictedIntervals
             List<Interval> currentJawsInterval = Grasper.GetRestrictedIntervals(currentJaws);
-            if (Grasper.CollisionCheck(currentJawsInterval, cutImpactIntervals)) return false;
-            //TODO: Update currentJawPosibleIntervals and chack if all Leftovers has Jaw.
+            if (Grasper.CollisionCheck(currentJawsInterval, cutImpactIntervals))
+            {
+                log.Warn("This cut failed: Collision with Jaws detected.");
+                State = CutState.Failed;
+                return false;
+            }
 
-
+            // Create futureJawPosibleIntervals based on cutData and check if leftoves has place for Jaws.
+            
             List<Interval> futureJawPosibleIntervals = Grasper.ApplyCutOnGrasperLocation(currentJawPosibleIntervals, BestCuttingData);
             List<LineCurve> futureJawPosibleLocation = Grasper.ConvertIntervalsToLines(futureJawPosibleIntervals);
 
             foreach (PolylineCurve leftover in BestCuttingData.BlisterLeftovers)
             {
-                if (!Grasper.HasPlaceForJaw(futureJawPosibleLocation, leftover)) return false;
+                if (!Grasper.HasPlaceForJaw(futureJawPosibleLocation, leftover))
+                {
+                    log.Warn("This cut failed: Leftover has no place for Jaw.");
+                    State = CutState.Failed;
+                    return false;
+                }
             }
             return true;
         }

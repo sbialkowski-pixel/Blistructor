@@ -103,7 +103,7 @@ namespace Blistructor
 
 
                     CutProposal cutProposal;
-                    do
+                    while (true)
                     {
                         cutProposal = cutter.CutNext(blisterToCut);
                         if (cutProposal == null)
@@ -117,10 +117,10 @@ namespace Blistructor
                                 return CuttingState.CTR_FAILED;
                             }
                         }
-                        else
+                        else if (cutProposal.State != CutState.Last)
                         {
-                            // Checking only Pill which are not fixed by Jaw
-                            if (!Grasper.ContainsJaw(cutProposal.BestCuttingData)) continue;
+                                   // Checking only Pill which are not fixed by Jaw
+                            if (Grasper.ContainsJaw(cutProposal.BestCuttingData)) continue;
                         }
 
                         if (cutProposal.State != CutState.Last)
@@ -132,16 +132,15 @@ namespace Blistructor
                             //Check if last pill has JAW. Theoretically this ValidateJawExistanceInLeftovers in provious cuts should ensure this statment, buuut.
                         }
                         if (!cutProposal.ValidateJawExistanceInLeftovers(Grasper)) continue;
-
-                    } while (cutProposal != null);
+                        if (cutProposal.State == CutState.Failed) continue;
+                        break;
+                    } 
 
                     CutBlister chunk = cutProposal.GetCutChunkAndRemoveItFomBlister();
 
                     // If anything was cut, add to list
                     if (chunk != null)
                     {
-                        //TODO: IsAnchored is Invalid. Nedd changed
-                        //TODO: Info about Jaws need to be updated in CutBlister!!!!
 
                         if (!Grasper.ContainsJaw(chunk.CutData))
                         {
@@ -168,7 +167,7 @@ namespace Blistructor
                         Point3d lastKnifePossition = chunk.Pill.Center;
                         if (lastKnifePossition.X != double.NaN) blisterToCut.SortPillsByPointDirection(lastKnifePossition, false);
                     }
-                    if (Queue.Count >= 2)
+                    if (Queue.Count > 2)
                     {
                         log.Error($"!!!{Queue.Count} pieces of blister to cut. This is imposible! Cannot cut blister Anymore!!!");
                         return CuttingState.CTR_LEFTOVERS_FAILURE;
@@ -193,6 +192,7 @@ namespace Blistructor
                     cBLister.Jaws = jaws;
                 }
             }
+            // TODO: Validate if more then one chunk hase specific Jaw.
 
             if (initialPillCount == Chunks.Count) return CuttingState.CTR_SUCCESS;
             else return CuttingState.CTR_FAILED;
