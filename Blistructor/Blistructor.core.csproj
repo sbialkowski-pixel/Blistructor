@@ -26,15 +26,15 @@
     <OutputPath>Debug\</OutputPath>
     <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
-  
-  <ItemGroup>
+
+  <!--<ItemGroup>
     <Compile Remove="bin_old\**" />
     <Compile Remove="obj_old\**" />
     <EmbeddedResource Remove="bin_old\**" />
     <EmbeddedResource Remove="obj_old\**" />
     <None Remove="bin_old\**" />
     <None Remove="obj_old\**" />
-  </ItemGroup>
+  </ItemGroup>-->
 
   <!--<ItemGroup>
     <Compile Remove="CutoutPrototype.cs" />
@@ -52,25 +52,24 @@
   <ItemGroup>
     <PackageReference Include="log4net" Version="2.0.12" />
     <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
-    <!--PackageReference Include="Microsoft.CSharp" Version="4.7.0" /-->
-    <!--PackageReference Include="System.Data.DataSetExtensions" Version="4.5.0" /-->
   </ItemGroup>
   
   <!-- .NET Standard 2.0 references, compilation flags and build options -->
-  <ItemGroup Condition="$(TargetFramework.StartsWith('netstandard2.0'))">
-    <Reference Include="Rhino3dm">
-      <HintPath>..\..\rhino3dm\src\dotnet\Release\netstandard2.0\Rhino3dm.dll</HintPath>
-      <Private>true</Private>
-    </Reference>
-  </ItemGroup>
-  <!-- .NET 4.5 references, compilation flags and build options -->
   <ItemGroup Condition="$(TargetFramework.StartsWith('net4'))">
     <Reference Include="Rhino3dm">
       <HintPath>..\..\rhino3dm\src\dotnet\Release\net45\Rhino3dm.dll</HintPath>
       <Private>true</Private>
     </Reference>
   </ItemGroup>
-  
+
+  <!-- .NET 4.5 references, compilation flags and build options -->
+  <ItemGroup Condition="$(TargetFramework.StartsWith('netstandard2'))">
+    <Reference Include="Rhino3dm">
+      <HintPath>..\..\rhino3dm\src\dotnet\Release\netstandard2.0\Rhino3dm.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+
   <!-- Native c++ lib inclusion -->
   <ItemGroup Condition="exists('..\..\rhino3dm\src\build\windows\win64\Release\librhino3dm_native.dll')">
     <None Include="..\..\rhino3dm\src\build\windows\win64\Release\librhino3dm_native.dll">
@@ -100,8 +99,4 @@
     <None Remove="packages.config" />
   </ItemGroup>
 
-
-  <!-- <ItemGroup>
-    <Resource Include="CutoutPrototype.cs" />
-  </ItemGroup>-->
 </Project>
