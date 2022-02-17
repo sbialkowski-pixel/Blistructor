@@ -44,8 +44,6 @@ namespace Blistructor
             WorkingObstacles = new List<Curve>(FixedObstacles);
         }
 
-        //Pomysł jest taki zeby cąła walidacja odbyła sie w processorze, on ma obiekt Gtasper i to bedzie naturalne, ALbo wytworznienie Validoatoraz z propzycja ciecia i grasper i tam cała logika walidacji. Ale na pewno nie w cutProposal i cutter... TO jest pokretne...
-        //Cutter powinien tylko ciac i dawac wynik jak success, potem nastepuje walidacja na zewnatrz, jak nie tak to jeszcze raz metoda CutNext  i lecimy dalej...
 
         /// <summary>
         /// Cutting with idea to keep each cutting state.

@@ -39,7 +39,7 @@ namespace Blistructor
         #endregion
 
         #region PROPERTIES
-        public CutState State { get; private set; }
+        public CutState State { get; internal set; }
         public CutData BestCuttingData { get; private set; }
 
         public Pill Pill { get; private set; }
@@ -79,6 +79,8 @@ namespace Blistructor
             return null;
         }
 
+        /*
+        #region VALIDATE
         /// <summary>
         /// Check Pills connection intrgrity in each leftoves after current cutting.
         /// </summary>
@@ -98,6 +100,8 @@ namespace Blistructor
             }
             return true;
         }
+
+   
 
         /// <summary>
         /// CHeck if there is any collision between Jaw and cut path. Additionaly validate if all leftovers has any chance to get Jaw.
@@ -150,7 +154,8 @@ namespace Blistructor
             }
             return true;
         }
-
+        #endregion
+        */
         /// <summary>
         /// Get Chunk and remove Pill and any connection data for that pill from current blister. 
         /// </summary>
@@ -159,6 +164,7 @@ namespace Blistructor
         {
             switch (State)
             {
+                case CutState.Rejected:
                 case CutState.Failed:
                     throw new Exception("Cannot apply cutting on failed CutStates proposal. Big mistake!!!!");
                 case CutState.Last:

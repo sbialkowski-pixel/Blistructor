@@ -10,7 +10,7 @@ namespace Blistructor
     public enum JawState { Active = 0, Inactive = 1, Cut = 2 };
 
     public enum PillState { Queue = 0, Cut = 1, Alone = 2 };
-    public enum CutState { Failed = 0, Succeed = 1, Last = 2, Fixed = 3 };
+    public enum CutState { Failed = 0, Succeed = 1, Last = 2, Rejected = 3 };
 
     public enum CuttingState
     {

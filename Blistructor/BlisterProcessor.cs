@@ -119,22 +119,39 @@ namespace Blistructor
                         }
                         else if (cutProposal.State != CutState.Last)
                         {
-                                   // Checking only Pill which are not fixed by Jaw
+                            // Checking only Pill which are not fixed by Jaw
                             if (Grasper.ContainsJaw(cutProposal.BestCuttingData)) continue;
                         }
 
+                        CutValidator validator = new CutValidator(cutProposal, Grasper);
+
                         if (cutProposal.State != CutState.Last)
                         {
-                            if (!cutProposal.ValidateConnectivityIntegrityInLeftovers()) continue;
+                            if (!validator.CheckConnectivityIntegrityInLeftovers(updateCutState: true)) continue;
                         }
                         else
                         {
-                            //Check if last pill has JAW. Theoretically this ValidateJawExistanceInLeftovers in provious cuts should ensure this statment, buuut.
+                            //TODO: Check if last pill has JAW. Theoretically this ValidateJawExistanceInLeftovers in provious cuts should ensure this statment, buuut.
                         }
-                        if (!cutProposal.ValidateJawExistanceInLeftovers(Grasper)) continue;
+                        if (validator.HasCutAnyImpactOnJaws)
+                        {
+                            if (!validator.CheckJawsExistance(updateCutState: true)) continue;
+                            if (!validator.CheckJawExistanceInLeftovers(updateCutState: true)) continue;
+
+                            if (!validator.CheckJawsCollision(updateCutState: true))
+                            {
+                                // Only CutProposwal with colission left, Just use it, Grasper will be updated, and collision will be invalid. 
+                                if (cutProposal.State == CutState.Rejected) 
+                                {
+                                    cutProposal.State = CutState.Succeed;
+                                    break;
+                                }
+                                else continue;
+                            }
+                        }
                         if (cutProposal.State == CutState.Failed) continue;
                         break;
-                    } 
+                    }
 
                     CutBlister chunk = cutProposal.GetCutChunkAndRemoveItFomBlister();
 
