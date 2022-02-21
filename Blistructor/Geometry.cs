@@ -564,16 +564,13 @@ namespace Blistructor
                     Point3d[] vert = voronoi[glob_index].ToPolyline().ToArray();
                     foreach (Point3d pt in vert)
                     {
-                        PointContainment result = pills[i].Outline.Contains(pt, Plane.WorldXY, 0.0001);
+                        PointContainment result = pills[i].Outline.Contains(pt, Plane.WorldXY, Setups.GeneralTolerance);
                         if (result == PointContainment.Outside)
                         {
                             pts.Add(pt);
                         }
                     }
                 }
-
-               // Circle fitCirc;
-               // Circle.TryFitCircleToPoints(pts, out fitCirc);
                 Circle fitCirc = Geometry.FitCircle(pts);
                 Polyline poly = new Polyline(SortPtsAlongCurve(Point3d.CullDuplicates(pts, 0.0001), fitCirc.ToNurbsCurve()));
                 poly.Add(poly[0]);

@@ -84,7 +84,7 @@ namespace Blistructor
             fullPredLine.SetEndPoint(new Point3d(maxCartesianDistanceX, Setups.JawDepth, 0));
 
             // NOTE: Check intersection with pills (Or maybe with pillsOffset. Rethink problem)
-            Tuple<List<Curve>, List<Curve>> trimResult = Geometry.TrimWithRegions(fullPredLine, BlisterQueue[0].GetPills(false));
+            Tuple<List<Curve>, List<Curve>> trimResult = Geometry.TrimWithRegions(fullPredLine, BlisterQueue[0].GetPillsOutline(false));
             // Gather all parts outside (not in pills) shrink curve on both sides by half of Grasper width and move it back to mid position 
             foreach (Curve crv in trimResult.Item2)
             {
@@ -158,6 +158,8 @@ namespace Blistructor
             return ConvertLinesToIntervals(JawsPossibleLocation);
         }
 
+        #region CONVERTERS INTERVAL<->LINE
+
         public static List<Interval> ConvertLinesToIntervals(List<LineCurve> lines)
         {
             List<Interval> intervals = lines.Select(line => new Interval(line.PointAtStart.X, line.PointAtEnd.X)).ToList();
@@ -167,17 +169,24 @@ namespace Blistructor
         }
 
         /// <summary>
-        /// !!! NOT IMPLEMENTED YET!!!
+        /// Convert Intervals to LineCurve. Y is set to Setups.JawDepth
         /// </summary>
         /// <param name="intervals"></param>
         /// <returns></returns>
         public static List<LineCurve> ConvertIntervalsToLines(List<Interval> intervals)
         {
+            List<LineCurve> lines = new List<LineCurve>(intervals.Count);
             //TODO: Implement body ConvertIntervalsToLines
-            throw new NotImplementedException("No body for ConvertIntervalsToLines implemented.");
+            foreach (Interval interval in intervals)
+            {
+                Line line = new Line(new Point3d(interval.T0, Setups.JawDepth, 0), new Point3d(interval.T1, Setups.JawDepth, 0));
+                lines.Add(new LineCurve(line));
+            }
+            return lines;
+            //throw new NotImplementedException("No body for ConvertIntervalsToLines implemented.");
         }
 
-
+        #endregion
 
         #region RESTRICTION METHODS
 
@@ -391,31 +400,8 @@ namespace Blistructor
 
         #endregion
 
-        #region COLLISION/VALIDATION
-        /*
-        /// <summary>
-        /// Validate cut against collision, and impossible to hold cuts
-        /// </summary>
-        /// <param name="cutData"></param>
-        /// <returns>True if valid, falsie if not</returns>
-        public bool IsValidateCut(CutData cutData)
-        {
-            List<Interval> cutImpactIntervals = ComputCutImpactInterval(cutData);
-            Interval blisterImpactInterval = ComputeTotalCutImpactInterval(cutData, cutImpactIntervals);
-            // Cut not influancing grasper
-            if (!blisterImpactInterval.IsValid) return true;
-            // If this cut will remove whole jawPossibleLocation line, its is not good, at least it is last blister...
-            if (blisterImpactInterval.IncludesInterval(IntervalsInterval(GetJawPossibleIntervals()), true)) return false;
-
-            // Check for collision.
-            UpdateJawsPoints();
-            List<Interval> currentJawsInterval = GetRestrictedIntervals();
-            if (CollisionCheck(currentJawsInterval, cutImpactIntervals)) return false;
-            return true;
-
-        }
-        */
-
+        #region COLLISION
+  
         /// <summary>
         /// Check collision with curent cutData
         /// </summary>
@@ -446,6 +432,8 @@ namespace Blistructor
         }
 
         #endregion
+
+        #region HasPlaceForJaw/JawsContainingTest
         /// <summary>
         /// Check if blister has place for Jaw additionaly in context of cutting data.
         /// Aim of this funtion is to check, if remaining part of JawPossibleLoction has any chance to be on blister if cut will be applied. 
@@ -514,53 +502,31 @@ namespace Blistructor
         /// <returns>List of JawPoints inside cutData</returns>
         public List<JawPoint> ContainsJaws(CutData cutData)
         {
+           return ContainsJaws(cutData.Polygon);
+        }
+
+        /// <summary>
+        /// Get Jaw associated with this cutData.
+        /// </summary>
+        /// <param name="cutData">CutData to check</param>
+        /// <returns>List of JawPoints inside cutData</returns>
+        public List<JawPoint> ContainsJaws(CutBlister blister)
+        {
+            return ContainsJaws(blister.Outline);
+        }
+
+        public List<JawPoint> ContainsJaws(PolylineCurve polyline)
+        {
             List<JawPoint> output = new List<JawPoint>(2);
             foreach (JawPoint pt in Jaws)
             {
-                PointContainment pointContainment = cutData.Polygon.Contains(pt.Location, Plane.WorldXY, Setups.IntersectionTolerance);
+                PointContainment pointContainment = polyline.Contains(pt.Location, Plane.WorldXY, Setups.IntersectionTolerance);
                 if (PointContainment.Inside == pointContainment) output.Add(pt);
             }
             return output;
         }
 
-
-        /*
-        /// <summary>
-        /// Check if Pill intersect with PredLine and update pill status - possibleAnchor
-        /// </summary>
-        public void GuessJawPossiblityOnPill()
-        {
-            foreach (Blister blister in BlisterQueue)
-            {
-                foreach (Pill pill in blister.Pills)
-                {
-                    pill.possibleAnchor = false;
-                    foreach (LineCurve line in JawsPossibleLocation)
-                    {
-                        List<IntersectionEvent> intersection = Intersection.CurveCurve(pill.voronoi, line, Setups.IntersectionTolerance);
-                        if (intersection.Count > 0)
-                        {
-                            pill.possibleAnchor = true;
-                        }
-                        else
-                        {
-                            foreach (Point3d pt in new List<Point3d> { line.PointAtStart, line.PointAtEnd })
-                            {
-                                PointContainment contains = pill.voronoi.Contains(pt, Plane.WorldXY, Setups.IntersectionTolerance);
-                                if (contains == PointContainment.Inside)
-                                {
-                                    pill.possibleAnchor = true;
-                                    break;
-                                }
-                            }
-                        }
-                        if (pill.possibleAnchor == true) break;
-                    }
-                }
-            }
-        }
-        */
-
+        #endregion
 
         #region GRASPER LOCATION - FINAL
         /// <summary>
@@ -810,42 +776,6 @@ namespace Blistructor
         #endregion
 
         #region JAWS UPDATE
-        /*
-        /// <summary>
-        /// Check which Jaw belongs to which pill and reset other cells anchors. 
-        /// </summary>
-        /// <returns></returns>
-        public bool ApplyAnchorOnBlister()
-        {
-            // THIS WHOLE METHOD IS NOT NEEDED ANY MORE....
-            if (Jaws.Count == 0) return false;
-            // NOTE: For loop by all queue blisters.
-            foreach (Blister blister in BlisterQueue)
-            {
-                if (blister.Pills == null) return false;
-                if (blister.Pills.Count == 0) return false;
-                foreach (Pill pill in blister.Pills)
-                {
-                    // Reset anchors in each pill.
-                    pill.Anchors = new List<JawPoint>(2);
-                    //pill.Anchor = new AnchorPoint();
-                    foreach (JawPoint pt in Jaws)
-                    {
-                        PointContainment result = pill.Voronoi.Contains(pt.Location, Plane.WorldXY, Setups.IntersectionTolerance);
-                        if (result == PointContainment.Inside)
-                        {
-                            log.Info(String.Format("Anchor appied on pill - {0} with status {1}", pill.Id, pt.State));
-                            //pill.Anchor = pt;
-                            pill.Anchors.Add(pt);
-                            break;
-                        }
-                    }
-
-                }
-            }
-            return true;
-        }
-        */
 
         public void UpdateJawsPoints()
         {

@@ -21,17 +21,27 @@ namespace Blistructor
         /// </summary>
         public CutData CutData { get; set; }
 
-        public bool HasJaws { get; set; }
+       // public bool HasJaws { get; set; }
+
+        public bool IsLast { get; set; }
 
         //public bool OpenJaw1 { get; set; }
         //public bool OpenJaw2 { get; set; }
 
         public List<JawPoint> Jaws { get; set; }
 
+
+        public CutBlister(Blister blister): base(blister.Pills[0], blister.Outline)
+        {
+            Jaws = new List<JawPoint>();
+            CutData = null;
+            IsLast = false;
+        }
         public CutBlister(Pill cuttedPill, CutData cutData) : base(cuttedPill, cutData.Polygon)
         {
             CutData = cutData;
             Jaws = new List<JawPoint>();
+            IsLast = false;
         }
         public Pill Pill { get => Pills[0]; }
 
@@ -79,6 +89,8 @@ namespace Blistructor
         private PolylineCurve outline;
         private List<Pill> pills;
         public List<PolylineCurve> irVoronoi;
+        protected string UUID;
+
 
 
         #region CONSTRUCTORS
@@ -91,6 +103,7 @@ namespace Blistructor
             pills = new List<Pill>();
             Geometry.UnifyCurve(outline);
             this.outline = outline;
+            UUID = Guid.NewGuid().ToString();
         }
 
         /// <summary>
@@ -119,7 +132,7 @@ namespace Blistructor
                 // If cell is not cutOut, check if belong to this Blister.
                 if (Geometry.InclusionTest(pill, this))
                 {
-                    pill.Blister = this;
+                    pill.blister = this;
                     this.pills.Add(pill);
                 }
 
@@ -136,7 +149,7 @@ namespace Blistructor
         }
 
         /// <summary>
-        /// New initial Blister with Cells creation base on pills outlines.
+        /// New initial Blister with Pills creation base on pills outlines.
         /// </summary>
         /// <param name="pillsOutline">Pills outline</param>
         /// <param name="outline">Blister edge outline</param>
@@ -145,7 +158,7 @@ namespace Blistructor
         }
 
         /// <summary>
-        /// New initial Blister with Cells creation base on pills outlines.
+        /// New initial Blister with Pills creation base on pills outlines.
         /// </summary>
         /// <param name="pillsOutline">Pills outline</param>
         /// <param name="outline">Blister edge outline</param>
@@ -154,11 +167,11 @@ namespace Blistructor
             log.Debug("Creating new Blister");
             // Cells Creation
             pills = new List<Pill>(pills.Count);
-            for (int cellId = 0; cellId < pillsOutline.Count; cellId++)
+            for (int pillId = 0; pillId < pillsOutline.Count; pillId++)
             {
-                if (pillsOutline[cellId].IsClosed)
+                if (pillsOutline[pillId].IsClosed)
                 {
-                    Pill pill = new Pill(cellId, pillsOutline[cellId], this);
+                    Pill pill = new Pill(pillId, pillsOutline[pillId], this);
                     //  cell.SetDistance(guideLine);
                     pills.Add(pill);
                 }
@@ -214,7 +227,7 @@ namespace Blistructor
             }
         }
 
-        public List<Curve> GetPills(bool offset)
+        public List<Curve> GetPillsOutline(bool offset)
         {
             List<Curve> pillsOutline = new List<Curve>();
             foreach (Pill cell in pills)

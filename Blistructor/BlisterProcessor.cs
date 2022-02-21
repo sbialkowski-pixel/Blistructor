@@ -90,19 +90,14 @@ namespace Blistructor
                         log.Info("Blister is already cut or is to tight for cutting.");
                         continue;
                     }
+
                     Cutter cutter = new Cutter(Grasper.GetCartesianAsObstacle());
-
-                    // Cut -> Validating -> Cut
-                    /* CO trzeba walidowac: 
-                     * - Czy wycinek "ma" łapkę
-                     * - Czy pozostałosci po cięciu mają się czego trzymać (każdy musi miec po łapce). Ważne, to trzeba sprawdzić symulując apliakcję cięcia.
-                     * - Czy cięcie nie powoduje kolizji z łapką w pozostałcyh kawałakach blistra
-                     * - Czy pozostałe cześci blistra są integralne: kazda tableta musi mieć co najmniej 1 sąsiada...
-                     * -
-                     */
-
-
                     CutProposal cutProposal;
+                    CutValidator validator = null;
+
+                    // Eech cut, update Jaws.
+                    Grasper.UpdateJawsPoints();
+
                     while (true)
                     {
                         cutProposal = cutter.CutNext(blisterToCut);
@@ -119,36 +114,43 @@ namespace Blistructor
                         }
                         else if (cutProposal.State != CutState.Last)
                         {
-                            // Checking only Pill which are not fixed by Jaw
-                            if (Grasper.ContainsJaw(cutProposal.BestCuttingData)) continue;
+                            if (validator == null) validator = new CutValidator(cutProposal, Grasper);
+                            // Checking only Pill which are not fixed by Jaw and cut data allows to grab it no collisions)
+                            if (Grasper.ContainsJaw(cutProposal.BestCuttingData) && validator.CheckJawExistanceInCut(updateCutState: false)) continue;
                         }
-
-                        CutValidator validator = new CutValidator(cutProposal, Grasper);
 
                         if (cutProposal.State != CutState.Last)
                         {
+                            if (validator == null) validator = new CutValidator(cutProposal, Grasper);
+
                             if (!validator.CheckConnectivityIntegrityInLeftovers(updateCutState: true)) continue;
+                            if (validator.HasCutAnyImpactOnJaws)
+                            {
+                                if (!validator.CheckJawsExistance(updateCutState: true)) continue;
+                                if (!validator.CheckJawExistanceInLeftovers(updateCutState: true)) continue;
+
+                                if (!validator.CheckJawsCollision(updateCutState: true))
+                                {
+                                    // Only CutProposal with colission left. Just use it, Grasper will be updated, and collision will be invalid. 
+                                    if (cutProposal.State == CutState.Rejected)
+                                    {
+                                        cutProposal.State = CutState.Succeed;
+                                        break;
+                                    }
+                                    else continue;
+                                }
+                            }
                         }
                         else
                         {
+                            if (!Grasper.HasBlisterPlaceForJaw(cutProposal.Blister))
+                            {
+                                log.Error("!!!Cannot hold Last pill on blister!!!");
+                                return CuttingState.CTR_FAILED;
+                            }
                             //TODO: Check if last pill has JAW. Theoretically this ValidateJawExistanceInLeftovers in provious cuts should ensure this statment, buuut.
                         }
-                        if (validator.HasCutAnyImpactOnJaws)
-                        {
-                            if (!validator.CheckJawsExistance(updateCutState: true)) continue;
-                            if (!validator.CheckJawExistanceInLeftovers(updateCutState: true)) continue;
 
-                            if (!validator.CheckJawsCollision(updateCutState: true))
-                            {
-                                // Only CutProposwal with colission left, Just use it, Grasper will be updated, and collision will be invalid. 
-                                if (cutProposal.State == CutState.Rejected) 
-                                {
-                                    cutProposal.State = CutState.Succeed;
-                                    break;
-                                }
-                                else continue;
-                            }
-                        }
                         if (cutProposal.State == CutState.Failed) continue;
                         break;
                     }
@@ -158,14 +160,6 @@ namespace Blistructor
                     // If anything was cut, add to list
                     if (chunk != null)
                     {
-
-                        if (!Grasper.ContainsJaw(chunk.CutData))
-                        {
-                            log.Debug("Anchor - Update grasper prediction Line");
-                            Grasper.ApplyCut(chunk);
-                        }
-                        //if (cuttedPill.IsAnchored && cuttedPill.State != PillState.Alone && CuttablePillsLeft == 2) // Invalid 
-                        //   Grasper.FindNewAnchorAndApplyOnBlister(chunk);
                         log.Debug("Adding new CutOut subBlister to Chunks list");
                         Chunks.Add(chunk);
                     }
@@ -178,17 +172,65 @@ namespace Blistructor
                     List<Blister> Leftovers = cutProposal.GetLeftoversAndUpdateCurrentBlister();
 
                     Queue = Leftovers;
-                    if (Queue.Count == 0) break;
-                    if (Queue.Count > 0)
+
+                    // If this is last chunk in this blister, just leave this for loop, no Grapser update or Knife possition update is needed.
+                    // Also if queue is empty, leave
+                    if (chunk.IsLast || Queue.Count == 0) continue;
+
+                    // If current blister has more then one pill, just apply cut on Grasper
+                    // This mean: blister must have at least 2 pills. So whatever is any other chunk have Jaw (IsLast), just apply cut on Grasper.
+                    if (blisterToCut.LeftPillsCount > 1)
                     {
-                        Point3d lastKnifePossition = chunk.Pill.Center;
-                        if (lastKnifePossition.X != double.NaN) blisterToCut.SortPillsByPointDirection(lastKnifePossition, false);
+                        Grasper.ApplyCut(chunk);
                     }
+                    else
+                    {
+                        // If only one pill left, this cut is second last. So pottentialy can be hold by JAW. Chceck if this cut can be hold by any Jaw OR in past cuts one Jaws has been occupied, so there is no chance that THIS cut will be hold by JAW. If no chanse, apply cut on Grasper.
+                        // Additionaly if Queue ==2, the other blister must be hold so, tuch chunk mus reduce grapsers.
+                        int pastLast = Chunks.Where(c_chunk => c_chunk.IsLast == true).Count();
+                        if (!validator.CheckJawExistanceInCut(updateCutState: false) || pastLast > 0 || Queue.Count == 2) Grasper.ApplyCut(chunk);
+                    }
+
+
+                    // if (Queue.Count == 1)
+                    // {
+                    // If current blister has more then one pill, just apply cut on Grasper
+                    //   if (Queue[i].LeftPillsCount > 1) 
+                    //   {
+                    //      Grasper.ApplyCut(chunk);
+                    //  }
+                    //  else
+                    //   {
+                    // If only one pill left, this cut is second last. So pottentialy can be hold by JAW. Chceck if this cut can be hold by any Jaw OR in past cuts one Jaws has been occupied, so there is no chance that THIS cut will be hold by JAW. If no chanse, apply cut on Grasper
+                    //       if(!validator.CheckJawExistanceInCut(updateCutState: false) || pastLast != 0) //Grasper.ApplyCut(chunk);
+                    //   }
+                    // }
+                    // else if(Queue.Count == 2)
+                    // {
+                    /*
+                    If blister is splited on Two, there is some remarks:
+                    - current blister must have at least ONE pill exept this cut already, else leftover will be O or 1 and this point will be not reached.
+                    - other blister must have also at least one pill (may be last)
+                    - JAW must be also on the OTHER blister
+                    - 
+                    */
+                    //}
+
+                    //If there is more the 2 piecies of blister, this is critical error. 
                     if (Queue.Count > 2)
                     {
                         log.Error($"!!!{Queue.Count} pieces of blister to cut. This is imposible! Cannot cut blister Anymore!!!");
                         return CuttingState.CTR_LEFTOVERS_FAILURE;
                     }
+
+                    // Update Knife posittion to reorder pills for next cut.
+                    if (Queue.Count > 0)
+                    {
+                        Point3d lastKnifePossition = chunk.Pill.Center;
+                        if (lastKnifePossition.X != double.NaN) blisterToCut.SortPillsByPointDirection(lastKnifePossition, false);
+                    }
+
+
                 }
                 n++;
             }
@@ -198,14 +240,14 @@ namespace Blistructor
 
             foreach (CutBlister cBLister in Chunks)
             {
-                List<JawPoint> jaws = Grasper.ContainsJaws(cBLister.CutData);
+                List<JawPoint> jaws = Grasper.ContainsJaws(cBLister);
                 if (jaws.Count > 0)
                 {
-                    if (Grasper.IsColliding(cBLister.CutData, updateJaws: false))
-                    {
-                        log.Error("Found collision with grasper for cut blister! Aborting!");
-                        return CuttingState.CTR_FAILED;
-                    }
+                    //if (Grasper.IsColliding(cBLister.CutData, updateJaws: false))
+                    //{
+                    //    log.Error("Found collision with grasper for cut blister! Aborting!");
+                    //    return CuttingState.CTR_FAILED;
+                    //}
                     cBLister.Jaws = jaws;
                 }
             }

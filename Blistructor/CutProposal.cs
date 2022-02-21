@@ -168,7 +168,9 @@ namespace Blistructor
                 case CutState.Failed:
                     throw new Exception("Cannot apply cutting on failed CutStates proposal. Big mistake!!!!");
                 case CutState.Last:
-                    return new CutBlister(Pill, BestCuttingData);
+                    CutBlister cBlister = new CutBlister(Blister);
+                    cBlister.IsLast = true;
+                    return cBlister;
                 case CutState.Succeed:
                     // Update Pill & Create CutOut
                     log.Debug("Removing Connection data from cut Pill. Updating pill status to Cut");

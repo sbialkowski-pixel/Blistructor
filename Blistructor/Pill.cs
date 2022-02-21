@@ -33,9 +33,7 @@ namespace Blistructor
         // Parent Blister
         internal Blister blister ;
 
-        // States
-        //public List<JawPoint> Anchors { get; set; }
-        public bool PossibleAnchor { get; set; }
+        //public bool PossibleAnchor { get; set; }
 
         // Pill Stuff
         public PolylineCurve Outline { get; private set; }
@@ -56,11 +54,9 @@ namespace Blistructor
         public Pill(Pill pill)
         {
             Id = pill.Id;
-            blister = pill.blister;
-           // Anchors = pill.Anchors;
-            PossibleAnchor = pill.PossibleAnchor;
-            Outline = pill.Outline;
-            Offset = pill.Offset;
+            Outline = (PolylineCurve) pill.Outline.Duplicate();
+            Offset = (PolylineCurve) pill.Offset.Duplicate();
+            Voronoi = (PolylineCurve) pill.Voronoi.Duplicate();
             Center = pill.Center;
         }
 
@@ -73,10 +69,6 @@ namespace Blistructor
             Outline = pill;
             // Make Pill curve oriented in proper direction.
             Geometry.UnifyCurve(Outline);
-
-            //Anchor = new AnchorPoint();
-            //Anchors = new List<JawPoint>(2);
-            PossibleAnchor = false;
 
             Center = Outline.ToPolyline().CenterPoint();
 
@@ -94,7 +86,7 @@ namespace Blistructor
         }
 
         #region PROPERTIES
-        public Blister Blister
+        /*public Blister Blister
         {
             set
             {
@@ -102,7 +94,7 @@ namespace Blistructor
                 EstimateOrientationCircle();
                 SortData();
             }
-        }
+        }*/
 
         public double CoordinateIndicator
         {
@@ -129,15 +121,6 @@ namespace Blistructor
         }
         */
 
-        /*
-        public bool IsAnchored
-        {
-            get
-            {
-                return Anchors.Any(anchor => anchor.State == JawState.Active);
-            }
-        }
-        */
 
         #region DISTANCES
         public double GetDirectionIndicator(Point3d pt)
