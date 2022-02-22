@@ -119,46 +119,6 @@ namespace Blistructor
         }
         */
 
-        /*
-        public CutProposal CutNext(Blister blisterTotCut, bool onlyAnchor = false)
-        {
-            Blister = blisterTotCut;
-            if (!onlyAnchor)
-            {
-                for (int i = 0; i < Blister.Pills.Count; i++)
-                {
-                    Pill currentPill = Blister.Pills[i];
-                    if (currentPill.IsAnchored) continue;
-                    CutProposal proposal = TryCut(currentPill);
-                    proposal.ValidateCut();
-                    if (proposal.State == CutState.Failed) continue;
-                    else
-                    {
-                        log.Info(String.Format("Cut Path found for pill {0} after checking {1} pills", currentPill.Id, i));
-                        return proposal;
-                    }
-                }
-                // If nothing, try to cut anchored ones...
-                log.Warn("No cutting data generated for whole Blister. Try to find cutting data in anchored...");
-            }
-            for (int i = 0; i < Blister.Pills.Count; i++)
-            {
-                Pill currentPill = Blister.Pills[i];
-                if (!currentPill.IsAnchored) continue;
-                CutProposal proposal = TryCut(currentPill);
-                proposal.ValidateCut();
-                if (proposal.State == CutState.Failed) continue;
-                else
-                {
-                    log.Info(String.Format("Cut Path found for pill {0} after checking {1} anchored pills", currentPill.Id, i));
-                    return proposal;
-                }
-            }
-            log.Warn("No cutting data generated for whole Blister.");
-            throw new Exception("No cutting data generated for whole Blister.");
-        }
-        */
-
         public CutProposal TryCut(Pill pillToCut)
         {
             // Create obstacles (limiters) for cutting process.

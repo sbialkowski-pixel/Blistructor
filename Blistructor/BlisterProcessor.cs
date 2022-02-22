@@ -88,6 +88,7 @@ namespace Blistructor
                     if (blisterToCut.IsDone)
                     {
                         log.Info("Blister is already cut or is to tight for cutting.");
+                        Queue.RemoveAt(i);
                         continue;
                     }
 
@@ -168,10 +169,15 @@ namespace Blistructor
                         log.Error("!!!Cannot cut blister Anymore!!!");
                         return CuttingState.CTR_FAILED;
                     }
-
-                    List<Blister> Leftovers = cutProposal.GetLeftoversAndUpdateCurrentBlister();
-
-                    Queue = Leftovers;
+                    if (chunk.IsLast)
+                    {
+                        Queue.RemoveAt(i);
+                    }
+                    else
+                    {
+                        List<Blister> Leftovers = cutProposal.GetLeftoversAndUpdateCurrentBlister();
+                        Queue = Leftovers;
+                    }
 
                     // If this is last chunk in this blister, just leave this for loop, no Grapser update or Knife possition update is needed.
                     // Also if queue is empty, leave
