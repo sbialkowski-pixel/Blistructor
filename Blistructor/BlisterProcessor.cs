@@ -94,6 +94,7 @@ namespace Blistructor
 
                     Cutter cutter = new Cutter(Grasper.GetCartesianAsObstacle());
                     CutProposal cutProposal;
+                    bool useAdvencedMode = false;
                     // CutValidator validator = null;
 
                     // Eech cut, update Jaws.
@@ -104,26 +105,36 @@ namespace Blistructor
                         cutProposal = cutter.CutNext(blisterToCut);
                         if (cutProposal == null)
                         {
-                            //All pills are cut, lower requerments (try cut fixed pills where jaws can occure) 
+                            //All pills are cut, lower requerments (try cut fixed pills where jaws can occure)
                             cutProposal = cutter.GetNextSuccessfulCut;
                             // If there is no successful cut proposal (all CutStates == FAIL), just end.
                             if (cutProposal == null)
                             {
-                                log.Error("!!!Cannot cut blister anymore!!!");
-                                return CuttingState.CTR_FAILED;
+                                log.Warn("Entering AndvanceCutMode, Whole process may by way longer than normal.");
+                                cutProposal = cutter.CutNextAdvanced(blisterToCut);
+                                // !!!!!!!!!!!!! WORKING ON ADVANCED CUTTING
+                                if (cutProposal == null)
+                                // if (!useAdvencedMode) useAdvencedMode = true;
+                                //else
+                                {
+                                    log.Error("!!!Cannot cut blister anymore!!!");
+                                    return CuttingState.CTR_FAILED;
+                                }
+                                else
+                                {
+                                    cutProposal.Validator = new CutValidator(cutProposal, Grasper);
+                                }
                             }
                         }
                         else if (cutProposal.State != CutState.Last)
                         {
                             cutProposal.Validator = new CutValidator(cutProposal, Grasper);
-                            //if (validator == null) validator 
                             // Checking only Pill which are not fixed by Jaw and cut data allows to grab it no collisions)
                             if (Grasper.ContainsJaw(cutProposal.BestCuttingData) && cutProposal.Validator.CheckJawExistanceInCut(updateCutState: false)) continue;
                         }
 
                         if (cutProposal.State != CutState.Last)
                         {
-                            // if (validator == null) validator = new CutValidator(cutProposal, Grasper);
 
                             if (!cutProposal.Validator.CheckConnectivityIntegrityInLeftovers(updateCutState: true)) continue;
                             if (cutProposal.Validator.HasCutAnyImpactOnJaws)
@@ -141,19 +152,6 @@ namespace Blistructor
                                     break;
                                 }
                                 else { continue; }
-
-                                /*
-                                 if (!validator.CheckJawsCollision(updateCutState: true))
-                                 {
-                                     // Only CutProposal with colission left. Just use it, Grasper will be updated, and collision will be invalid. 
-                                     if (cutProposal.State == CutState.Rejected)
-                                     {
-                                         cutProposal.State = CutState.Succeed;
-                                         break;
-                                     }
-                                     else continue;
-                                 }
-                                */
                             }
                         }
                         else

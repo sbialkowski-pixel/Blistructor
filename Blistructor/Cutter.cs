@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.IO;
+using System.Threading.Tasks;
 
 #if PIXEL
 using Pixel.Rhino;
@@ -36,10 +37,12 @@ namespace Blistructor
         private List<Curve> WorkingObstacles { get; set; }
 
         private List<CutProposal> AlreadyCut { get; set; }
+        private List<CutProposal> AlreadyCutAdvanced { get; set; }
 
         public Cutter(List<Curve> fixedObstacles)
         {
             AlreadyCut = new List<CutProposal>();
+            AlreadyCutAdvanced = new List<CutProposal>();
             FixedObstacles = fixedObstacles;
             WorkingObstacles = new List<Curve>(FixedObstacles);
         }
@@ -66,6 +69,23 @@ namespace Blistructor
             return null;
             //log.Warn("No cutting data generated for whole Blister.");
             // throw new Exception("No cutting data generated for whole Blister.");
+        }
+
+        public CutProposal CutNextAdvanced(Blister blisterTotCut)
+        {
+            Blister = blisterTotCut;
+            // Get all Uncut pills, and try to cut.
+            List<Pill> pillsToProcess = Blister.Pills.Where(x => AlreadyCutAdvanced.All(y => y.Pill.Id != x.Id)).ToList();
+            foreach (Pill pill in pillsToProcess)
+            {
+                CutProposal proposal = TryCut(pill, useAdvancedMethod: true);
+                AlreadyCutAdvanced.Add(proposal);
+                if (proposal.State == CutState.Failed) continue;
+                else return proposal;
+            }
+
+            return null;
+
         }
 
         public CutProposal GetNextSuccessfulCut
@@ -144,9 +164,9 @@ namespace Blistructor
             }
             // If still here, try to cut 
             log.Debug("Perform cutting data generation");
-            if (useAdvancedMethod) cuttingData = GenerateAdvancedCuttingData();
+            if (useAdvancedMethod) cuttingData = GenerateAdvancedCuttingData(samples: 30);
             else cuttingData = GenerateSimpleCuttingData_v2();
-            
+
             if (cuttingData.Count > 0)
             {
                 return new CutProposal(pillToCut, cuttingData, CutState.Succeed);
@@ -176,21 +196,24 @@ namespace Blistructor
             return cuttingData;
         }
 
-        private List<CutData> GenerateAdvancedCuttingData()
+        private List<CutData> GenerateAdvancedCuttingData(int samples = 30)
         {
             List<CutData> cuttingData = new List<CutData>();
             // If all Stages 1-3 failed, start looking more!
-            List<List<LineCurve>> isoLinesStage4 = GenerateIsoCurvesStage4(60, Setups.IsoRadius);
+            List<List<LineCurve>> isoLinesStage4 = GenerateIsoCurvesStage4(samples, Setups.IsoRadius);
             if (isoLinesStage4.Count != 0)
             {
                 List<List<LineCurve>> RaysCombinations = (List<List<LineCurve>>)isoLinesStage4.CartesianProduct();
-                for (int i = 0; i < RaysCombinations.Count; i++)
+
+                //   for (int i = 0; i < RaysCombinations.Count; i++)
+                Parallel.ForEach(RaysCombinations, RaysCombination =>
                 {
-                    if (RaysCombinations[i].Count > 0)
+
+                    if (RaysCombination.Count > 0)
                     {
-                        cuttingData.AddRange(PolygonBuilder_v2(RaysCombinations[i]));
+                        cuttingData.AddRange(PolygonBuilder_v2(RaysCombination));
                     }
-                }
+                });
 
             }
             return cuttingData;
@@ -295,11 +318,17 @@ namespace Blistructor
             {
                 Circle cir = new Circle(Pill.samplePoints[i], radius);
                 List<LineCurve> iLines = new List<LineCurve>();
-                ArcCurve arc = new ArcCurve(new Arc(cir, new Interval(0, Math.PI)));
-                double[] t = arc.DivideByCount(count, false);
-                for (int j = 0; j < t.Length; j++)
+                IEnumerable<double> parts = Enumerable.Range(0, 30).Select(x => x * ((Math.PI) / 29));
+                List<Point3d> pts = parts.Select(part => cir.PointAt(part)).ToList();
+
+
+                //ArcCurve arc = new ArcCurve(new Arc(cir, new Interval(0, Math.PI)));
+                //double[] t = arc.DivideByCount(count, false);
+                for (int j = 0; j < pts.Count; j++)
+                // for (int j = 0; j < t.Length; j++)
                 {
-                    Point3d Pt = arc.PointAt(t[j]);
+                    //Point3d Pt = arc.PointAt(t[j]);
+                    Point3d Pt = pts[j];
                     LineCurve ray = Geometry.GetIsoLine(Pill.samplePoints[i], Pt - Pill.samplePoints[i], Setups.IsoRadius, WorkingObstacles);
                     if (ray != null)
                     {
