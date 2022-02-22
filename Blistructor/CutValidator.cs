@@ -40,7 +40,7 @@ namespace Blistructor
             CutProposal = cutProposal;
             Grasper = grasper;
             CurrentJawPosibleIntervals = Grasper.GetJawPossibleIntervals();
-            CutImpactIntervals = Grasper.ComputCutImpactInterval(CutProposal.BestCuttingData, applyJawBoundaries:false);
+            CutImpactIntervals = Grasper.ComputCutImpactInterval(CutProposal.BestCuttingData, applyJawBoundaries:true);
             BlisterImpactInterval = Grasper.ComputeTotalCutImpactInterval(CutProposal.BestCuttingData, CutImpactIntervals);
         }
 

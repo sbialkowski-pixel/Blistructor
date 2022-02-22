@@ -194,6 +194,7 @@ namespace Blistructor
         /// Get restricted area, based on actual jaws location as Polyline (rectangle)
         /// To update Jaws location use UpdateJawPoints before using this method.
         /// </summary>
+        /// <param name="additionalSafeDistance">Additional safe distance</param>
         /// <returns>List of Rectangles where jaws can occur</returns>
         public List<Polyline> GetRestrictedAreas(double additionalSafeDistance = 1.0)
         {
@@ -226,7 +227,7 @@ namespace Blistructor
         /// Get restricted area, based on actual jaws location as Interval
         /// To update Jaws location use UpdateJawPoints before using this method.
         /// </summary>
-        /// <param name="additionalSafeDistance"></param>
+        /// <param name="additionalSafeDistance">Additional safe distance</param>
         /// <returns>>List of Intervals where jaws cannot occurs</returns>
         public List<Interval> GetRestrictedIntervals(double additionalSafeDistance = 1.0)
         {
@@ -256,11 +257,13 @@ namespace Blistructor
         /// <summary>
         /// Based on CutData compute cut impact area intervals.
         /// </summary>
-        /// <param name="cutData"></param>
+        /// <param name="cutData">Base data to compute impact area</param>
+        /// <param name="applyJawBoundaries">If True, area will be expanded by Setups.JawDepth/2 in both directions</param>
+        /// <param name="additionalSafeDistance">Additional safe distance</param>
         /// <returns>List of restricted intervals</returns>
-        public static List<Interval> ComputCutImpactInterval(CutData cutData, bool applyJawBoundaries = true)
+        public static List<Interval> ComputCutImpactInterval(CutData cutData, bool applyJawBoundaries = true, double additionalSafeDistance = 1.0)
         {
-            List<BoundingBox> restrictedAreas = ComputeCutImpactAreas(cutData, applyJawBoundaries);
+            List<BoundingBox> restrictedAreas = ComputeCutImpactAreas(cutData, applyJawBoundaries, additionalSafeDistance);
             List<Interval> restrictedIntervals = new List<Interval>(restrictedAreas.Count);
             foreach (BoundingBox restrictedArea in restrictedAreas)
             {
@@ -275,9 +278,11 @@ namespace Blistructor
         /// <summary>
         /// Based on CutData compute cut impact area as BBox.
         /// </summary>
-        /// <param name="cutData"></param>
+        /// <param name="cutData">Base data to compute impact area</param>
+        /// <param name="applyJawBoundaries">>If True, area will be expanded by Setups.JawDepth/2 in both directions</param>
+        /// <param name="additionalSafeDistance">Additional safe distance</param>
         /// <returns>List of restricted areas as BBox</returns>
-        public static List<BoundingBox> ComputeCutImpactAreas(CutData cutData, bool applyJawBoundaries = true)
+        public static List<BoundingBox> ComputeCutImpactAreas(CutData cutData, bool applyJawBoundaries = true, double additionalSafeDistance = 1.0)
         {
             // TODO: Add Boundary on each side of BBox to not allow jaw anter this restrictedArea.
             // Thicken paths from cutting data and check how this influence 
@@ -311,10 +316,10 @@ namespace Blistructor
                     if (applyJawBoundaries)
                     {
                         Point3d newMin = new Point3d(grasperRestrictedAreaBBox.Min);
-                        newMin.X -= Setups.JawWidth / 2;
+                        newMin.X -= (Setups.JawWidth / 2 + additionalSafeDistance);
                         grasperRestrictedAreaBBox.Min = newMin;
                         Point3d newMax = new Point3d(grasperRestrictedAreaBBox.Max);
-                        newMax.X += Setups.JawWidth / 2;
+                        newMax.X += (Setups.JawWidth / 2 + additionalSafeDistance);
                         grasperRestrictedAreaBBox.Max = newMax;
                     }
                     allRestrictedArea.Add(grasperRestrictedAreaBBox);
@@ -362,27 +367,31 @@ namespace Blistructor
         /// </summary>
         /// <param name="cutData">Base data to compute impact area</param>
         /// <param name="applyJawBoundaries">If True, area will be expanded by Setups.JawDepth/2 in both directions</param>
+        /// <param name="additionalSafeDistance">Additional safe distance</param>
         /// <returns>Interval where cut has impact.</returns>
-        public static Interval ComputeTotalCutImpactInterval(CutData cutData, bool applyJawBoundaries = true)
+        public static Interval ComputeTotalCutImpactInterval(CutData cutData, bool applyJawBoundaries = true, double additionalSafeDistance = 1.0)
         {
-            List<Interval> cutImpactIntervals = ComputCutImpactInterval(cutData, applyJawBoundaries);
+            List<Interval> cutImpactIntervals = ComputCutImpactInterval(cutData, applyJawBoundaries, additionalSafeDistance);
             return ComputeTotalCutImpactInterval(cutData, cutImpactIntervals);
         }
 
         #endregion
 
         #region COLLISION
-  
+
         /// <summary>
-        /// Check collision with curent cutData
+        /// Check collision between given cutData and current Jaws position.
         /// </summary>
-        /// <param name="cutData"></param>
-        /// <returns></returns>
-        public bool IsColliding(CutData cutData, bool updateJaws = true)
+        /// <param name="cutData">CutData to evaluate</param>
+        /// <param name="updateJaws">Force Jaws position update (like calling UpdateJawsPoints()) </param>
+        /// <returns>True, if there is collision between JAw and Knife</returns>
+        public bool IsColliding(CutData cutData, bool updateJaws = true )
         {
             if (updateJaws) UpdateJawsPoints();
-            List<Interval> currentJawsInterval = GetRestrictedIntervals(Setups.JawKnifeAdditionalSafeDistance);
-            List<Interval> cutImpactIntervals = ComputCutImpactInterval(cutData);
+            // Get Jaw restricted are with additional safe dictance.
+            List<Interval> currentJawsInterval = GetRestrictedIntervals(Setups.JawKnifeAdditionalSafeDistance - 1e-4);
+            // Get just pure knife impact area.
+            List<Interval> cutImpactIntervals = ComputCutImpactInterval(cutData, applyJawBoundaries: false, additionalSafeDistance: 0.0);
             return CollisionCheck(currentJawsInterval, cutImpactIntervals);
         }
 
@@ -390,8 +399,9 @@ namespace Blistructor
         /// Check collision between Intervals
         /// </summary>
         /// <param name="currentJawsInterval">Intervals where Jaws are placed. This is restriction areas</param>
-        /// <param name="cutImpactIntervals">Intervals </param>
-        /// <returns></returns>
+        /// <param name="cutImpactIntervals">Intervals where knife hase impact </param>
+        /// <remarks> Remember to correctly generate both interval. There is possibility, that each was geenrated with safeDistance or with JawBorders, si they will oferlap, even if cut is correct.</remarks>
+        /// <returns>True if any interval overlaps</returns>
         public static bool CollisionCheck(List<Interval> currentJawsInterval, List<Interval> cutImpactIntervals)
         {
             foreach (Interval currentInterval in currentJawsInterval)
@@ -755,7 +765,7 @@ namespace Blistructor
 
         public static List<Interval> ApplyCutOnGrasperLocation(List<Interval> grasperIntervals, CutData cutData)
         {
-            Interval restrictedArea = ComputeTotalCutImpactInterval(cutData);
+            Interval restrictedArea = ComputeTotalCutImpactInterval(cutData, true, Setups.JawKnifeAdditionalSafeDistance);
             if (!restrictedArea.IsValid) return null;
             //List<Interval> grasperIntervals = GetJawPossibleIntervals();
             List<Interval> remainingGraspersLocation = new List<Interval>(grasperIntervals.Count);
@@ -775,116 +785,6 @@ namespace Blistructor
             JawsPossibleLocation = remainingGraspersLocation.Select(interval => new LineCurve(new Point2d(interval.T0, Setups.JawDepth), new Point2d(interval.T1, Setups.JawDepth))).ToList();
             if (updateJaws) Jaws = FindJawPoints();
         }
-
-        /*
-         /// <summary>
-         /// Update grasper with confirmed to cut piece of blister.
-         /// </summary>
-         /// <param name="chunk">Confirmed cut piece of blister.</param>
-         public void Update(CutBlister chunk)
-         {
-             Interval restrictedArea = ComputeTotalCutImpactInterval(chunk.CutData);
-             if (!restrictedArea.IsValid) return;
-             List<Interval> grasperIntervals = GetJawPossibleIntervals();
-             List<Interval> remainingGraspersLocation = new List<Interval>(grasperIntervals.Count);
-             foreach (Interval currentGraspersLocation in grasperIntervals)
-             {
-                 remainingGraspersLocation.AddRange(Interval.FromSubstraction(currentGraspersLocation, restrictedArea).Where(interval => interval.Length > 0).ToList());
-             }
-             remainingGraspersLocation = remainingGraspersLocation.Select(spacing => { spacing.MakeIncreasing(); return spacing; }).ToList();
-             remainingGraspersLocation = remainingGraspersLocation.OrderBy(spacing => spacing.T0).ToList();
-             JawsPossibleLocation = remainingGraspersLocation.Select(interval => new LineCurve(new Point2d(interval.T0, Setups.JawDepth), new Point2d(interval.T1, Setups.JawDepth))).ToList();
-         }
-
-         */
-
-        /*
-        public void Update_Legacy(Blister cuttedBlister)
-        {
-#if DEBUG
-            var file = new File3dm();
-#endif
-            PolylineCurve polygon = cuttedBlister.Pills[0].bestCuttingData.Polygon;
-
-            // List<RegionContainment> cont1 = GrasperPossibleLocation.Select(crv => Curve.PlanarClosedCurveRelationship(polygon, crv)).ToList();
-            // Simplify polygon
-            Curve simplePolygon = polygon;
-            simplePolygon.RemoveShortSegments(Setups.CollapseTolerance);
-            // Offset by half BladeWidth
-            Curve offset = simplePolygon.Offset(Plane.WorldXY, Setups.BladeWidth / 2);
-#if DEBUG
-            var att = new ObjectAttributes();
-            att.Name = "simplePolygon";
-            file.Objects.AddCurve(simplePolygon, att);
-            att = new ObjectAttributes();
-            att.Name = "offset";
-            file.Objects.AddCurve(offset, att);
-            att = new ObjectAttributes();
-            att.Name = "path";
-            cuttedBlister.Pills[0].bestCuttingData.Path.ForEach(crv => file.Objects.AddCurve(crv, att));
-            att = new ObjectAttributes();
-            att.Name = "path_segemnts";
-            cuttedBlister.Pills[0].bestCuttingData.bladeFootPrint.ForEach(crv => file.Objects.AddCurve(crv, att));
-#endif
-            if (offset != null)
-            {
-                //log.Info(String.Format("offset Length: {0}", offset.Length));
-                Curve rightMove = (Curve)offset.Duplicate();
-                rightMove.Translate(Vector3d.XAxis * Setups.JawWidth / 2);
-                Curve leftMove = (Curve)offset.Duplicate();
-                leftMove.Translate(-Vector3d.XAxis * Setups.JawWidth / 2);
-                List<Curve> unitedCurve = Curve.CreateBooleanUnion(new List<Curve>() { rightMove, offset, leftMove });
-                if (unitedCurve.Count == 1)
-                {
-                    //log.Info(String.Format("unitedCurve Length: {0}", unitedCurve.Length));
-                    // Assuming GrasperPossibleLocation is in the Setups.JawDepth possition... Trim
-                    Tuple<List<Curve>, List<Curve>> result = Geometry.TrimWithRegion(GrasperPossibleLocation.Select(crv => (Curve)crv).ToList(), unitedCurve[0]);
-                    //GrasperPossibleLocation = result.Item2.Select(crv => (LineCurve)crv).ToList();
-#if DEBUG
-                    att = new ObjectAttributes();
-                    att.Name = "unitedCurve";
-                    file.Objects.AddCurve(unitedCurve[0], att);
-                    att = new ObjectAttributes();
-                    att.Name = "trim_result";
-                    result.Item2.ForEach(crv => file.Objects.AddCurve(crv, att));
-                    att = new ObjectAttributes();
-                    att.Name = "GrasperPossibleLocation_1";
-                    GrasperPossibleLocation.ForEach(crv => file.Objects.AddCurve(crv, att));
-#endif
-
-                    // Move fullway down, trim
-                    moveGrasperPossibleLocation(-Setups.JawDepth);
-                    result = Geometry.TrimWithRegion(GrasperPossibleLocation.Select(crv => (Curve)crv).ToList(), unitedCurve[0]);
-                    GrasperPossibleLocation = result.Item2.Select(crv => (LineCurve)crv).ToList();
-                    //Put It back on place.
-                    moveGrasperPossibleLocation(Setups.JawDepth);
-
-#if DEBUG
-                    att = new ObjectAttributes();
-                    att.Name = "GrasperPossibleLocation_Final";
-                    GrasperPossibleLocation.ForEach(crv => file.Objects.AddCurve(crv, att));
-#endif
-                }
-            }
-#if DEBUG
-
-            file.Write(String.Format(@"D:\PIXEL\DEBUG_FILES\ANCHORS\Update_{0}.3dm", _workspace.Cutted.Count()), 6);
-#endif
-        }
-        */
-
-        /*
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="cuttedBlister"></param>
-        public void FindNewAnchorAndApplyOnBlister(CutBlister cuttedBlister)
-        {
-            ApplyCut(cuttedBlister);
-            Jaws = FindJawPoints();
-            ApplyAnchorOnBlister();
-        }
-        */
 
         #endregion
         //TODO: Lepsza analiza czy Blister jest prosto i można go złapać łapkami. Moze trzeba liczyc powierzchnie stylku miedzy łakpa a blistrem i jak jest mniej niż 50% to uchwyt niepewny.

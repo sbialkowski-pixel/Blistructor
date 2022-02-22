@@ -94,7 +94,7 @@ namespace Blistructor
 
                     Cutter cutter = new Cutter(Grasper.GetCartesianAsObstacle());
                     CutProposal cutProposal;
-                   // CutValidator validator = null;
+                    // CutValidator validator = null;
 
                     // Eech cut, update Jaws.
                     Grasper.UpdateJawsPoints();
@@ -123,7 +123,7 @@ namespace Blistructor
 
                         if (cutProposal.State != CutState.Last)
                         {
-                           // if (validator == null) validator = new CutValidator(cutProposal, Grasper);
+                            // if (validator == null) validator = new CutValidator(cutProposal, Grasper);
 
                             if (!cutProposal.Validator.CheckConnectivityIntegrityInLeftovers(updateCutState: true)) continue;
                             if (cutProposal.Validator.HasCutAnyImpactOnJaws)
@@ -142,18 +142,18 @@ namespace Blistructor
                                 }
                                 else { continue; }
 
-                               /*
-                                if (!validator.CheckJawsCollision(updateCutState: true))
-                                {
-                                    // Only CutProposal with colission left. Just use it, Grasper will be updated, and collision will be invalid. 
-                                    if (cutProposal.State == CutState.Rejected)
-                                    {
-                                        cutProposal.State = CutState.Succeed;
-                                        break;
-                                    }
-                                    else continue;
-                                }
-                               */
+                                /*
+                                 if (!validator.CheckJawsCollision(updateCutState: true))
+                                 {
+                                     // Only CutProposal with colission left. Just use it, Grasper will be updated, and collision will be invalid. 
+                                     if (cutProposal.State == CutState.Rejected)
+                                     {
+                                         cutProposal.State = CutState.Succeed;
+                                         break;
+                                     }
+                                     else continue;
+                                 }
+                                */
                             }
                         }
                         else
@@ -260,15 +260,22 @@ namespace Blistructor
 
             foreach (CutBlister cBLister in Chunks)
             {
+                // apply Jaw on cBlister
                 List<JawPoint> jaws = Grasper.ContainsJaws(cBLister);
                 if (jaws.Count > 0)
                 {
-                    //if (Grasper.IsColliding(cBLister.CutData, updateJaws: false))
-                    //{
-                    //    log.Error("Found collision with grasper for cut blister! Aborting!");
-                    //    return CuttingState.CTR_FAILED;
-                    //}
                     cBLister.Jaws = jaws;
+                }
+                // Validate Collision
+                if (cBLister.CutData != null)
+                {
+                    // TODO: JAKIEŚ ZJEBANDO!
+                    // Chyba nakałdaja sie dwa razy szerokosci łapek, i noża i ogólnie wszyzstko jest dwa razy...
+                    if (Grasper.IsColliding(cBLister.CutData, updateJaws: false))
+                    {
+                        log.Error("Found collision with grasper for cut blister! Aborting!");
+                       // return CuttingState.CTR_FAILED;
+                    }
                 }
             }
             // TODO: Validate if more then one chunk hase specific Jaw.
