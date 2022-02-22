@@ -94,7 +94,7 @@ namespace Blistructor
 
                     Cutter cutter = new Cutter(Grasper.GetCartesianAsObstacle());
                     CutProposal cutProposal;
-                    CutValidator validator = null;
+                   // CutValidator validator = null;
 
                     // Eech cut, update Jaws.
                     Grasper.UpdateJawsPoints();
@@ -115,21 +115,34 @@ namespace Blistructor
                         }
                         else if (cutProposal.State != CutState.Last)
                         {
-                            if (validator == null) validator = new CutValidator(cutProposal, Grasper);
+                            cutProposal.Validator = new CutValidator(cutProposal, Grasper);
+                            //if (validator == null) validator 
                             // Checking only Pill which are not fixed by Jaw and cut data allows to grab it no collisions)
-                            if (Grasper.ContainsJaw(cutProposal.BestCuttingData) && validator.CheckJawExistanceInCut(updateCutState: false)) continue;
+                            if (Grasper.ContainsJaw(cutProposal.BestCuttingData) && cutProposal.Validator.CheckJawExistanceInCut(updateCutState: false)) continue;
                         }
 
                         if (cutProposal.State != CutState.Last)
                         {
-                            if (validator == null) validator = new CutValidator(cutProposal, Grasper);
+                           // if (validator == null) validator = new CutValidator(cutProposal, Grasper);
 
-                            if (!validator.CheckConnectivityIntegrityInLeftovers(updateCutState: true)) continue;
-                            if (validator.HasCutAnyImpactOnJaws)
+                            if (!cutProposal.Validator.CheckConnectivityIntegrityInLeftovers(updateCutState: true)) continue;
+                            if (cutProposal.Validator.HasCutAnyImpactOnJaws)
                             {
-                                if (!validator.CheckJawsExistance(updateCutState: true)) continue;
-                                if (!validator.CheckJawExistanceInLeftovers(updateCutState: true)) continue;
+                                if (!cutProposal.Validator.CheckJawsExistance(updateCutState: true)) continue;
+                                if (!cutProposal.Validator.CheckJawExistanceInLeftovers(updateCutState: true)) continue;
 
+                                if (cutProposal.State == CutState.Succeed)
+                                {
+                                    if (!cutProposal.Validator.CheckJawsCollision(updateCutState: true)) continue;
+                                }
+                                else if (cutProposal.State == CutState.Rejected)
+                                {
+                                    cutProposal.State = CutState.Succeed;
+                                    break;
+                                }
+                                else { continue; }
+
+                               /*
                                 if (!validator.CheckJawsCollision(updateCutState: true))
                                 {
                                     // Only CutProposal with colission left. Just use it, Grasper will be updated, and collision will be invalid. 
@@ -140,6 +153,7 @@ namespace Blistructor
                                     }
                                     else continue;
                                 }
+                               */
                             }
                         }
                         else
@@ -194,7 +208,7 @@ namespace Blistructor
                         // If only one pill left, this cut is second last. So pottentialy can be hold by JAW. Chceck if this cut can be hold by any Jaw OR in past cuts one Jaws has been occupied, so there is no chance that THIS cut will be hold by JAW. If no chanse, apply cut on Grasper.
                         // Additionaly if Queue ==2, the other blister must be hold so, tuch chunk mus reduce grapsers.
                         int pastLast = Chunks.Where(c_chunk => c_chunk.IsLast == true).Count();
-                        if (!validator.CheckJawExistanceInCut(updateCutState: false) || pastLast > 0 || Queue.Count == 2) Grasper.ApplyCut(chunk);
+                        if (!cutProposal.Validator.CheckJawExistanceInCut(updateCutState: false) || pastLast > 0 || Queue.Count == 2) Grasper.ApplyCut(chunk);
                     }
 
 

@@ -40,7 +40,7 @@ namespace Blistructor
             CutProposal = cutProposal;
             Grasper = grasper;
             CurrentJawPosibleIntervals = Grasper.GetJawPossibleIntervals();
-            CutImpactIntervals = Grasper.ComputCutImpactInterval(CutProposal.BestCuttingData);
+            CutImpactIntervals = Grasper.ComputCutImpactInterval(CutProposal.BestCuttingData, applyJawBoundaries:false);
             BlisterImpactInterval = Grasper.ComputeTotalCutImpactInterval(CutProposal.BestCuttingData, CutImpactIntervals);
         }
 
@@ -93,7 +93,7 @@ namespace Blistructor
         public bool CheckJawsCollision(bool updateCutState = true)
         {
             List<JawPoint> currentJaws = Grasper.FindJawPoints(CurrentJawPosibleIntervals);
-            List<Interval> currentJawsInterval = Grasper.GetRestrictedIntervals(currentJaws);
+            List<Interval> currentJawsInterval = Grasper.GetRestrictedIntervals(currentJaws, Setups.JawKnifeAdditionalSafeDistance);
             if (Grasper.CollisionCheck(currentJawsInterval, CutImpactIntervals))
             {
                 log.Warn("This cut was interrupted: Collision with Jaws detected.");
@@ -107,7 +107,7 @@ namespace Blistructor
         /// If this cut will remove whole jawPossibleLocation line, its is not good, at least if it is not last blister.
         /// </summary>
         /// <param name="updateCutState">If true, CutProposal.State will be updated to CutState.Failed</param>
-        /// <returns></returns>
+        /// <returns>True if any Jaw can occure. False if whole jawPossibleLocation line is removed.</returns>
         public bool CheckJawsExistance(bool updateCutState = true)
         {
             if (CutProposal.State == CutState.Last) return true;

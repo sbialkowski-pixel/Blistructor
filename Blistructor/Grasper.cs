@@ -258,9 +258,9 @@ namespace Blistructor
         /// </summary>
         /// <param name="cutData"></param>
         /// <returns>List of restricted intervals</returns>
-        public static List<Interval> ComputCutImpactInterval(CutData cutData)
+        public static List<Interval> ComputCutImpactInterval(CutData cutData, bool applyJawBoundaries = true)
         {
-            List<BoundingBox> restrictedAreas = ComputeCutImpactAreas(cutData);
+            List<BoundingBox> restrictedAreas = ComputeCutImpactAreas(cutData, applyJawBoundaries);
             List<Interval> restrictedIntervals = new List<Interval>(restrictedAreas.Count);
             foreach (BoundingBox restrictedArea in restrictedAreas)
             {
@@ -277,7 +277,7 @@ namespace Blistructor
         /// </summary>
         /// <param name="cutData"></param>
         /// <returns>List of restricted areas as BBox</returns>
-        public static List<BoundingBox> ComputeCutImpactAreas(CutData cutData)
+        public static List<BoundingBox> ComputeCutImpactAreas(CutData cutData, bool applyJawBoundaries = true)
         {
             // TODO: Add Boundary on each side of BBox to not allow jaw anter this restrictedArea.
             // Thicken paths from cutting data and check how this influence 
@@ -304,24 +304,19 @@ namespace Blistructor
                     // TODO: Check if this condition is ok.
                     if (knifeFootprint == null) continue;
 
-                    /*
-                    List<PolylineCurve> splited = Geometry.SplitRegion(knifeFootprint, cartesianLimitLine).Select(crv => (PolylineCurve)crv).ToList();
-
-                    if (splited.Count != 2) continue;
-
-                    PolylineCurve forFurtherSplit = splited.OrderBy(pline => pline.CenterPoint().Y).Last();
-
-                    splited = Geometry.SplitRegion(forFurtherSplit, upperCartesianLimitLine).Select(crv => (PolylineCurve)crv).ToList();
-
-                    if (splited.Count != 2) continue;
-                    PolylineCurve grasperRestrictedArea = splited.OrderBy(pline => pline.CenterPoint().Y).First();
-                    */
-
                     PolylineCurve region = new PolylineCurve(new List<Point3d> { upperCartesianLimitLine.PointAtStart, upperCartesianLimitLine.PointAtEnd, cartesianLimitLine.PointAtEnd, cartesianLimitLine.PointAtStart, upperCartesianLimitLine.PointAtStart });
 
                     List<Curve> intersect = Curve.CreateBooleanIntersection(region, knifeFootprint);
                     BoundingBox grasperRestrictedAreaBBox = intersect[0].GetBoundingBox(false);
-
+                    if (applyJawBoundaries)
+                    {
+                        Point3d newMin = new Point3d(grasperRestrictedAreaBBox.Min);
+                        newMin.X -= Setups.JawWidth / 2;
+                        grasperRestrictedAreaBBox.Min = newMin;
+                        Point3d newMax = new Point3d(grasperRestrictedAreaBBox.Max);
+                        newMax.X += Setups.JawWidth / 2;
+                        grasperRestrictedAreaBBox.Max = newMax;
+                    }
                     allRestrictedArea.Add(grasperRestrictedAreaBBox);
                 }
             }
@@ -331,7 +326,7 @@ namespace Blistructor
         /// <summary>
         ///  Based on CutData compute total cut impact area intervals.
         /// </summary>
-        /// <param name="cutData"></param>
+        /// <param name="cutData">Base data to compute impact area</param>
         /// <returns></returns>
         public static Interval ComputeTotalCutImpactInterval(CutData cutData, List<Interval> cutImpactIntervals)
         {
@@ -355,36 +350,6 @@ namespace Blistructor
                 impactIntervals.AddRange(cutImpactIntervals);
                 Interval restrictedArea = IntervalsInterval(impactIntervals);
                 return restrictedArea;
-
-
-
-                //Tuple<List<Curve>, List<Curve>> blisterGrasperIntersection = Geometry.TrimWithRegion(limitLine, cutData.Polygon);
-
-                //List<Curve> common = blisterGrasperIntersection.Item2;
-                /*
-                double minX = common.Select(pt => pt.X).Min();
-                double maxX = common.Select(pt => pt.X).Max();
-
-                List<IntersectionEvent> inter = Intersection.CurveCurve(limitLine, cutData.Polygon, Setups.IntersectionTolerance);
-
-                if (inter.Count > 0)
-                {
-                    List<Point3d> interPointsi = inter.Select(iEvent => iEvent.PointA).ToList();
-                    double minX = interPointsi.Select(pt => pt.X).Min();
-                    double maxX = interPointsi.Select(pt => pt.X).Max();
-
-                    Interval range = new Interval(minX, maxX);
-                    range.MakeIncreasing();
-                    Interval restrictedAreaNew = Interval.FromUnion(range, cutImpactIntervals[0]);
-                }
-
-
-                BoundingBox bbox = cutData.Polygon.GetBoundingBox(false);
-                Interval bboxInterval = new Interval(bbox.Min.Y, bbox.Max.Y);
-                Interval restrictedArea = Interval.FromUnion(bboxInterval, cutImpactIntervals[0]);
-                restrictedArea.MakeIncreasing();
-                return restrictedArea;
-                */
             }
             else
             {
@@ -392,9 +357,15 @@ namespace Blistructor
             }
         }
 
-        public static Interval ComputeTotalCutImpactInterval(CutData cutData)
+        /// <summary>
+        /// Based on CutData compute total cut impact area intervals.
+        /// </summary>
+        /// <param name="cutData">Base data to compute impact area</param>
+        /// <param name="applyJawBoundaries">If True, area will be expanded by Setups.JawDepth/2 in both directions</param>
+        /// <returns>Interval where cut has impact.</returns>
+        public static Interval ComputeTotalCutImpactInterval(CutData cutData, bool applyJawBoundaries = true)
         {
-            List<Interval> cutImpactIntervals = ComputCutImpactInterval(cutData);
+            List<Interval> cutImpactIntervals = ComputCutImpactInterval(cutData, applyJawBoundaries);
             return ComputeTotalCutImpactInterval(cutData, cutImpactIntervals);
         }
 
@@ -410,7 +381,7 @@ namespace Blistructor
         public bool IsColliding(CutData cutData, bool updateJaws = true)
         {
             if (updateJaws) UpdateJawsPoints();
-            List<Interval> currentJawsInterval = GetRestrictedIntervals();
+            List<Interval> currentJawsInterval = GetRestrictedIntervals(Setups.JawKnifeAdditionalSafeDistance);
             List<Interval> cutImpactIntervals = ComputCutImpactInterval(cutData);
             return CollisionCheck(currentJawsInterval, cutImpactIntervals);
         }

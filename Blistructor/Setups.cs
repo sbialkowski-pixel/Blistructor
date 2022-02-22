@@ -73,6 +73,8 @@ namespace Blistructor
 
         public static bool TrimBlisterToXAxis = GetEnvironmentVariableWithDefault("TRIM_BLISTER_X_AXIS", true);
 
+        public static double JawKnifeAdditionalSafeDistance = GetEnvironmentVariableWithDefault("JAW_KNIFE_ADDITIONAL_SAFE_DISTANCE", 1.00);
+
         public static double SegmentationScoreTreshold = GetEnvironmentVariableWithDefault("SEGMENTATION_SCORE_TRESHOLD", 0.9);
 
         #endregion
@@ -139,7 +141,7 @@ namespace Blistructor
             List<double> CartesianPivotJawVectorValues = setup.GetValue<List<double>>("cartesianPivotJawVector", new List<double>(){ CartesianPivotJawVector.X, CartesianPivotJawVector.Y });
             CartesianPivotJawVector = new Vector3d(CartesianPivotJawVectorValues[0], CartesianPivotJawVectorValues[1], 0);
             #endregion
-            #region GLOBA COORDINATE SYSTEM
+            #region GLOBAL COORDINATE SYSTEM
             BlisterGlobalSystem = setup.GetValue<string>("blisterGlobalSystem", BlisterGlobalSystem);
 
             List<double> BlisterGlobalValues = setup.GetValue<List<double>>("blisterGlobalPosition", new List<double>() { BlisterGlobal.X, BlisterGlobal.Y });
@@ -149,11 +151,10 @@ namespace Blistructor
             BlisterGlobalPick = new Vector3d(BlisterGlobalPickValues[0], BlisterGlobalPickValues[1], 0);
             #endregion
             #region GENERAL CONTROL
-
             IsoRadius = setup.GetValue<double>("rayLength", IsoRadius);
             MinimumCutOutSize = setup.GetValue<double>("minimumCutOutSize", MinimumCutOutSize);
-
             TrimBlisterToXAxis = setup.GetValue<bool>("trimBlisterToXAxis", TrimBlisterToXAxis);
+            JawKnifeAdditionalSafeDistance = setup.GetValue<double>("jawKnifeAdditionalSafeDistance", JawKnifeAdditionalSafeDistance);
             SegmentationScoreTreshold = setup.GetValue<double>("segmentationScoreTreshold", SegmentationScoreTreshold);
             #endregion
         }

@@ -46,6 +46,8 @@ namespace Blistructor
 
         public Blister Blister { get => Pill.blister; }
 
+        public CutValidator Validator { get; set; }
+
         public List<PolylineCurve> GetPaths()
         {
             List<PolylineCurve> output = new List<PolylineCurve>();

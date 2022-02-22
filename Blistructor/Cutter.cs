@@ -27,7 +27,7 @@ namespace Blistructor
     public class Cutter
     {
         private static readonly ILog log = LogManager.GetLogger("Cutter.PillCutter");
-        private List<CutData> CuttingData { get; set; }
+        //private List<CutData> CuttingData { get; set; }
         private Blister Blister { get; set; }
         private Pill Pill { get; set; }
 
@@ -119,20 +119,20 @@ namespace Blistructor
         }
         */
 
-        public CutProposal TryCut(Pill pillToCut)
+        public CutProposal TryCut(Pill pillToCut, bool useAdvancedMethod = false)
         {
             // Create obstacles (limiters) for cutting process.
             WorkingObstacles = new List<Curve>(FixedObstacles);
             pillToCut.UpdateObstacles();
             WorkingObstacles.AddRange(pillToCut.obstacles);
 
-            CuttingData = new List<CutData>();
+            List<CutData> cuttingData = new List<CutData>();
             Pill = pillToCut;
             log.Info(String.Format("Trying to cut Outline id: {0} with status: {1}", pillToCut.Id, pillToCut.State));
             // If Outline is cut, don't try to cut it again. It suppose to be in chunk blisters list.
             if (pillToCut.State == PillState.Cut)
             {
-                return new CutProposal(pillToCut, CuttingData, CutState.Succeed);
+                return new CutProposal(pillToCut, cuttingData, CutState.Succeed);
             }
 
             // If Outline is not surrounded by other Outline, update data
@@ -140,64 +140,60 @@ namespace Blistructor
             if (pillToCut.adjacentPills.Count == 0)
             {
                 log.Debug("This is last Outline on blister.");
-                return new CutProposal(pillToCut, CuttingData, CutState.Last);
+                return new CutProposal(pillToCut, cuttingData, CutState.Last);
             }
             // If still here, try to cut 
             log.Debug("Perform cutting data generation");
-            // TODO: Change implicit CuttingData filling into explicit
-            if (GenerateSimpleCuttingData_v2())
+            if (useAdvancedMethod) cuttingData = GenerateAdvancedCuttingData();
+            else cuttingData = GenerateSimpleCuttingData_v2();
+            
+            if (cuttingData.Count > 0)
             {
-                return new CutProposal(pillToCut, CuttingData, CutState.Succeed);
+                return new CutProposal(pillToCut, cuttingData, CutState.Succeed);
             }
-            return new CutProposal(pillToCut, CuttingData, CutState.Failed);
+            return new CutProposal(pillToCut, cuttingData, CutState.Failed);
         }
 
         #region CUT STUFF
-        private bool GenerateSimpleCuttingData_v2()
+        private List<CutData> GenerateSimpleCuttingData_v2()
         {
-
             log.Debug(String.Format("Obstacles count {0}", WorkingObstacles.Count));
-            CuttingData = new List<CutData>();
+            List<CutData> cuttingData = new List<CutData>();
             // Stage I - naive Cutting
-
-            PolygonBuilder_v2(GenerateIsoCurvesStage1());
-            log.Info(String.Format(">>>After STAGE_1: {0} cutting possibilities<<<", CuttingData.Count));
-            PolygonBuilder_v2(GenerateIsoCurvesStage2());
-            log.Info(String.Format(">>>After STAGE_2: {0} cutting possibilities<<<", CuttingData.Count));
+            cuttingData.AddRange(PolygonBuilder_v2(GenerateIsoCurvesStage1()));
+            log.Info(String.Format(">>>After STAGE_1: {0} cutting possibilities<<<", cuttingData.Count));
+            cuttingData.AddRange(PolygonBuilder_v2(GenerateIsoCurvesStage2()));
+            log.Info(String.Format(">>>After STAGE_2: {0} cutting possibilities<<<", cuttingData.Count));
             IEnumerable<IEnumerable<LineCurve>> isoLines = GenerateIsoCurvesStage3a(1, 2.0);
             foreach (List<LineCurve> isoLn in isoLines)
             {
-                PolygonBuilder_v2(isoLn);
+                cuttingData.AddRange(PolygonBuilder_v2(isoLn));
             }
             //TODO: Tu mozna sprawdzać kolizję z łapkami dogenerowac niekolizyjne cięcia.
 
             //PolygonBuilder_v2(GenerateIsoCurvesStage3a(1, 2.0));
-            log.Info(String.Format(">>>After STAGE_3: {0} cutting possibilities<<<", CuttingData.Count));
-            if (CuttingData.Count > 0) return true;
-            else return false;
+            log.Info(String.Format(">>>After STAGE_3: {0} cutting possibilities<<<", cuttingData.Count));
+            return cuttingData;
         }
 
-        private bool GenerateAdvancedCuttingData()
+        private List<CutData> GenerateAdvancedCuttingData()
         {
+            List<CutData> cuttingData = new List<CutData>();
             // If all Stages 1-3 failed, start looking more!
-            if (CuttingData.Count == 0)
+            List<List<LineCurve>> isoLinesStage4 = GenerateIsoCurvesStage4(60, Setups.IsoRadius);
+            if (isoLinesStage4.Count != 0)
             {
-                // if (cuttingData.Count == 0){
-                List<List<LineCurve>> isoLinesStage4 = GenerateIsoCurvesStage4(60, Setups.IsoRadius);
-                if (isoLinesStage4.Count != 0)
+                List<List<LineCurve>> RaysCombinations = (List<List<LineCurve>>)isoLinesStage4.CartesianProduct();
+                for (int i = 0; i < RaysCombinations.Count; i++)
                 {
-                    List<List<LineCurve>> RaysCombinations = (List<List<LineCurve>>)isoLinesStage4.CartesianProduct();
-                    for (int i = 0; i < RaysCombinations.Count; i++)
+                    if (RaysCombinations[i].Count > 0)
                     {
-                        if (RaysCombinations[i].Count > 0)
-                        {
-                            PolygonBuilder_v2(RaysCombinations[i]);
-                        }
+                        cuttingData.AddRange(PolygonBuilder_v2(RaysCombinations[i]));
                     }
                 }
+
             }
-            if (CuttingData.Count > 0) return true;
-            else return false;
+            return cuttingData;
         }
 
         #endregion
@@ -363,8 +359,9 @@ namespace Blistructor
         /// Generates closed polygon around Outline based on rays (cutters) combination
         /// </summary>
         /// <param name="rays"></param>
-        private void PolygonBuilder_v2(List<LineCurve> rays)
+        private List<CutData> PolygonBuilder_v2(List<LineCurve> rays)
         {
+            List<CutData> cuttingData = new List<CutData>();
             // Trim incoming rays and build current working full ray aray.
             List<LineCurve> trimedRays = new List<LineCurve>(rays.Count);
             List<LineCurve> fullRays = new List<LineCurve>(rays.Count);
@@ -436,9 +433,11 @@ namespace Blistructor
                     //cutData.TrimmedIsoRays = currentTimmedIsoRays;
                     cutData.IsoSegments = currentFullIsoRays;
                     cutData.Obstacles = WorkingObstacles;
-                    CuttingData.Add(cutData);
+                    cuttingData.Add(cutData);
                 }
+
             }
+            return cuttingData;
         }
 
         /// <summary>
