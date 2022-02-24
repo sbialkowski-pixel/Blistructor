@@ -8,6 +8,32 @@ namespace Combinators
 {
     public static class Combinators
     {
+
+        /// <summary>
+        /// Get all unique combination of items from seperate lists.
+        /// </summary>
+        /// <typeparam name="T">Object Type</typeparam>
+        /// <param name="inputList">List of List to make combinations</param>
+        /// <param name="minimumItems">Number of minimum combinations. Default :1 </param>
+        /// <param name="maximumItems">Number of minimum combinations. Default: int.MaxValue which is inputList.Count in real. </param>
+        /// <returns></returns>
+        public static List<List<T>> UniqueCombinations<T>(List<List<T>> inputList, int minimumItems = 1, int maximumItems = int.MaxValue)
+        {
+            int outCapacity = inputList.Aggregate(0, (total, next) => total * next.Count());
+            List<List<T>> all_com = new List<List<T>>(outCapacity);
+            int minItems = Math.Max(1,minimumItems);
+            int maxItems = Math.Min(maximumItems, inputList.Count) ;
+            List<List<int>> listIndexCombination = UniqueCombinations(Enumerable.Range(0, inputList.Count()).ToList(), minItems, maxItems);
+
+            foreach (List<int> combInd in listIndexCombination)
+            {
+                List<List<T>> subComb = new List<List<T>>(combInd.Count);
+                combInd.ForEach(ind => subComb.Add(inputList[ind]));
+                List<List<T>> combinations = (List<List<T>>)subComb.CartesianProduct();
+                all_com.AddRange(combinations);
+            }
+            return all_com;
+        }
         public static List<List<T>> UniqueCombinations<T>(List<T> inputList, int minimumItems = 1, int maximumItems = int.MaxValue)
         {
             int nonEmptyCombinations = (int)Math.Pow(2, inputList.Count) - 1;
@@ -76,6 +102,20 @@ namespace Combinators
                   _ => localSequence,
                   (seq, item) => seq.Concat(new[] { item }).ToList()
                 ).ToList();
+            }
+            return result;
+        }
+
+        public static IEnumerable<IEnumerable<T>> CartesianProduct2<T>
+(this IEnumerable<T> firstSequence, params IEnumerable<T>[] sequences)
+        {
+            IEnumerable<IEnumerable<T>> result = new[] { Enumerable.Empty<T>() };
+
+            foreach (IEnumerable<T> sequence in (new[] { firstSequence }).Concat(sequences))
+            {
+                result = from resultItem in result
+                         from sequenceItem in sequence
+                         select resultItem.Concat(new[] { sequenceItem });
             }
             return result;
         }
