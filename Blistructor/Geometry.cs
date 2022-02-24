@@ -13,6 +13,7 @@ using Rhino.Geometry.Intersect;
 using ExtraMath = Rhino.RhinoMath;
 #endif
 
+using log4net;
 using Diagrams;
 //using Voronoi = Diagrams.Voronoi;
 //using Delaunay = Diagrams.Delaunay;
@@ -22,6 +23,7 @@ namespace Blistructor
 {
     public static class Geometry
     {
+        private static readonly ILog log = LogManager.GetLogger("Cutter.Geometry");
         //TODO: SnapToPoints could not check only point-point realtion but also point-curve... to investigate
         //public static PolylineCurve SnapToPoints_v2(PolylineCurve moving, PolylineCurve stationary, double tolerance)
         //{
@@ -259,6 +261,12 @@ namespace Blistructor
             return allIntersections;
         }
 
+        /// <summary>
+        /// Split curve by region (closed Curve)
+        /// </summary>
+        /// <param name="crv">Curve to Split by region</param>
+        /// <param name="region">Region to split curve by</param>
+        /// <returns>Tuple with Insied,Ousied curves, if failed, null</returns>
         public static Tuple<List<Curve>, List<Curve>> TrimWithRegion(Curve crv, Curve region)
         {
             List<Curve> inside = new List<Curve>();
@@ -278,14 +286,24 @@ namespace Blistructor
                     foreach (Curve part_crv in splitedCrv)
                     {
                         Point3d testPt = part_crv.PointAtNormalizedLength(0.5);
-                        PointContainment result = region.Contains(testPt, Plane.WorldXY, 0.000001);
-                        if (result == PointContainment.Inside) inside.Add(part_crv);
-                        else if (result == PointContainment.Outside) outside.Add(part_crv);
-                        else if (result == PointContainment.Unset) throw new InvalidOperationException("Unset");
-                        else
+                        PointContainment result = region.Contains(testPt, Plane.WorldXY, Setups.ColinearTolerance);
+                        switch (result)
                         {
-
-                            throw new InvalidOperationException(String.Format("Trim Failed- {0}", result.ToString()));
+                            case PointContainment.Inside:
+                                inside.Add(part_crv);
+                                break;
+                            case PointContainment.Outside:
+                                outside.Add(part_crv);
+                                break;
+                            case PointContainment.Unset:
+                                log.Warn("Trim Failed on Split - Unset returned");
+                                return null;
+                            case PointContainment.Coincident:
+                                log.Warn("Trim Failed on Split - Coincident returned");
+                                return null;
+                            default:
+                                log.Warn(String.Format("Trim Failed on Split - {0}", result.ToString()));
+                                return null;
                         }
                     }
                 }
@@ -296,10 +314,24 @@ namespace Blistructor
             {
                 Point3d testPt = crv.PointAtNormalizedLength(0.5);
                 PointContainment result = region.Contains(testPt, Plane.WorldXY, Setups.IntersectionTolerance);
-                if (result == PointContainment.Inside) inside.Add(crv);
-                else if (result == PointContainment.Outside) outside.Add(crv);
-                else if (result == PointContainment.Unset) throw new InvalidOperationException("Unset");
-                else throw new InvalidOperationException("Trim Failed");
+                switch (result)
+                {
+                    case PointContainment.Inside:
+                        inside.Add(crv);
+                        break;
+                    case PointContainment.Outside:
+                        outside.Add(crv);
+                        break;
+                    case PointContainment.Unset:
+                        log.Warn("Trim Failed on Split - Unset returned");
+                        return null;
+                    case PointContainment.Coincident:
+                        log.Warn("Trim Failed on Split - Coincident returned");
+                        return null;
+                    default:
+                        log.Warn(String.Format("Trim Failed on Split - {0}", result.ToString()));
+                        return null;
+                }
             }
             return Tuple.Create(inside, outside);
         }
