@@ -12,6 +12,7 @@
 *.3dm
 *.3dmbak
 *.gh
+*.rhl
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
