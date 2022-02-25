@@ -463,6 +463,21 @@ namespace Blistructor
             return HasPlaceForJaw(pill.Voronoi);
         }
 
+        public bool HasPlaceForJawInCutContext(CutData cutData)
+        {
+            List<Interval> futureJawPosibleIntervals = Grasper.ApplyCutOnGrasperLocation(GetJawPossibleIntervals(), cutData);
+            // This cut is not influancing grasper.
+            if (futureJawPosibleIntervals == null) return false;
+            List<LineCurve> futureJawPosibleLocation = Grasper.ConvertIntervalsToLines(futureJawPosibleIntervals);
+            if (!Grasper.HasPlaceForJaw(futureJawPosibleLocation, cutData.Polygon))
+            {
+                log.Warn("This cut failed: Current cut has no place for Jaw.");
+                return false;
+            }
+            return true;
+        }
+
+
         /// <summary>
         /// Check if any Jaw is associated with this cutData.
         /// As check area, Polygon is used.

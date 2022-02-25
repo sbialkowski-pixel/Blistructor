@@ -94,8 +94,6 @@ namespace Blistructor
 
                     Cutter cutter = new Cutter(Grasper.GetCartesianAsObstacle());
                     CutProposal cutProposal;
-                    bool useAdvencedMode = false;
-                    // CutValidator validator = null;
 
                     // Eech cut, update Jaws.
                     Grasper.UpdateJawsPoints();
@@ -103,6 +101,8 @@ namespace Blistructor
                     while (true)
                     {
                         cutProposal = cutter.CutNext(blisterToCut);
+                        //GET PROPOSAL
+                        // Moze trzeba zamienic GetNextSuccessfulCut i CutNextAdvanced miejscami>
                         if (cutProposal == null)
                         {
                             //All pills are cut, lower requerments (try cut fixed pills where jaws can occure)
@@ -120,22 +120,20 @@ namespace Blistructor
                                     log.Error("!!!Cannot cut blister anymore!!!");
                                     return CuttingState.CTR_FAILED;
                                 }
-                                else
-                                {
-                                    cutProposal.Validator = new CutValidator(cutProposal, Grasper);
-                                }
                             }
                         }
                         else if (cutProposal.State != CutState.Last)
                         {
-                            cutProposal.Validator = new CutValidator(cutProposal, Grasper);
                             // Checking only Pill which are not fixed by Jaw and cut data allows to grab it no collisions)
-                            if (Grasper.ContainsJaw(cutProposal.BestCuttingData) && cutProposal.Validator.CheckJawExistanceInCut(updateCutState: false)) continue;
+                            if (Grasper.ContainsJaw(cutProposal.BestCuttingData) && Grasper.HasPlaceForJawInCutContext(cutProposal.BestCuttingData)) continue;
                         }
+                        //TODO: Tutaj trzeba zrobić jeszcze jednego whila który bedzie leciał po porozycjach w listy cutProposal.CuttingData. 
+                        //I dopiero jak to się wyczerpie, to lecimy z dalej z koksem.
+                        // else if ten u gory jest problemem.
 
                         if (cutProposal.State != CutState.Last)
                         {
-
+                            cutProposal.Validator = new CutValidator(cutProposal, Grasper);
                             if (!cutProposal.Validator.CheckConnectivityIntegrityInLeftovers(updateCutState: true)) continue;
                             if (cutProposal.Validator.HasCutAnyImpactOnJaws)
                             {

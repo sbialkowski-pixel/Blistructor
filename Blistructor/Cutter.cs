@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Linq;
 using System.IO;
 using System.Threading.Tasks;
@@ -198,25 +199,54 @@ namespace Blistructor
 
         private List<CutData> GenerateAdvancedCuttingData(int samples = 30)
         {
-            List<CutData> cuttingData = new List<CutData>();
+            ConcurrentBag<CutData> cuttingData = new ConcurrentBag<CutData>();
+            // List<CutData> cuttingData = new List<CutData>();
             // If all Stages 1-3 failed, start looking more!
             List<List<LineCurve>> isoLinesStage4 = GenerateIsoCurvesStage4(samples, Setups.IsoRadius);
             if (isoLinesStage4.Count != 0)
             {
-                List<List<LineCurve>> RaysCombinations = (List<List<LineCurve>>)isoLinesStage4.CartesianProduct();
+                //TODO: Chyba są tu robione kombinacje z powtórkami! ALe nie jestem pewny. 
+               // List<List<LineCurve>> RaysCombinations = (List<List<LineCurve>>)isoLinesStage4.CartesianProduct();
 
-                //   for (int i = 0; i < RaysCombinations.Count; i++)
-                Parallel.ForEach(RaysCombinations, RaysCombination =>
+                List<List<LineCurve>> RaysCombinations = Combinators.Combinators.UniqueCombinations(isoLinesStage4);
+               //   for (int i = 0; i < RaysCombinations.Count; i++)
+               Parallel.ForEach(RaysCombinations, RaysCombination =>
                 {
-
                     if (RaysCombination.Count > 0)
                     {
-                        cuttingData.AddRange(PolygonBuilder_v2(RaysCombination));
+                        List<CutData> currentCuttingData = PolygonBuilder_v2(RaysCombination, use_all_combinations:false);
+                        foreach (CutData data in currentCuttingData) cuttingData.Add(data);
                     }
                 });
 
             }
-            return cuttingData;
+            List<CutData> cuttingDataList = cuttingData.ToList();
+            //DEBUG - SAVE FILE:
+            Random rnd = new Random();
+            int id = rnd.Next(0, 1000);
+            String path = String.Format("D:\\PIXEL\\Blistructor\\DebugModels\\AdvancedCut_{0}.3dm", id);
+            File3dm file = new File3dm();
+
+            Layer l_polygon = new Layer();
+            l_polygon.Name = "polygon";
+            l_polygon.Index = 0;
+            file.AllLayers.Add(l_polygon);
+            Layer l_lines = new Layer();
+            l_lines.Name = "lines";
+            l_lines.Index = 1;
+            file.AllLayers.Add(l_lines);
+
+            ObjectAttributes a_polygon = new ObjectAttributes();
+            a_polygon.LayerIndex = l_polygon.Index;
+            cuttingDataList.ForEach(cData => file.Objects.AddCurve(cData.Polygon, a_polygon));
+            
+            ObjectAttributes a_lines = new ObjectAttributes();
+            a_lines.LayerIndex = l_lines.Index;
+            isoLinesStage4.ForEach(list => list.ForEach(l => file.Objects.AddCurve(l,  a_lines)));
+
+            file.Write(path, 6);
+            // END DEBUG
+            return cuttingDataList;
         }
 
         #endregion
@@ -310,6 +340,7 @@ namespace Blistructor
             return (List<List<LineCurve>>)Combinators.Combinators.CartesianProduct(isoLines);
         }
 
+        
         private List<List<LineCurve>> GenerateIsoCurvesStage4(int count, double radius)
         {
             // Obstacles need to be calculated or updated earlier
@@ -318,26 +349,22 @@ namespace Blistructor
             {
                 Circle cir = new Circle(Pill.samplePoints[i], radius);
                 List<LineCurve> iLines = new List<LineCurve>();
-                IEnumerable<double> parts = Enumerable.Range(0, 30).Select(x => x * ((Math.PI) / 29));
+                IEnumerable<double> parts = Enumerable.Range(0, count).Select(x => x * ((Math.PI) / count-1));
                 List<Point3d> pts = parts.Select(part => cir.PointAt(part)).ToList();
 
-
-                //ArcCurve arc = new ArcCurve(new Arc(cir, new Interval(0, Math.PI)));
-                //double[] t = arc.DivideByCount(count, false);
                 for (int j = 0; j < pts.Count; j++)
-                // for (int j = 0; j < t.Length; j++)
                 {
-                    //Point3d Pt = arc.PointAt(t[j]);
                     Point3d Pt = pts[j];
                     LineCurve ray = Geometry.GetIsoLine(Pill.samplePoints[i], Pt - Pill.samplePoints[i], Setups.IsoRadius, WorkingObstacles);
                     if (ray != null)
                     {
-                        LineCurve t_ray = TrimIsoCurve(ray);
+                        iLines.Add(ray);
+                        //ineCurve t_ray = TrimIsoCurve(ray);
                         //LineCurve t_ray = TrimIsoCurve(ray, samplePoints[i]);
-                        if (t_ray != null)
-                        {
-                            iLines.Add(t_ray);
-                        }
+                        //if (t_ray != null)
+                        //{
+                        //    iLines.Add(t_ray);
+                        // }
                     }
                 }
                 isoLines.Add(iLines);
@@ -373,6 +400,7 @@ namespace Blistructor
             //  log.Debug("Ray not null");
             Geometry.FlipIsoRays(Pill.OrientationCircle, ray);
             Tuple<List<Curve>, List<Curve>> result = Geometry.TrimWithRegion(ray, Pill.blister.Outline);
+            if (result == null) return null;
             if (result.Item1.Count < 1) return outLine;
             // log.Debug("After trimming.");
             foreach (Curve crv in result.Item1)
@@ -388,9 +416,9 @@ namespace Blistructor
         /// Generates closed polygon around Outline based on rays (cutters) combination
         /// </summary>
         /// <param name="rays"></param>
-        private List<CutData> PolygonBuilder_v2(List<LineCurve> rays)
+        private List<CutData> PolygonBuilder_v2(List<LineCurve> rays, bool use_all_combinations = true)
         {
-            List<CutData> cuttingData = new List<CutData>();
+            
             // Trim incoming rays and build current working full ray aray.
             List<LineCurve> trimedRays = new List<LineCurve>(rays.Count);
             List<LineCurve> fullRays = new List<LineCurve>(rays.Count);
@@ -400,16 +428,20 @@ namespace Blistructor
                 if (trimed_ray == null) continue;
                 trimedRays.Add(trimed_ray);
                 fullRays.Add(ray);
-                //  file.Objects.AddCurve(trimed_ray);
-                // file.Objects.AddLine(ray.Line);
             }
             if (trimedRays.Count != rays.Count) log.Warn("After trimming there is less rays!");
 
             List<int> raysIndicies = Enumerable.Range(0, trimedRays.Count).ToList();
 
             //Generate Combinations array
-            List<List<int>> raysIndiciesCombinations = Combinators.Combinators.UniqueCombinations(raysIndicies, 1);
+            int minCombinations;
+            if (use_all_combinations) minCombinations = 1;
+            else minCombinations = rays.Count;
+            List<List<int>> raysIndiciesCombinations = Combinators.Combinators.UniqueCombinations(raysIndicies, minCombinations);
             log.Debug(String.Format("Building cut data from {0} rays organized in {1} combinations", trimedRays.Count, raysIndiciesCombinations.Count));
+
+            List<CutData> cuttingData = new List<CutData>();
+
             // Loop over combinations even with 1 ray
             foreach (List<int> combinationIndicies in raysIndiciesCombinations)
             //for (int combId = 0; combId < raysIndiciesCombinations.Count; combId++)
@@ -422,7 +454,6 @@ namespace Blistructor
                     currentTimmedIsoRays.Add(trimedRays[combinationIndex]);
                     currentFullIsoRays.Add(fullRays[combinationIndex]);
                     pLinecurrentTimmedIsoRays.Add(new PolylineCurve(new List<Point3d>() { trimedRays[combinationIndex].Line.From, trimedRays[combinationIndex].Line.To }));
-
                 }
 
                 log.Debug(String.Format("STAGE 1: Checking {0} rays.", currentTimmedIsoRays.Count));
@@ -433,15 +464,13 @@ namespace Blistructor
                 CutData afterVerificationSeperate = VerifyPath(pLinecurrentTimmedIsoRays);
                 localCutData.Add(afterVerificationSeperate);
                 log.Debug(String.Format("STAGE 1: Pass. {0}", afterVerificationSeperate != null ? "Cut FOUND" : "Cut NOT found"));
-                //log.Debug(String.Format("RAYS KURWA : {0}", combinations[combId].Count));
                 // STAGE 2: Looking for 1 (ONE) continouse cutpath...
                 // Generate Continouse Path, If there is one curve in combination, PathBuilder will return that curve, so it can be checked.
                 PolylineCurve curveToCheck = PathBuilder(currentTimmedIsoRays);
 
-                // If PathBuilder retun any curve... (ONE)
+                // If PathBuilder return any curve... (ONE)
                 if (curveToCheck != null)
                 {
-                    //  file.Objects.AddCurve(curveToCheck);
                     // Remove very short segments
                     Polyline pLineToCheck = curveToCheck.ToPolyline();
                     //pLineToCheck.DeleteShortSegments(Setups.CollapseTolerance);
@@ -455,10 +484,9 @@ namespace Blistructor
                     log.Debug(String.Format("STAGE 2: Pass. {0}", afterVerificationSeperate != null ? "Cut FOUND" : "Cut NOT found"));
                 }
 
-
                 foreach (CutData cutData in localCutData)
                 {
-                    if (cutData == null) continue;
+                    if (cutData is null) continue;
                     //cutData.TrimmedIsoRays = currentTimmedIsoRays;
                     cutData.IsoSegments = currentFullIsoRays;
                     cutData.Obstacles = WorkingObstacles;
