@@ -272,41 +272,47 @@ namespace Blistructor
 
         #region SORTS
         /// <summary>
-        /// Z-Ordering, Descending
+        /// Z-Ordering.
+        ///<param name="descending">If true, pills will be sorted descending.</param>
         /// </summary>
-        public void SortPillsByCoordinates(bool reverse)
+        public void SortPillsByCoordinates(bool descending)
         {
             pills = pills.OrderBy(pill => pill.CoordinateIndicator).ToList();
-            if (reverse) pills.Reverse();
+            if (descending) pills.Reverse();
         }
 
-        public void SortPillsByPointDirection(Point3d pt, bool reverse)
+        /// <summary>
+        /// Sort Pills based on external Point (pt). By default, sorting is done ascending prioritizing Y direction. 
+        /// </summary>
+        /// <param name="pt">Point of reference.</param>
+        /// <param name="descending">If true, pills will be sorted descending.</param>
+        public void SortPillsByPointDirection(Point3d pt, bool descending)
         {
             pills = pills.OrderBy(pill => pill.GetDirectionIndicator(pt)).ToList();
-            if (reverse) pills.Reverse();
+            if (descending) pills.Reverse();
         }
 
-        public void SortPillsByPointDistance(Point3d pt, bool reverse)
+        public void SortPillsByPointDistance(Point3d pt, bool descending)
         {
             pills = pills.OrderBy(pill => pill.GetDistance(pt)).ToList();
-            if (reverse) pills.Reverse();
+            if (descending) pills.Reverse();
         }
-        public void SortPillsByPointsDistance(List<Point3d> pts, bool reverse)
+        public void SortPillsByPointsDistance(List<Point3d> pts, bool descending)
         {
             pills = pills.OrderBy(pill => pill.GetClosestDistance(pts)).ToList();
-            if (reverse) pills.Reverse();
+            if (descending) pills.Reverse();
         }
 
-        public void SortPillsByCurveDistance(Curve crv, bool reverse)
+        public void SortPillsByCurveDistance(Curve crv, bool descending)
         {
             pills = pills.OrderBy(pill => pill.GetDistance(crv)).ToList();
-            if (reverse) pills.Reverse();
+            if (descending) pills.Reverse();
         }
 
-        public void SortPillsByCurvesDistance(List<Curve> crvs, bool reverse)
+        public void SortPillsByCurvesDistance(List<Curve> crvs, bool descending)
         {
             pills = pills.OrderBy(pill => pill.GetClosestDistance(crvs)).ToList();
-            if (reverse) pills.Reverse();
+            if (descending) pills.Reverse();
         }
 
         #endregion
