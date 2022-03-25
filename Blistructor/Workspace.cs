@@ -10,8 +10,6 @@ using Rhino.Geometry;
 using log4net;
 
 // TODO: -WIP-: Przejechanie wszystkich blistrów i sprawdzenie jak działa -> szukanie błedów
-// TODO: AdvancedCutting -> blister 19.
-// TODO: -WIP-: Adaptacyjna kolejność ciecia - po każdej wycietej tabletce, nalezało by przesortowac cell tak aby wubierał najbliższe - Nadal kolejnosc ciecia jest do kitu ...
 // TODO: "ładne" logowanie produkcyjne jak i debugowe.
 
 
@@ -109,127 +107,22 @@ namespace Blistructor
             cuttingResult["pillsCutted"] = cutter.Chunks.Count;
             cuttingResult["jawsLocation"] = cutter.Grasper.GetJSON();
             // If all alright, populate by cutting data
-            if (status == CuttingState.CTR_SUCCESS)
+            //if (status == CuttingState.CTR_SUCCESS)
+            //{
+            JArray allCuttingInstruction = new JArray();
+            JArray allDisplayInstruction = new JArray();
+            foreach (CutBlister bli in cutter.Chunks)
             {
-                JArray allCuttingInstruction = new JArray();
-                JArray allDisplayInstruction = new JArray();
-                foreach (CutBlister bli in cutter.Chunks)
-                {
-                    allCuttingInstruction.Add(bli.GetJSON(cutter.Grasper));
-                    allDisplayInstruction.Add(bli.GetDisplayJSON(cutter.Grasper));
-                }
-                cuttingResult["cuttingData"] = allCuttingInstruction;
-                cuttingResult["displayData"] = allDisplayInstruction;
+                allCuttingInstruction.Add(bli.GetJSON(cutter.Grasper));
+                allDisplayInstruction.Add(bli.GetDisplayJSON(cutter.Grasper));
             }
+            cuttingResult["cuttingData"] = allCuttingInstruction;
+            cuttingResult["displayData"] = allDisplayInstruction;
+           // }
             return cuttingResult;
         }
 
-        /*
-        private CuttingState PerformCut()
-        {
-            // Check if blister is correctly allign
-            if (!anchor.IsBlisterStraight(Setups.MaxBlisterPossitionDeviation)) return CuttingState.CTR_WRONG_BLISTER_POSSITION;
-            log.Info(String.Format("=== Start Cutting ==="));
-            int initialPillCount = Queue[0].Pills.Count;
-            if (Queue[0].ToTight) return CuttingState.CTR_TO_TIGHT;
-            if (Queue[0].LeftPillsCount == 1) return CuttingState.CTR_ONE_PILL;
-            if (!anchor.ApplyAnchorOnBlister()) return CuttingState.CTR_ANCHOR_LOCATION_ERR;
 
-            int n = 0; // control
-                       // Main Loop
-            while (Queue.Count > 0)
-            {
-                //if (n > mainLimit && mainLimit != -1) break;
-                // Extra control to not loop forever...
-                if (n > initialPillCount + loopTolerance) break;
-                log.Info(String.Format(String.Format("<<<<<<Blisters Count: Queue: {0}, Cutted {1}>>>>>>>>>>>>>>>>>>>>>>>>", Queue.Count, Cutted.Count)));
-                // InnerLoop - Queue Blisters
-
-                for (int i = 0; i < Queue.Count; i++)
-                {
-                    Blister subBlister = Queue[i];
-                    log.Info(String.Format("{0} pills left to cut on on Blister:{1}", subBlister.Pills.Count, i));
-                    if (subBlister.IsDone)
-                    {
-                        log.Info("Blister is already cutted or is to tight for cutting.");
-                        continue;
-                    }
-                    // In tuple I have | CutOut Blister | Current Updated Blister | Extra Blisters to Cut (recived by spliting currentBlister) 
-                    BlisterCutter cutter = new BlisterCutter(subBlister);
-                    BlisterCutProposal cutProposal;
-                    try
-                    {
-                        cutProposal = cutter.CutNext(onlyAnchor: false);
-                    }
-                    catch (Exception ex)
-                    {
-                        log.Error("!!!Cannot cut blister Anymore!!!");
-                        return CuttingState.CTR_FAILED;
-                    }
-                    
-                    if (cutProposal.HasGrasperCollisions())
-                    {
-                        subBlister.RemoveCollision(BlisterCutProposals);
-                        cutProposal = cutter.CutNext(onlyAnchor: true);
-                    }
-                    cutProposal.Approve();
-
-                    //CutResult result = subBlister.CutNext();
-                    //log.Debug(String.Format("Cutting Result: Cutout: {0} - Current Blister {1} - New Blisters {2}.", result.CutOut, result.Current, result.ExtraBlisters.Count));
-                    // If anything was cutted, add to list
-                    if (cutProposal.CutOut != null)
-                    {
-                        Pill cuttedPill = cutProposal.CutOut.Pills[0];
-                        if (!cuttedPill.IsAnchored)
-                        {
-                            log.Debug("Anchor - Update Pred Line");
-
-                            anchor.Update(cutProposal.CutOut);
-                        }
-                        if (cuttedPill.IsAnchored && cuttedPill.State != PillState.Alone && CuttablePillsLeft == 2) anchor.FindNewAnchorAndApplyOnBlister(result.CutOut);
-                        log.Debug("Adding new CutOut subBlister to Cutted list");
-                        Cutted.Add(cutProposal.CutOut);
-                    }
-                    else
-                    {
-                        log.Error("!!!Cannot cut blister Anymore!!!");
-                        return CuttingState.CTR_FAILED;
-                    }
-                    // override current bluster, if null , remove it from Queue list
-                    if (result.Current == null)
-                    {
-                        log.Info("Current subBlister is empty. Removing from Queue");
-                        Queue.RemoveAt(i);
-                        i--;
-                        break;
-                    }
-                    else
-                    {
-                        log.Debug("Updating subBlister");
-                        subBlister = result.Current;
-                        // Sort Pills by last Knife Possition -> Last Pill Centre
-                        // Point3d lastKnifePossition = Cutted.Last().Cells[0].bestCuttingData.GetLastKnifePossition();
-                        Point3d lastKnifePossition = Cutted.Last().Pills[0].PillCenter;
-                        if (lastKnifePossition.X != double.NaN) subBlister.SortPillsByPointDirection(lastKnifePossition, false);
-                        //if (lastKnifePossition.X != double.NaN) subBlister.SortCellsByCoordinates(true);
-
-                    }
-                    // Add extra blsters if any was created
-                    if (result.ExtraBlisters.Count != 0)
-                    {
-                        log.Debug("Adding new subBlister(s) to Queue");
-                        Queue.AddRange(result.ExtraBlisters);
-                        break;
-                    }
-
-                }
-                n++;
-            }
-
-            if (initialPillCount == Cutted.Count) return CuttingState.CTR_SUCCESS;
-            else return CuttingState.CTR_FAILED;
-        }
-        */
 
         private JObject PrepareStatus(CuttingState stateCode, string message = "")
         {
@@ -274,13 +167,11 @@ namespace Blistructor
             return new Tuple<JObject, JArray>(data.GetValue<JObject>("setup", null), data.GetValue<JArray>("content", null));
         }
 
-        //TODO: Dodanie thresholda do segmentacji. Tutaj albo w UdoneVision.
         public Tuple<PolylineCurve, List<PolylineCurve>> GetContursBasedOnJSON(JArray content, Dictionary<string, string> jsonCategoryMap)
         {
-            //JArray data = JArray.Parse(json);
             if (content.Count == 0)
             {
-                string message = String.Format("JSON - Input JSON contains no data, or data are not Array type");
+                string message = string.Format("JSON - Input JSON contains no data, or data are not Array type");
                 log.Error(message);
                 throw new NotSupportedException(message);
             }
@@ -290,6 +181,10 @@ namespace Blistructor
 
             foreach (JObject obj_data in content)
             {
+                // Check detected object score, if is lower then ScoreThreshold, omit this contour.
+                if ((double)obj_data["score"] < Setups.SegmentationScoreTreshold) continue;
+
+                //Build contours
                 JArray contours = (JArray)obj_data["contours"];
                 // Can be more then one contour, MaskRCNN can detect small shit withing bboxes, so have to remove them by filtering areas. 
                 List<Polyline> tempContours = new List<Polyline>();
@@ -306,29 +201,18 @@ namespace Blistructor
                 }
                 if (tempContours.Count == 0)
                 {
-                    string message = String.Format("JSON - None closed polyline for contour set. Incorrect contour data.");
+                    string message = string.Format("JSON - None closed polyline for contour set. Incorrect contour data.");
                     log.Error(message);
                     throw new InvalidOperationException(message);
                 }
+                // Filtering areas
                 Polyline finalPline = tempContours.OrderByDescending(contour => contour.Area()).First();
-
-
-                // If more the one contours or zero per category, return error;
-                /*if (contours.Count != 1)
-                {
-                    string message = String.Format("JSON - Found {0} contours per object. Only one contour per object allowed", contours.Count);
-                    log.Error(message);
-                    throw new InvalidOperationException(message);
-                }
-                */
-
-
 
                 if ((string)obj_data["category"] == jsonCategoryMap["Outline"]) pills.Add(finalPline.ToPolylineCurve());
                 else if ((string)obj_data["category"] == jsonCategoryMap["blister"]) blister.Add(finalPline.ToPolylineCurve());
                 else
                 {
-                    string message = String.Format("JSON - Incorrect category for countour");
+                    string message = string.Format("JSON - Incorrect category for countour");
                     log.Error(message);
                     throw new InvalidOperationException(message);
                 }
@@ -336,7 +220,7 @@ namespace Blistructor
 
             if (blister.Count != 1)
             {
-                string message = String.Format("JSON - {0} blister objects found! Need just one object.", blister.Count);
+                string message = string.Format("JSON - {0} blister objects found! Need just one object.", blister.Count);
                 log.Error(message);
                 throw new NotSupportedException(message);
             }
