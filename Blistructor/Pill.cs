@@ -100,7 +100,7 @@ namespace Blistructor
         {
             get
             {
-                return Center.X + Center.Y * 100;
+                return Center.X + (Center.Y * 10);
             }
         }
 
@@ -126,7 +126,7 @@ namespace Blistructor
         public double GetDirectionIndicator(Point3d pt)
         {
             Vector3d vec = pt - this.Center;
-            return Math.Abs(vec.X) + Math.Abs(vec.Y) * 100;
+            return Math.Abs(vec.X) + Math.Abs(vec.Y) * 10;
         }
         public double GetDistance(Point3d pt)
         {
@@ -285,6 +285,8 @@ namespace Blistructor
         public void UpdateObstacles()
         {
             obstacles = BuildObstacles_v2();
+            // Add extra offset 
+           //obstacles = obstacles.Select(outline => outline.Offset(Plane.WorldXY, Setups.BladeTol)).ToList();
         }
         private List<Curve> BuildObstacles_v2()
         {
@@ -345,7 +347,6 @@ namespace Blistructor
 
         public JObject GetJSON()
         {
-            // TODO: Move this all stuff connected with JSON to JawPoint! 
             // Point3d Jaw1_Local = Anchors[0].Location;
             //Get JAW2
             //Jaw1_Local = Anchors.Where(anchor => anchor.Orientation == JawSite.JAW_2).First().Location;
