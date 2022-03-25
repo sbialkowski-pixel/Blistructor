@@ -40,7 +40,7 @@ namespace Blistructor
             CutProposal = cutProposal;
             Grasper = grasper;
             CurrentJawPosibleIntervals = Grasper.GetJawPossibleIntervals();
-            CutImpactIntervals = Grasper.ComputCutImpactInterval(CutProposal.BestCuttingData, applyJawBoundaries:true);
+            CutImpactIntervals = Grasper.ComputCutImpactInterval(CutProposal.BestCuttingData, applyJawBoundaries: true);
             BlisterImpactInterval = Grasper.ComputeTotalCutImpactInterval(CutProposal.BestCuttingData, CutImpactIntervals);
         }
 
@@ -141,6 +141,25 @@ namespace Blistructor
             }
             return true;
         }
+
+        public bool CheckJawLimitVoilations(bool updateCutState = true)
+        {
+            List<Interval> futureJawPosibleIntervals = Grasper.ApplyCutOnGrasperLocation(CurrentJawPosibleIntervals, CutProposal.BestCuttingData);
+            // This cut is not influancing grasper.
+            if (futureJawPosibleIntervals == null) return false;
+
+            List<JawPoint> newJaws = Grasper.FindJawPoints(futureJawPosibleIntervals);
+
+            double xLocation = newJaws.Select(jaw => jaw.Location.X).Min();
+            if (xLocation > Setups.CartesianJawYLimit)
+            {
+                log.Warn("This cut failed: Jaw2: max Y Limit voilation.");
+                if (updateCutState) CutProposal.State = CutState.Failed;
+                return false;
+            }
+            return true;
+        }
+
         /// <summary>
         /// Check if after applying cut, CutBLister can handle any Jaw.
         /// This is to check if second last piece can be hold by any Jaw.
@@ -149,10 +168,23 @@ namespace Blistructor
         /// <returns>True if Jaw can exist on this chuck after applying cut</returns>
         public bool CheckJawExistanceInCut(bool updateCutState = true)
         {
-            List<Interval> futureJawPosibleIntervals = Grasper.ApplyCutOnGrasperLocation(CurrentJawPosibleIntervals, CutProposal.BestCuttingData);
-            // This cut is not influancing grasper.
-            if (futureJawPosibleIntervals == null) return false;
-            List<LineCurve> futureJawPosibleLocation = Grasper.ConvertIntervalsToLines(futureJawPosibleIntervals);
+            List<Interval> grasperIntervals = Grasper.GetJawPossibleIntervals();
+
+            foreach (Interval cutImpact in CutImpactIntervals)
+            {
+                List<Interval> remainingGraspersLocation = new List<Interval>(grasperIntervals.Count);
+
+                foreach (Interval currentGraspersLocation in grasperIntervals)
+                {
+                    remainingGraspersLocation.AddRange(Interval.FromSubstraction(currentGraspersLocation, cutImpact).Where(interval => interval.Length > 0).ToList());
+                }
+                grasperIntervals = remainingGraspersLocation;
+            }
+            grasperIntervals = grasperIntervals.Select(spacing => { spacing.MakeIncreasing(); return spacing; }).ToList();
+            grasperIntervals.OrderBy(spacing => spacing.T0).ToList();
+
+            if (grasperIntervals == null) return false;
+            List<LineCurve> futureJawPosibleLocation = Grasper.ConvertIntervalsToLines(grasperIntervals);
             if (!Grasper.HasPlaceForJaw(futureJawPosibleLocation, CutProposal.BestCuttingData.Polygon))
             {
                 log.Warn("This cut failed: Current cut has no place for Jaw.");
