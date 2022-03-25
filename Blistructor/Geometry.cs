@@ -117,7 +117,9 @@ namespace Blistructor
                     pts.Add(rayent.PointAtEnd);
                 }
             }
-            LineCurve isoLine = new LineCurve(pts[0], pts[1]);
+            Line ln = new Line(pts[0], pts[1]);
+            ln.Extend(-Setups.BladeTol, -Setups.BladeTol);
+            LineCurve isoLine = new LineCurve(ln);
             if (isoLine.GetLength() >= Setups.BladeLength) return isoLine;
             else return null;
         }
