@@ -27,17 +27,12 @@ namespace Blistructor
         {
             try
             {
-                Dictionary<string, string> jsonCategoryMap = new Dictionary<string, string>
-                {
-                    { "blister", "blister" },
-                    { "Outline", "tabletka" }
-                };
                 Tuple<JObject, JArray> data = ParseJson(JSON);
                 JObject setup = data.Item1;
                 JArray content = data.Item2;
                 Setups.ApplySetups(setup);
                 // Parse JSON. Item1 -> Blister, Item2 -> Pills
-                Tuple<PolylineCurve, List<PolylineCurve>> pLines = GetContursBasedOnJSON(content, jsonCategoryMap);
+                Tuple<PolylineCurve, List<PolylineCurve>> pLines = GetContursBasedOnJSON(content);
 
                 // Simplyfy paths on blister and pills
                 PolylineCurve blister = Geometry.SimplifyContours2(pLines.Item1, Setups.CurveReduceTolerance, Setups.CurveSmoothTolerance);
@@ -47,11 +42,7 @@ namespace Blistructor
                 // Vector3d calibrationVector = new Vector3d(rX, calibrationVectorY, 0);
                 Geometry.ApplyCalibration(blister, Setups.ZeroPosition, Setups.PixelSpacing, Setups.CartesianPickModeAngle);
                 pills.ForEach(pill => Geometry.ApplyCalibration(pill, Setups.ZeroPosition, Setups.PixelSpacing, Setups.CartesianPickModeAngle));
-                if (Setups.TrimBlisterToXAxis)
-                {
-                    List<Curve> result = Geometry.SplitRegion(blister, new LineCurve(new Line(new Point3d(-1000, -0.2, 0), Vector3d.XAxis, 2000)));
-                    if (result != null) blister = (PolylineCurve)result.OrderByDescending(c => c.Area()).ToList()[0];
-                }
+                
                 return CutBlisterWorker(pills, blister);
             }
 
@@ -72,7 +63,7 @@ namespace Blistructor
         {
             try
             {
-                return CutBlisterWorker(pills, blister);
+                return CutBlisterWorker(pills.Select(pline => pline.ToPolylineCurve()).ToList(), blister.ToPolylineCurve());
             }
             catch (Exception ex)
             {
@@ -92,13 +83,16 @@ namespace Blistructor
             }
         }
 
-        private JObject CutBlisterWorker(List<Polyline> pills, Polyline blister)
-        {
-            return CutBlisterWorker(pills.Select(pline => pline.ToPolylineCurve()).ToList(), blister.ToPolylineCurve());
-        }
-
         private JObject CutBlisterWorker(List<PolylineCurve> pillsOutlines, PolylineCurve blisterOutlines)
         {
+             // Trim Blister to X axis
+            if (Setups.TrimBlisterToXAxis)
+            {
+                LineCurve xAxis = new LineCurve(new Line(new Point3d(-1000, -0.2, 0), Vector3d.XAxis, 2000));
+                List<Curve> result = Geometry.SplitRegion(blisterOutlines, xAxis);
+                if (result != null) blisterOutlines = (PolylineCurve)result.OrderByDescending(c => c.Area()).ToList()[0];
+            }
+
             BlisterProcessor cutter = new BlisterProcessor(pillsOutlines, blisterOutlines);
             CuttingState status = cutter.PerformCut();
             JObject cuttingResult = PrepareStatus(status);
@@ -106,9 +100,7 @@ namespace Blistructor
             cuttingResult["pillsDetected"] = pillsOutlines.Count;
             cuttingResult["pillsCutted"] = cutter.Chunks.Count;
             cuttingResult["jawsLocation"] = cutter.Grasper.GetJSON();
-            // If all alright, populate by cutting data
-            //if (status == CuttingState.CTR_SUCCESS)
-            //{
+
             JArray allCuttingInstruction = new JArray();
             JArray allDisplayInstruction = new JArray();
             foreach (CutBlister bli in cutter.Chunks)
@@ -118,11 +110,9 @@ namespace Blistructor
             }
             cuttingResult["cuttingData"] = allCuttingInstruction;
             cuttingResult["displayData"] = allDisplayInstruction;
-           // }
+ 
             return cuttingResult;
         }
-
-
 
         private JObject PrepareStatus(CuttingState stateCode, string message = "")
         {
@@ -167,8 +157,14 @@ namespace Blistructor
             return new Tuple<JObject, JArray>(data.GetValue<JObject>("setup", null), data.GetValue<JArray>("content", null));
         }
 
-        public Tuple<PolylineCurve, List<PolylineCurve>> GetContursBasedOnJSON(JArray content, Dictionary<string, string> jsonCategoryMap)
+        public Tuple<PolylineCurve, List<PolylineCurve>> GetContursBasedOnJSON(JArray content)
         {
+            Dictionary<string, string> jsonCategoryMap = new Dictionary<string, string>
+                {
+                    { "blister", "blister" },
+                    { "Outline", "tabletka" }
+                };
+
             if (content.Count == 0)
             {
                 string message = string.Format("JSON - Input JSON contains no data, or data are not Array type");
