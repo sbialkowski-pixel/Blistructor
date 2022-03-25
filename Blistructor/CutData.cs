@@ -20,6 +20,8 @@ namespace Blistructor
         private static readonly ILog log = LogManager.GetLogger("Cutter.CutData");
         private List<Line> isoSegments;
         public List<Line> segments;
+        internal string UUID;
+        
         public List<PolylineCurve> BlisterLeftovers { private set; get; }
         public List<LineCurve> BladeFootPrint { private set; get; }
         public List<PolylineCurve> Path { private set; get; }
@@ -28,6 +30,7 @@ namespace Blistructor
 
         public CutData()
         {
+            UUID = Guid.NewGuid().ToString();
             segments = new List<Line>();
             isoSegments = new List<Line>();
             BladeFootPrint = new List<LineCurve>();
@@ -258,7 +261,7 @@ namespace Blistructor
 
         private double CalculateAngle(LineCurve line)
         {
-            // TODO: Tu moze byc potrzeba zmiany vectora z X na Y w zalzenosci gdzie jest 0 stopni noża
+            // Tu moze byc potrzeba zmiany vectora z X na Y w zalzenosci gdzie jest 0 stopni noża
             // YAxiz z wizaku z tym ze nastepuje zmiana koordynatów z X na y przy przejsciu z trybu PICK na WORK...
             Vector3d lineVector = line.Line.UnitTangent;
             lineVector.Y = -lineVector.Y;

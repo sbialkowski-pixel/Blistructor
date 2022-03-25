@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using log4net;
 #if PIXEL
+using Pixel.Rhino.FileIO;
 using Pixel.Rhino.Geometry;
+using Pixel.Rhino.DocObjects;
 #else
 using Rhino.Geometry;
 #endif
@@ -71,10 +73,17 @@ namespace Blistructor
             if (Queue[0].LeftPillsCount == 1) return CuttingState.CTR_ONE_PILL;
             if (Grasper.Jaws == null) return CuttingState.CTR_ANCHOR_LOCATION_ERR;
 
+            //DebugShit
+            Random rnd = new Random();
+            int id = rnd.Next(0, 1000);
+
             int n = 0; // control
                        // Main Loop
             while (Queue.Count > 0)
             {
+
+                Queue = Queue.OrderBy(blister => blister.LeftPillsCount).ToList();
+
                 //if (n > mainLimit && mainLimit != -1) break;
                 // Extra control to not loop forever...
                 if (n > 2 * initialPillCount) break;
@@ -97,7 +106,7 @@ namespace Blistructor
 
                     // Eech cut, update Jaws.
                     Grasper.UpdateJawsPoints();
-
+                    //Wejscie w tryb Advanced, powoduje to ze tne tabletki od 0,0 i jak juz jestem przy koncu granicy Graspera to sie wyjebuje...
                     while (true)
                     {
                         cutProposal = cutter.CutNext(blisterToCut);
@@ -105,27 +114,26 @@ namespace Blistructor
                         // Moze trzeba zamienic GetNextSuccessfulCut i CutNextAdvanced miejscami>
                         if (cutProposal == null)
                         {
-                            //All pills are cut, lower requerments (try cut fixed pills where jaws can occure)
-                            cutProposal = cutter.GetNextSuccessfulCut;
+                            //All pills are cut, lower requerments (try cut fixed and rejected pills where jaws can occure)
+                            cutProposal = cutter.GetNextCut(CutState.Rejected);
+                            if (cutProposal == null) cutProposal = cutter.GetNextCut(CutState.Fixed);
                             // If there is no successful cut proposal (all CutStates == FAIL), just end.
                             if (cutProposal == null)
                             {
-                                log.Warn("Entering AndvanceCutMode, Whole process may by way longer than normal.");
-                                cutProposal = cutter.CutNextAdvanced(blisterToCut);
-                                // !!!!!!!!!!!!! WORKING ON ADVANCED CUTTING
-                                if (cutProposal == null)
-                                // if (!useAdvencedMode) useAdvencedMode = true;
-                                //else
-                                {
-                                    log.Error("!!!Cannot cut blister anymore!!!");
-                                    return CuttingState.CTR_FAILED;
-                                }
+                                log.Error("!!!Cannot cut blister anymore!!!");
+                                return CuttingState.CTR_FAILED;
                             }
                         }
                         else if (cutProposal.State != CutState.Last)
                         {
-                            // Checking only Pill which are not fixed by Jaw and cut data allows to grab it no collisions)
-                            if (Grasper.ContainsJaw(cutProposal.BestCuttingData) && Grasper.HasPlaceForJawInCutContext(cutProposal.BestCuttingData)) continue;
+                            // Checking only Pill which are not fixed by Jaw and cut data allows to grab it no collisions
+                            // Problem, only best cutting data is checked!!!!
+                            if (Grasper.ContainsJaw(cutProposal.BestCuttingData) && Grasper.HasPlaceForJawInCutContext(cutProposal.BestCuttingData))
+                            {
+                                cutProposal.State = CutState.Fixed;
+                                continue;
+                            }
+
                         }
                         //TODO: Tutaj trzeba zrobić jeszcze jednego whila który bedzie leciał po porozycjach w listy cutProposal.CuttingData. 
                         //I dopiero jak to się wyczerpie, to lecimy z dalej z koksem.
@@ -138,8 +146,8 @@ namespace Blistructor
                             if (cutProposal.Validator.HasCutAnyImpactOnJaws)
                             {
                                 if (!cutProposal.Validator.CheckJawsExistance(updateCutState: true)) continue;
+                                if (!cutProposal.Validator.CheckJawLimitVoilations(updateCutState: true)) continue;
                                 if (!cutProposal.Validator.CheckJawExistanceInLeftovers(updateCutState: true)) continue;
-
                                 if (cutProposal.State == CutState.Succeed)
                                 {
                                     if (!cutProposal.Validator.CheckJawsCollision(updateCutState: true)) continue;
@@ -159,7 +167,6 @@ namespace Blistructor
                                 log.Error("!!!Cannot hold Last pill on blister!!!");
                                 return CuttingState.CTR_FAILED;
                             }
-                            //TODO: Check if last pill has JAW. Theoretically this ValidateJawExistanceInLeftovers in provious cuts should ensure this statment, buuut.
                         }
 
                         if (cutProposal.State == CutState.Failed) continue;
@@ -167,6 +174,50 @@ namespace Blistructor
                     }
 
                     CutBlister chunk = cutProposal.GetCutChunkAndRemoveItFomBlister();
+                    
+                    if (true)
+                    {
+                        String path = String.Format("D:\\PIXEL\\Blistructor\\DebugModels\\{1}_Chunk_{0:00}_{2}.3dm", n, id, i);
+                        File3dm file = new File3dm();
+                        Layer l_chunk = new Layer();
+                        l_chunk.Name = "chunk";
+                        l_chunk.Index = 0;
+                        file.AllLayers.Add(l_chunk);
+                        ObjectAttributes a_chunk = new ObjectAttributes();
+                        a_chunk.LayerIndex = l_chunk.Index;
+
+
+                        file.Objects.AddCurve(chunk.Outline, a_chunk);
+                        file.Objects.AddCurve(chunk.Pill.Outline, a_chunk);
+                        Grasper.JawsPossibleLocation.ForEach(crv => file.Objects.AddCurve(crv, a_chunk));
+                        Queue.ForEach(b => b.Pills.ForEach(p => file.Objects.AddCurve(p.Outline, a_chunk)));
+                        if (chunk.CutData != null)
+                        {
+                            chunk.CutData.BladeFootPrint.ForEach(crv => file.Objects.AddCurve(crv, a_chunk));
+                            chunk.CutData.BlisterLeftovers.ForEach(crv => file.Objects.AddCurve(crv, a_chunk));
+                            chunk.CutData.Path.ForEach(crv => file.Objects.AddCurve(crv, a_chunk));
+
+                            if (true)
+                            {
+                                //Proposal part
+                                Layer l_polygon = new Layer();
+                                l_polygon.Name = "polygon";
+                                l_polygon.Index = 1;
+                                file.AllLayers.Add(l_polygon);
+                                Layer l_lines = new Layer();
+                                l_lines.Name = "lines";
+                                l_lines.Index = 2;
+                                file.AllLayers.Add(l_lines);
+                                ObjectAttributes a_polygon = new ObjectAttributes();
+                                a_polygon.LayerIndex = l_polygon.Index;
+                                cutProposal.CuttingData.ForEach(cData => file.Objects.AddCurve(cData.Polygon, a_polygon));
+                                ObjectAttributes a_lines = new ObjectAttributes();
+                                a_lines.LayerIndex = l_lines.Index;
+                                cutProposal.CuttingData.ForEach(cData => cData.IsoSegments.ForEach(line => file.Objects.AddCurve(line, a_lines)));
+                            }
+                        }
+                        file.Write(path, 6);
+                    }
 
                     // If anything was cut, add to list
                     if (chunk != null)
@@ -185,8 +236,8 @@ namespace Blistructor
                     }
                     else
                     {
-                        List<Blister> Leftovers = cutProposal.GetLeftoversAndUpdateCurrentBlister();
-                        Queue = Leftovers;
+                        (Blister cBlister, List<Blister> Leftovers) = cutProposal.GetLeftoversAndUpdateCurrentBlister();
+                        Queue.AddRange(Leftovers);
                     }
 
                     // If this is last chunk in this blister, just leave this for loop, no Grapser update or Knife possition update is needed.
@@ -245,8 +296,6 @@ namespace Blistructor
                         Point3d lastKnifePossition = chunk.Pill.Center;
                         if (lastKnifePossition.X != double.NaN) blisterToCut.SortPillsByPointDirection(lastKnifePossition, false);
                     }
-
-
                 }
                 n++;
             }
@@ -265,17 +314,14 @@ namespace Blistructor
                 // Validate Collision
                 if (cBLister.CutData != null)
                 {
-                    // TODO: JAKIEŚ ZJEBANDO!
-                    // Chyba nakałdaja sie dwa razy szerokosci łapek, i noża i ogólnie wszyzstko jest dwa razy...
                     if (Grasper.IsColliding(cBLister.CutData, updateJaws: false))
                     {
                         log.Error("Found collision with grasper for cut blister! Aborting!");
-                       // return CuttingState.CTR_FAILED;
+                        // return CuttingState.CTR_FAILED;
                     }
                 }
             }
             // TODO: Validate if more then one chunk hase specific Jaw.
-
             if (initialPillCount == Chunks.Count) return CuttingState.CTR_SUCCESS;
             else return CuttingState.CTR_FAILED;
         }

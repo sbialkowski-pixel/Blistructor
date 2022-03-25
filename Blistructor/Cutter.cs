@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 #if PIXEL
 using Pixel.Rhino;
 using Pixel.Rhino.FileIO;
+using Pixel.Rhino.DocObjects;
 using Pixel.Rhino.Geometry;
 using Pixel.Rhino.Geometry.Intersect;
 using ExtraMath = Pixel.Rhino.RhinoMath;
@@ -22,7 +23,7 @@ using log4net;
 using Newtonsoft.Json.Linq;
 
 using Combinators;
-using Pixel.Rhino.DocObjects;
+
 
 namespace Blistructor
 {
@@ -37,13 +38,15 @@ namespace Blistructor
         private List<Curve> FixedObstacles { get; set; }
         private List<Curve> WorkingObstacles { get; set; }
 
-        private List<CutProposal> AlreadyCut { get; set; }
-        private List<CutProposal> AlreadyCutAdvanced { get; set; }
+        private List<List<CutProposal>> AlreadyCutLevels { get; set; }
+        private List<int> LevelSetup { get; set; }
 
         public Cutter(List<Curve> fixedObstacles)
         {
-            AlreadyCut = new List<CutProposal>();
-            AlreadyCutAdvanced = new List<CutProposal>();
+            LevelSetup = new List<int>() { 0, 4, 8, 16, 32 };
+            AlreadyCutLevels = new List<List<CutProposal>>(LevelSetup.Count);
+            //Init internal lists
+            LevelSetup.ForEach(s => AlreadyCutLevels.Add(new List<CutProposal>()));
             FixedObstacles = fixedObstacles;
             WorkingObstacles = new List<Curve>(FixedObstacles);
         }
@@ -57,90 +60,41 @@ namespace Blistructor
         public CutProposal CutNext(Blister blisterTotCut)
         {
             Blister = blisterTotCut;
-            // Get all Uncut pills, and try to cut.
-            List<Pill> pillsToProcess = Blister.Pills.Where(x => AlreadyCut.All(y => y.Pill.Id != x.Id)).ToList();
-            foreach (Pill pill in pillsToProcess)
-            {
-                CutProposal proposal = TryCut(pill);
-                AlreadyCut.Add(proposal);
-                if (proposal.State == CutState.Failed) continue;
-                else return proposal;
-            }
 
+            foreach ((List<CutProposal> alreadyCut, int setup) in AlreadyCutLevels.Zip(LevelSetup, (p, s) => (Proposals: p, Setup: s)))
+            {
+                List<Pill> pillsToProcess = Blister.Pills.Where(x => alreadyCut.All(y => y.Pill.Id != x.Id)).ToList();
+                foreach (Pill pill in pillsToProcess)
+                {
+                    CutProposal proposal = TryCut(pill, setup);
+                    alreadyCut.Add(proposal);
+                    if (proposal.State == CutState.Failed) continue;
+                    else return proposal;
+                }
+            }
             return null;
             //log.Warn("No cutting data generated for whole Blister.");
             // throw new Exception("No cutting data generated for whole Blister.");
         }
 
-        public CutProposal CutNextAdvanced(Blister blisterTotCut)
+        /// <summary>
+        /// After passing all cutProposition (CutNext is returning null), get remaining proposition from internal cutter state.
+        /// </summary>
+        /// <param name="state">Desiered State</param>
+        /// <returns></returns>
+        public CutProposal GetNextCut(CutState state)
         {
-            Blister = blisterTotCut;
-            // Get all Uncut pills, and try to cut.
-            List<Pill> pillsToProcess = Blister.Pills.Where(x => AlreadyCutAdvanced.All(y => y.Pill.Id != x.Id)).ToList();
-            foreach (Pill pill in pillsToProcess)
+            foreach (List<CutProposal> alreadyCut in AlreadyCutLevels)
             {
-                CutProposal proposal = TryCut(pill, useAdvancedMethod: true);
-                AlreadyCutAdvanced.Add(proposal);
-                if (proposal.State == CutState.Failed) continue;
-                else return proposal;
+                CutProposal nextProposal = alreadyCut.FirstOrDefault(proposal => proposal.State == state);
+                if (nextProposal != null) return nextProposal;
             }
-
             return null;
 
+            //return AlreadyCut.FirstOrDefault(proposal => proposal.State == state);
         }
 
-        public CutProposal GetNextSuccessfulCut
-        {
-            get { return AlreadyCut.FirstOrDefault(proposal => proposal.State != CutState.Failed); }
-        }
-
-        public List<CutProposal> GetSuccesfullyCuts
-        {
-            get { return AlreadyCut.Where(proposal => proposal.State == CutState.Succeed).ToList(); }
-        }
-
-        /*
-        public CutProposal NewNextCut(Blister blisterTotCut, bool omitFixed = true)
-        {
-            // Maybe this cutter should hold all cutProposal
-            Blister = blisterTotCut;
-            List<Pill> fixedPills = new List<Pill>(Blister.Pills.Count);
-
-            for (int i = 0; i < Blister.Pills.Count; i++)
-            {
-                Pill currentPill = Blister.Pills[i];
-                CutProposal proposal = TryCut(currentPill);
-                if (omitFixed && Grasper.HasPossibleJaw(proposal.BestCuttingData))
-                {
-                    fixedPills.Add(currentPill);
-                    continue;
-                }
-                  
-                proposal.ValidateCut(Grasper); // need to reimplement HasActiveAnchor!!!
-
-                if (proposal.State == CutState.Failed) continue;
-                else
-                {
-                    log.Info(String.Format("Cut Path found for pill {0} after checking {1} pills", currentPill.Id, i));
-                    return proposal;
-                }
-            }
-            foreach (Pill currentPill in fixedPills)
-            {
-                CutProposal proposal = TryCut(currentPill);
-                proposal.ValidateCut(Grasper); // need to reimplement HasActiveAnchor!!!
-                if (proposal.State == CutState.Failed) continue;
-                else
-                {
-                    log.Info(String.Format("Cut Path found for pill {0} after checking {1} pills", currentPill.Id, i));
-                    return proposal;
-                }
-            }
-
-        }
-        */
-
-        public CutProposal TryCut(Pill pillToCut, bool useAdvancedMethod = false)
+        public CutProposal TryCut(Pill pillToCut, int advancedMethodSamples = 0)
         {
             // Create obstacles (limiters) for cutting process.
             WorkingObstacles = new List<Curve>(FixedObstacles);
@@ -165,7 +119,7 @@ namespace Blistructor
             }
             // If still here, try to cut 
             log.Debug("Perform cutting data generation");
-            if (useAdvancedMethod) cuttingData = GenerateAdvancedCuttingData(samples: 30);
+            if (advancedMethodSamples > 0) cuttingData = GenerateAdvancedCuttingData(samples: advancedMethodSamples);
             else cuttingData = GenerateSimpleCuttingData_v2();
 
             if (cuttingData.Count > 0)
@@ -175,15 +129,135 @@ namespace Blistructor
             return new CutProposal(pillToCut, cuttingData, CutState.Failed);
         }
 
+        #region NEW CUT STUFF
+        // TREBA TO DOKONCZYC I PODPIAC ZAMIAAST  GenerateSimpleCuttingData_v2
+        private List<CutData> GenerateSimpleCuttingData_v3()
+        {
+            //List<CutData> cuttingData = new List<CutData>();
+            List<List<LineCurve>> isoLinesStage0 = GenerateIsoCurvesStage0_v2(2, 5.0);
+            List<CutData> cuttingData = GenerateCuttingData(isoLinesStage0, dropFiles: true)
+        }
+
+        /// <summary>
+        /// COsine similarity.
+        /// </summary>
+        /// <param name="vec1"></param>
+        /// <param name="vec2"></param>
+        /// <returns></returns>
+        private double VecSim(Vector3d vec1, Vector3d vec2)
+        {
+            return (vec1 * vec2) / (vec1.Length * vec2.Length);
+        }
+
+
+        private List<List<LineCurve>> GenerateIsoCurvesStage0_v2(int raysCount, double stepAngle)
+        {
+            List<List<LineCurve>> isoLines = new List<List<LineCurve>>(Pill.samplePoints.Count);
+            for (int i = 0; i < Pill.samplePoints.Count; i++)
+            {
+                Vector3d direction = Vector3d.CrossProduct((Pill.proxLines[i].PointAtEnd - Pill.proxLines[i].PointAtStart), Vector3d.ZAxis);
+                Vector3d direction2 = Vector3d.CrossProduct((Pill.connectionLines[i].PointAtEnd - Pill.connectionLines[i].PointAtStart), Vector3d.ZAxis);
+
+                List<LineCurve> currentIsoLines = new List<LineCurve>((2 * raysCount) + 1);
+                // If both vectors are much different, add IsoLines based on both, else only average will be taken.
+                if (Math.Abs(VecSim(direction, direction2)) > 0.9)
+                {
+                    foreach (Vector3d vec in new List<Vector3d>() { direction, direction2 }) { }
+                    LineCurve isoLine = Geometry.GetIsoLine(Pill.samplePoints[i], direction, Setups.IsoRadius, WorkingObstacles);
+                    if (isoLine == null) continue;
+                    currentIsoLines.Add(isoLine);
+                }
+                // Compute avr vector and generate bunch of rays.
+                Vector3d sum_direction = direction + direction2;
+                double stepAngleInRadians = ExtraMath.ToRadians(stepAngle);
+                if (!sum_direction.Rotate(-raysCount * stepAngleInRadians, Vector3d.ZAxis)) continue;
+                foreach (double angle in Enumerable.Range(0, (2 * raysCount) + 1))
+                {
+                    if (!sum_direction.Rotate(stepAngleInRadians, Vector3d.ZAxis)) continue;
+                    LineCurve isoLine = Geometry.GetIsoLine(Pill.samplePoints[i], sum_direction, Setups.IsoRadius, WorkingObstacles);
+                    if (isoLine == null) continue;
+                    currentIsoLines.Add(isoLine);
+                }
+                if (currentIsoLines.Count == 0) continue;
+                isoLines.Add(currentIsoLines);
+            }
+            return isoLines;
+        }
+
+        private List<CutData> GenerateCuttingData(List<List<LineCurve>> rays, bool dropFiles = false)
+        {
+            ConcurrentBag<CutData> cuttingData = new ConcurrentBag<CutData>();
+            // List<CutData> cuttingData = new List<CutData>();
+            // If all Stages 1-3 failed, start looking more!
+            if (rays.Count != 0)
+            {
+
+                List<List<LineCurve>> RaysCombinations = Combinators.Combinators.UniqueCombinations(rays);
+                Parallel.ForEach(RaysCombinations, RaysCombination =>
+                {
+                    if (RaysCombination.Count > 0)
+                    {
+                        List<CutData> currentCuttingData = PolygonBuilder_v2(RaysCombination, use_all_combinations: false);
+                        foreach (CutData data in currentCuttingData) cuttingData.Add(data);
+                    }
+                });
+
+            }
+            List<CutData> cuttingDataList = cuttingData.ToList();
+            //DEBUG - SAVE FILE:
+            if (dropFiles)
+            {
+                Random rnd = new Random();
+                int id = rnd.Next(0, 1000);
+                String path = String.Format("D:\\PIXEL\\Blistructor\\DebugModels\\AdvancedCut_{0}.3dm", id);
+                File3dm file = new File3dm();
+
+                Layer l_polygon = new Layer();
+                l_polygon.Name = "polygon";
+                l_polygon.Index = 0;
+                file.AllLayers.Add(l_polygon);
+                Layer l_lines = new Layer();
+                l_lines.Name = "lines";
+                l_lines.Index = 1;
+                file.AllLayers.Add(l_lines);
+                Layer l_obst = new Layer();
+                l_obst.Name = "obstacles";
+                l_obst.Index = 2;
+                file.AllLayers.Add(l_obst);
+
+                ObjectAttributes a_polygon = new ObjectAttributes();
+                a_polygon.LayerIndex = l_polygon.Index;
+                cuttingDataList.ForEach(cData => file.Objects.AddCurve(cData.Polygon, a_polygon));
+
+                ObjectAttributes a_lines = new ObjectAttributes();
+                a_lines.LayerIndex = l_lines.Index;
+                rays.ForEach(list => list.ForEach(l => file.Objects.AddCurve(l, a_lines)));
+
+                ObjectAttributes a_obs = new ObjectAttributes();
+                a_obs.LayerIndex = l_obst.Index;
+                WorkingObstacles.ForEach(crv => file.Objects.AddCurve(crv, a_obs));
+
+                file.Write(path, 6);
+            }
+            // END DEBUG
+            return cuttingDataList;
+        }
+
+        #endregion
+
         #region CUT STUFF
+
+
         private List<CutData> GenerateSimpleCuttingData_v2()
         {
             log.Debug(String.Format("Obstacles count {0}", WorkingObstacles.Count));
             List<CutData> cuttingData = new List<CutData>();
             // Stage I - naive Cutting
-            cuttingData.AddRange(PolygonBuilder_v2(GenerateIsoCurvesStage1()));
+            List<LineCurve> stage_1 = GenerateIsoCurvesStage1();
+            cuttingData.AddRange(PolygonBuilder_v2(stage_1));
             log.Info(String.Format(">>>After STAGE_1: {0} cutting possibilities<<<", cuttingData.Count));
-            cuttingData.AddRange(PolygonBuilder_v2(GenerateIsoCurvesStage2()));
+            List<LineCurve> stage_2 = GenerateIsoCurvesStage2();
+            cuttingData.AddRange(PolygonBuilder_v2(stage_2));
             log.Info(String.Format(">>>After STAGE_2: {0} cutting possibilities<<<", cuttingData.Count));
             IEnumerable<IEnumerable<LineCurve>> isoLines = GenerateIsoCurvesStage3a(1, 2.0);
             foreach (List<LineCurve> isoLn in isoLines)
@@ -202,49 +276,57 @@ namespace Blistructor
             ConcurrentBag<CutData> cuttingData = new ConcurrentBag<CutData>();
             // List<CutData> cuttingData = new List<CutData>();
             // If all Stages 1-3 failed, start looking more!
-            List<List<LineCurve>> isoLinesStage4 = GenerateIsoCurvesStage4(samples, Setups.IsoRadius);
+            List<List<LineCurve>> isoLinesStage4 = GenerateIsoCurvesStage4(samples);
             if (isoLinesStage4.Count != 0)
             {
-                //TODO: Chyba są tu robione kombinacje z powtórkami! ALe nie jestem pewny. 
-               // List<List<LineCurve>> RaysCombinations = (List<List<LineCurve>>)isoLinesStage4.CartesianProduct();
 
                 List<List<LineCurve>> RaysCombinations = Combinators.Combinators.UniqueCombinations(isoLinesStage4);
-               //   for (int i = 0; i < RaysCombinations.Count; i++)
-               Parallel.ForEach(RaysCombinations, RaysCombination =>
-                {
-                    if (RaysCombination.Count > 0)
-                    {
-                        List<CutData> currentCuttingData = PolygonBuilder_v2(RaysCombination, use_all_combinations:false);
-                        foreach (CutData data in currentCuttingData) cuttingData.Add(data);
-                    }
-                });
+                Parallel.ForEach(RaysCombinations, RaysCombination =>
+                 {
+                     if (RaysCombination.Count > 0)
+                     {
+                         List<CutData> currentCuttingData = PolygonBuilder_v2(RaysCombination, use_all_combinations: false);
+                         foreach (CutData data in currentCuttingData) cuttingData.Add(data);
+                     }
+                 });
 
             }
             List<CutData> cuttingDataList = cuttingData.ToList();
             //DEBUG - SAVE FILE:
-            Random rnd = new Random();
-            int id = rnd.Next(0, 1000);
-            String path = String.Format("D:\\PIXEL\\Blistructor\\DebugModels\\AdvancedCut_{0}.3dm", id);
-            File3dm file = new File3dm();
+            if (true)
+            {
+                Random rnd = new Random();
+                int id = rnd.Next(0, 1000);
+                String path = String.Format("D:\\PIXEL\\Blistructor\\DebugModels\\AdvancedCut_{0}.3dm", id);
+                File3dm file = new File3dm();
 
-            Layer l_polygon = new Layer();
-            l_polygon.Name = "polygon";
-            l_polygon.Index = 0;
-            file.AllLayers.Add(l_polygon);
-            Layer l_lines = new Layer();
-            l_lines.Name = "lines";
-            l_lines.Index = 1;
-            file.AllLayers.Add(l_lines);
+                Layer l_polygon = new Layer();
+                l_polygon.Name = "polygon";
+                l_polygon.Index = 0;
+                file.AllLayers.Add(l_polygon);
+                Layer l_lines = new Layer();
+                l_lines.Name = "lines";
+                l_lines.Index = 1;
+                file.AllLayers.Add(l_lines);
+                Layer l_obst = new Layer();
+                l_obst.Name = "obstacles";
+                l_obst.Index = 2;
+                file.AllLayers.Add(l_obst);
 
-            ObjectAttributes a_polygon = new ObjectAttributes();
-            a_polygon.LayerIndex = l_polygon.Index;
-            cuttingDataList.ForEach(cData => file.Objects.AddCurve(cData.Polygon, a_polygon));
-            
-            ObjectAttributes a_lines = new ObjectAttributes();
-            a_lines.LayerIndex = l_lines.Index;
-            isoLinesStage4.ForEach(list => list.ForEach(l => file.Objects.AddCurve(l,  a_lines)));
+                ObjectAttributes a_polygon = new ObjectAttributes();
+                a_polygon.LayerIndex = l_polygon.Index;
+                cuttingDataList.ForEach(cData => file.Objects.AddCurve(cData.Polygon, a_polygon));
 
-            file.Write(path, 6);
+                ObjectAttributes a_lines = new ObjectAttributes();
+                a_lines.LayerIndex = l_lines.Index;
+                isoLinesStage4.ForEach(list => list.ForEach(l => file.Objects.AddCurve(l, a_lines)));
+
+                ObjectAttributes a_obs = new ObjectAttributes();
+                a_obs.LayerIndex = l_obst.Index;
+                WorkingObstacles.ForEach(crv => file.Objects.AddCurve(crv, a_obs));
+
+                file.Write(path, 6);
+            }
             // END DEBUG
             return cuttingDataList;
         }
@@ -254,6 +336,10 @@ namespace Blistructor
         #region Polygon Builder Stuff
 
         // All methods will generate full Rays, without trimming to blister! PoligonBuilder is responsible for trimming.
+        /// <summary>
+        /// Based on vector from from connectionLines. Smae as stage 1?
+        /// </summary>
+        /// <returns></returns>
         private List<LineCurve> GenerateIsoCurvesStage0()
         {
 
@@ -269,6 +355,10 @@ namespace Blistructor
             return isoLines;
         }
 
+        /// <summary>
+        /// Based on vector from connectionLines
+        /// </summary>
+        /// <returns></returns>
         private List<LineCurve> GenerateIsoCurvesStage1()
         {
 
@@ -284,6 +374,10 @@ namespace Blistructor
             return isoLines;
         }
 
+        /// <summary>
+        /// Based on vector from proxyLines
+        /// </summary>
+        /// <returns></returns>
         private List<LineCurve> GenerateIsoCurvesStage2()
         {
             List<LineCurve> isoLines = new List<LineCurve>(Pill.samplePoints.Count);
@@ -298,6 +392,10 @@ namespace Blistructor
             return isoLines;
         }
 
+        /// <summary>
+        /// Based on average vector from connectionLines and proxyLines
+        /// </summary>
+        /// <returns></returns>
         private List<LineCurve> GenerateIsoCurvesStage3()
         {
             List<LineCurve> isoLines = new List<LineCurve>(Pill.samplePoints.Count);
@@ -314,6 +412,12 @@ namespace Blistructor
             return isoLines;
         }
 
+        /// <summary>
+        /// Generate rays starting from direction in GenerateIsoCurvesStage3 (average vector from connectionLines and proxyLines).
+        /// </summary>
+        /// <param name="raysCount">Number of extra rays to generate. Finally this amount of rays will be generated 2*raysCount + 1.</param>
+        /// <param name="stepAngle">Angle between rays.</param>
+        /// <returns></returns>
         private List<List<LineCurve>> GenerateIsoCurvesStage3a(int raysCount, double stepAngle)
         {
             List<List<LineCurve>> isoLines = new List<List<LineCurve>>(Pill.samplePoints.Count);
@@ -340,16 +444,22 @@ namespace Blistructor
             return (List<List<LineCurve>>)Combinators.Combinators.CartesianProduct(isoLines);
         }
 
-        
-        private List<List<LineCurve>> GenerateIsoCurvesStage4(int count, double radius)
+
+        /// <summary>
+        /// Generate bunch of rays arround sample points in range 0 - Math.Pi (half circle).
+        /// Starting ray (on position 0) is missing.
+        /// </summary>
+        /// <param name="count">Number of rays to generate</param>
+        /// <returns></returns>
+        private List<List<LineCurve>> GenerateIsoCurvesStage4(int count)
         {
             // Obstacles need to be calculated or updated earlier
             List<List<LineCurve>> isoLines = new List<List<LineCurve>>();
             for (int i = 0; i < Pill.samplePoints.Count; i++)
             {
-                Circle cir = new Circle(Pill.samplePoints[i], radius);
+                Circle cir = new Circle(Pill.samplePoints[i], Setups.IsoRadius);
                 List<LineCurve> iLines = new List<LineCurve>();
-                IEnumerable<double> parts = Enumerable.Range(0, count).Select(x => x * ((Math.PI) / count-1));
+                IEnumerable<double> parts = Enumerable.Range(0, count).Select(x => x * (Math.PI / count));
                 List<Point3d> pts = parts.Select(part => cir.PointAt(part)).ToList();
 
                 for (int j = 0; j < pts.Count; j++)
@@ -359,12 +469,6 @@ namespace Blistructor
                     if (ray != null)
                     {
                         iLines.Add(ray);
-                        //ineCurve t_ray = TrimIsoCurve(ray);
-                        //LineCurve t_ray = TrimIsoCurve(ray, samplePoints[i]);
-                        //if (t_ray != null)
-                        //{
-                        //    iLines.Add(t_ray);
-                        // }
                     }
                 }
                 isoLines.Add(iLines);
@@ -418,7 +522,7 @@ namespace Blistructor
         /// <param name="rays"></param>
         private List<CutData> PolygonBuilder_v2(List<LineCurve> rays, bool use_all_combinations = true)
         {
-            
+
             // Trim incoming rays and build current working full ray aray.
             List<LineCurve> trimedRays = new List<LineCurve>(rays.Count);
             List<LineCurve> fullRays = new List<LineCurve>(rays.Count);

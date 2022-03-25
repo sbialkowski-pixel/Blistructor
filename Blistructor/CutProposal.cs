@@ -18,7 +18,9 @@ namespace Blistructor
     public class CutProposal
     {
         private static readonly ILog log = LogManager.GetLogger("Cutter.PillCutProposals");
-        private List<CutData> CuttingData { get; set; }
+        internal List<CutData> CuttingData { get; set; }
+
+        private List<CutData> AlreadyCutData { get; set; }
 
         #region CONTRUCTORS
         public CutProposal(Pill proposedPillToCut, List<CutData> cuttingData, CutState state)
@@ -68,6 +70,19 @@ namespace Blistructor
             return cuttingData.OrderBy(x => x.EstimatedCuttingCount * x.Polygon.GetBoundingBox(false).Area * x.BlisterLeftovers.Select(y => y.PointCount).Sum()).ToList();
         }
 
+        public CutData NextCutData()
+        {
+            //Blister.Pills
+            List<CutData> proceedCUtData = CuttingData.Where(x => AlreadyCutData.All(y => y.UUID != x.UUID)).ToList();
+            foreach (CutData cData in proceedCUtData)
+            {
+                AlreadyCutData.Add(cData);
+                if (!cData.GenerateBladeFootPrint()) continue;
+                return cData;
+            }
+            return null;
+        }
+
         /// <summary>
         /// Get best Cutting Data from all generated and assign it to /bestCuttingData/ field.
         /// </summary>
@@ -81,83 +96,6 @@ namespace Blistructor
             return null;
         }
 
-        /*
-        #region VALIDATE
-        /// <summary>
-        /// Check Pills connection intrgrity in each leftoves after current cutting.
-        /// </summary>
-        /// <returns> If there is no integrity, update State property to FALSE and return false.</returns>
-        public bool ValidateConnectivityIntegrityInLeftovers()
-        {
-            // Inspect leftovers.
-            foreach (PolylineCurve leftover in BestCuttingData.BlisterLeftovers)
-            {
-                Blister newBli = new Blister(Pill.blister.Pills, leftover);
-                if (!newBli.CheckConnectivityIntegrity(Pill))
-                {
-                    log.Warn("This cut failed: CheckConnectivityIntegrity failed. Proposed cut cause inconsistency in leftovers");
-                    State = CutState.Failed;
-                    return false;
-                }
-            }
-            return true;
-        }
-
-   
-
-        /// <summary>
-        /// CHeck if there is any collision between Jaw and cut path. Additionaly validate if all leftovers has any chance to get Jaw.
-        /// </summary>
-        /// <param name="grasper"></param>
-        /// <returns>If any test failed, update State property to FALSE and return false.</returns>
-        public bool ValidateJawExistanceInLeftovers(Grasper grasper)
-        {
-            List<Interval> currentJawPosibleIntervals = grasper.GetJawPossibleIntervals();
-
-            List<Interval> cutImpactIntervals = Grasper.ComputCutImpactInterval(BestCuttingData);
-            Interval blisterImpactInterval = Grasper.ComputeTotalCutImpactInterval(BestCuttingData, cutImpactIntervals);
-            // Cut not influancing grasper
-            if (!blisterImpactInterval.IsValid)
-            {
-                return true;
-            }
-            // If this cut will remove whole jawPossibleLocation line, its is not good, at least it is last blister...
-            if (blisterImpactInterval.IncludesInterval(Grasper.IntervalsInterval(currentJawPosibleIntervals), true))
-            {
-                log.Warn("This cut failed: Proposed cut removes whole jawPossibleLocation. No place to grab blister.");
-                State = CutState.Failed;
-                return false;
-            }
-
-            // Check for collision between current Jaws and cutImpactIntervals.
-            List<JawPoint> currentJaws = Grasper.FindJawPoints(currentJawPosibleIntervals);
-            // TODO: Error in GetRestrictedIntervals
-            List<Interval> currentJawsInterval = Grasper.GetRestrictedIntervals(currentJaws);
-            if (Grasper.CollisionCheck(currentJawsInterval, cutImpactIntervals))
-            {
-                log.Warn("This cut failed: Collision with Jaws detected.");
-                State = CutState.Failed;
-                return false;
-            }
-
-            // Create futureJawPosibleIntervals based on cutData and check if leftoves has place for Jaws.
-            
-            List<Interval> futureJawPosibleIntervals = Grasper.ApplyCutOnGrasperLocation(currentJawPosibleIntervals, BestCuttingData);
-            List<LineCurve> futureJawPosibleLocation = Grasper.ConvertIntervalsToLines(futureJawPosibleIntervals);
-
-            foreach (PolylineCurve leftover in BestCuttingData.BlisterLeftovers)
-            {
-                if (!Grasper.HasPlaceForJaw(futureJawPosibleLocation, leftover))
-                {
-                    log.Warn("This cut failed: Leftover has no place for Jaw.");
-                    State = CutState.Failed;
-                    return false;
-                }
-            }
-            return true;
-        }
-        #endregion
-        */
         /// <summary>
         /// Get Chunk and remove Pill and any connection data for that pill from current blister. 
         /// </summary>
@@ -189,19 +127,21 @@ namespace Blistructor
             }
         }
 
+
         /// <summary>
         /// !!!! This method has to be used after GetCutoutAndRemoveFomBlister!!!!
         /// Apply all leftovers on current blister.
         /// </summary>
-        /// <returns>List of blister, where first element is Current Updated blister. Other elements are parts of current blister after cutting.</returns>
-        public List<Blister> GetLeftoversAndUpdateCurrentBlister()
+        /// <returns>Tuple with Current blister and list of leftover blister</returns>
+        public (Blister CurrentBluster, List<Blister> Leftovers) GetLeftoversAndUpdateCurrentBlister()
         {
             switch (State)
             {
                 case CutState.Failed:
                     throw new Exception("Cannot apply cutting on failed CutStates proposal. Big mistake!!!!");
                 case CutState.Last:
-                    return new List<Blister>();
+                    // return   new List<Blister>();
+                    return (CurrentBluster: null, Leftovers: new List<Blister>());
                 case CutState.Succeed:
                     log.Debug("Updating current Blister outline and remove cut Pill from blister");
                     Blister.Outline = BestCuttingData.BlisterLeftovers[0];
@@ -227,7 +167,7 @@ namespace Blistructor
                     }
                     List<Blister> leftovers = new List<Blister>(BestCuttingData.BlisterLeftovers.Count);
 
-                    leftovers.Add(Blister);
+                    //leftovers.Add(Blister);
 
                     for (int j = 1; j < BestCuttingData.BlisterLeftovers.Count; j++)
                     {
@@ -244,66 +184,11 @@ namespace Blistructor
                     {
                         throw new Exception($"Abandon pills after applying cutting data: {abandonePills.Count}");
                     }
-                    return leftovers;
+                    return (CurrentBluster: Blister, Leftovers: leftovers);
                 default:
                     throw new NotImplementedException($"This state {State} is not implemented!");
             }
         }
-
-        /*
-        public List<BoundingBox> ComputGrasperRestrictedAreas()
-        {
-            // Thicken paths from cutting data and check how this influence 
-            List<BoundingBox> allRestrictedArea = new List<BoundingBox>(_bestCuttingData.Segments.Count);
-            foreach (PolylineCurve ply in _bestCuttingData.Segments)
-            {
-                //Create upperLine - max distance where Jaw can operate
-                LineCurve uppeLimitLine = new LineCurve(new Line(new Point3d(-Setups.IsoRadius, Setups.JawDepth, 0), Vector3d.XAxis, 2 * Setups.IsoRadius));
-
-                //Create lowerLimitLine - lower line where for this segment knife can operate
-                double knifeY = ply.ToPolyline().OrderBy(pt => pt.Y).First().Y;
-                LineCurve lowerLimitLine = new LineCurve(new Line(new Point3d(-Setups.IsoRadius, knifeY, 0), Vector3d.XAxis, 2 * Setups.IsoRadius));
-
-                //Check if knife segment intersect with Upper line = knife-jaw collision can occur
-                List<IntersectionEvent> checkIntersect = Intersection.CurveCurve(uppeLimitLine, ply, Setups.IntersectionTolerance);
-
-                // If intersection occurs, any
-                if (checkIntersect.Count > 0)
-                {
-
-                    PolylineCurve extPly = (PolylineCurve)ply.Extend(CurveEnd.Both, 100);
-
-                    // create knife "impact area"
-                    PolylineCurve knifeFootprint = Geometry.PolylineThicken(extPly, Setups.BladeWidth / 2);
-
-                    if (knifeFootprint == null) continue;
-
-                    LineCurve cartesianLimitLine = Grasper.CreateCartesianLimitLine();
-                    // Split knifeFootprint by upper and lower line
-                    List<PolylineCurve> splited = (List<PolylineCurve>)Geometry.SplitRegion(knifeFootprint, cartesianLimitLine).Select(crv => (PolylineCurve)crv);
-
-                    if (splited.Count != 2) continue;
-
-                    PolylineCurve forFurtherSplit = splited.OrderBy(pline => pline.CenterPoint().Y).Last();
-
-                    LineCurve upperCartesianLimitLine = new LineCurve(cartesianLimitLine);
-
-                    splited = (List<PolylineCurve>)Geometry.SplitRegion(forFurtherSplit, upperCartesianLimitLine).Select(crv => (PolylineCurve)crv);
-
-                    if (splited.Count != 2) continue;
-
-                    PolylineCurve grasperRestrictedArea = splited.OrderBy(pline => pline.CenterPoint().Y).First();
-
-                    // After split, there is area where knife can operate.
-                    // Transform into Interval as min, max values where jaw should not appear
-
-                    BoundingBox grasperRestrictedAreaBBox = grasperRestrictedArea.GetBoundingBox(false);
-                    allRestrictedArea.Add(grasperRestrictedAreaBBox);
-                }
-            }
-            return allRestrictedArea;
-        }
-*/
 
         #region PREVIEW STUFF FOR DEBUG MOSTLY
         /*
