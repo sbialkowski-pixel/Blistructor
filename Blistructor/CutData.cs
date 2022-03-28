@@ -18,15 +18,15 @@ namespace Blistructor
     public class CutData
     {
         private static readonly ILog log = LogManager.GetLogger("Cutter.CutData");
-        private List<Line> isoSegments;
-        public List<Line> segments;
-        internal string UUID;
-        
+        private List<Line> isoSegments { set; get; }
+        private List<Line> segments { set; get; }
+
         public List<PolylineCurve> BlisterLeftovers { private set; get; }
         public List<LineCurve> BladeFootPrint { private set; get; }
         public List<PolylineCurve> Path { private set; get; }
         public PolylineCurve Polygon { private set;  get; }
         public List<Curve> Obstacles { set; private get; }
+        internal string UUID { private set;  get; }
 
         public CutData()
         {
