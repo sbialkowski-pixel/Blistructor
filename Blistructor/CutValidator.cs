@@ -150,6 +150,13 @@ namespace Blistructor
 
             List<JawPoint> newJaws = Grasper.FindJawPoints(futureJawPosibleIntervals);
 
+            if (newJaws.Count <2)
+            {
+                log.Warn(string.Format("This cut failed: Only {0} jaws found. 2 is required.", newJaws.Count));
+                if (updateCutState) CutProposal.State = CutState.Failed;
+                return false;
+            }
+
             double xLocation = newJaws.Select(jaw => jaw.Location.X).Min();
             if (xLocation > Setups.CartesianJawYLimit)
             {
