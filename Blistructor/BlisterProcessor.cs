@@ -146,8 +146,8 @@ namespace Blistructor
                             if (cutProposal.Validator.HasCutAnyImpactOnJaws)
                             {
                                 if (!cutProposal.Validator.CheckJawsExistance(updateCutState: true)) continue;
-                                if (!cutProposal.Validator.CheckJawLimitVoilations(updateCutState: true)) continue;
                                 if (!cutProposal.Validator.CheckJawExistanceInLeftovers(updateCutState: true)) continue;
+                                if (!cutProposal.Validator.CheckJawLimitVoilations(updateCutState: true)) continue;
                                 if (cutProposal.State == CutState.Succeed)
                                 {
                                     if (!cutProposal.Validator.CheckJawsCollision(updateCutState: true)) continue;
