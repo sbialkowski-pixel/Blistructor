@@ -120,7 +120,7 @@ namespace Blistructor
             // If still here, try to cut 
             log.Debug("Perform cutting data generation");
             if (advancedMethodSamples > 0) cuttingData = GenerateAdvancedCuttingData(samples: advancedMethodSamples);
-            else cuttingData = GenerateSimpleCuttingData_v2();
+            else cuttingData = GenerateSimpleCuttingData_v3();
 
             if (cuttingData.Count > 0)
             {
@@ -129,17 +129,16 @@ namespace Blistructor
             return new CutProposal(pillToCut, cuttingData, CutState.Failed);
         }
 
-        #region NEW CUT STUFF
-        // TREBA TO DOKONCZYC I PODPIAC ZAMIAAST  GenerateSimpleCuttingData_v2
+        #region CUT STUFF
         private List<CutData> GenerateSimpleCuttingData_v3()
         {
-            //List<CutData> cuttingData = new List<CutData>();
             List<List<LineCurve>> isoLinesStage0 = GenerateIsoCurvesStage0_v2(2, 5.0);
-            List<CutData> cuttingData = GenerateCuttingData(isoLinesStage0, dropFiles: true)
+            List<CutData> cuttingData = GenerateCuttingData(isoLinesStage0, debugFileName: "SimpleV3");
+            return cuttingData;
         }
 
         /// <summary>
-        /// COsine similarity.
+        /// Cosine similarity.
         /// </summary>
         /// <param name="vec1"></param>
         /// <param name="vec2"></param>
@@ -184,7 +183,7 @@ namespace Blistructor
             return isoLines;
         }
 
-        private List<CutData> GenerateCuttingData(List<List<LineCurve>> rays, bool dropFiles = false)
+        private List<CutData> GenerateCuttingData(List<List<LineCurve>> rays, string debugFileName = "")
         {
             ConcurrentBag<CutData> cuttingData = new ConcurrentBag<CutData>();
             // List<CutData> cuttingData = new List<CutData>();
@@ -205,11 +204,11 @@ namespace Blistructor
             }
             List<CutData> cuttingDataList = cuttingData.ToList();
             //DEBUG - SAVE FILE:
-            if (dropFiles)
+            if (debugFileName != "")
             {
                 Random rnd = new Random();
                 int id = rnd.Next(0, 1000);
-                String path = String.Format("D:\\PIXEL\\Blistructor\\DebugModels\\AdvancedCut_{0}.3dm", id);
+                string path = string.Format("D:\\PIXEL\\Blistructor\\DebugModels\\{0}_{1}.3dm", debugFileName, id);
                 File3dm file = new File3dm();
 
                 Layer l_polygon = new Layer();
@@ -243,34 +242,7 @@ namespace Blistructor
             return cuttingDataList;
         }
 
-        #endregion
-
-        #region CUT STUFF
-
-
-        private List<CutData> GenerateSimpleCuttingData_v2()
-        {
-            log.Debug(String.Format("Obstacles count {0}", WorkingObstacles.Count));
-            List<CutData> cuttingData = new List<CutData>();
-            // Stage I - naive Cutting
-            List<LineCurve> stage_1 = GenerateIsoCurvesStage1();
-            cuttingData.AddRange(PolygonBuilder_v2(stage_1));
-            log.Info(String.Format(">>>After STAGE_1: {0} cutting possibilities<<<", cuttingData.Count));
-            List<LineCurve> stage_2 = GenerateIsoCurvesStage2();
-            cuttingData.AddRange(PolygonBuilder_v2(stage_2));
-            log.Info(String.Format(">>>After STAGE_2: {0} cutting possibilities<<<", cuttingData.Count));
-            IEnumerable<IEnumerable<LineCurve>> isoLines = GenerateIsoCurvesStage3a(1, 2.0);
-            foreach (List<LineCurve> isoLn in isoLines)
-            {
-                cuttingData.AddRange(PolygonBuilder_v2(isoLn));
-            }
-            //TODO: Tu mozna sprawdzać kolizję z łapkami dogenerowac niekolizyjne cięcia.
-
-            //PolygonBuilder_v2(GenerateIsoCurvesStage3a(1, 2.0));
-            log.Info(String.Format(">>>After STAGE_3: {0} cutting possibilities<<<", cuttingData.Count));
-            return cuttingData;
-        }
-
+   
         private List<CutData> GenerateAdvancedCuttingData(int samples = 30)
         {
             ConcurrentBag<CutData> cuttingData = new ConcurrentBag<CutData>();
@@ -334,116 +306,6 @@ namespace Blistructor
         #endregion
 
         #region Polygon Builder Stuff
-
-        // All methods will generate full Rays, without trimming to blister! PoligonBuilder is responsible for trimming.
-        /// <summary>
-        /// Based on vector from from connectionLines. Smae as stage 1?
-        /// </summary>
-        /// <returns></returns>
-        private List<LineCurve> GenerateIsoCurvesStage0()
-        {
-
-            List<LineCurve> isoLines = new List<LineCurve>(Pill.samplePoints.Count);
-            for (int i = 0; i < Pill.samplePoints.Count; i++)
-            {
-                Vector3d direction = Vector3d.CrossProduct((Pill.connectionLines[i].PointAtEnd - Pill.connectionLines[i].PointAtStart), Vector3d.ZAxis);
-                //direction = StraigtenVector(direction);
-                LineCurve isoLine = Geometry.GetIsoLine(Pill.samplePoints[i], direction, Setups.IsoRadius, WorkingObstacles);
-                if (isoLine == null) continue;
-                isoLines.Add(isoLine);
-            }
-            return isoLines;
-        }
-
-        /// <summary>
-        /// Based on vector from connectionLines
-        /// </summary>
-        /// <returns></returns>
-        private List<LineCurve> GenerateIsoCurvesStage1()
-        {
-
-            List<LineCurve> isoLines = new List<LineCurve>(Pill.samplePoints.Count);
-            for (int i = 0; i < Pill.samplePoints.Count; i++)
-            {
-                Vector3d direction = Vector3d.CrossProduct((Pill.connectionLines[i].PointAtEnd - Pill.connectionLines[i].PointAtStart), Vector3d.ZAxis);
-                //direction = StraigtenVector(direction);
-                LineCurve isoLine = Geometry.GetIsoLine(Pill.samplePoints[i], direction, Setups.IsoRadius, WorkingObstacles);
-                if (isoLine == null) continue;
-                isoLines.Add(isoLine);
-            }
-            return isoLines;
-        }
-
-        /// <summary>
-        /// Based on vector from proxyLines
-        /// </summary>
-        /// <returns></returns>
-        private List<LineCurve> GenerateIsoCurvesStage2()
-        {
-            List<LineCurve> isoLines = new List<LineCurve>(Pill.samplePoints.Count);
-            for (int i = 0; i < Pill.samplePoints.Count; i++)
-            {
-                Vector3d direction = Vector3d.CrossProduct((Pill.proxLines[i].PointAtEnd - Pill.proxLines[i].PointAtStart), Vector3d.ZAxis);
-                //direction = StraigtenVector(direction);
-                LineCurve isoLine = Geometry.GetIsoLine(Pill.samplePoints[i], direction, Setups.IsoRadius, WorkingObstacles);
-                if (isoLine == null) continue;
-                isoLines.Add(isoLine);
-            }
-            return isoLines;
-        }
-
-        /// <summary>
-        /// Based on average vector from connectionLines and proxyLines
-        /// </summary>
-        /// <returns></returns>
-        private List<LineCurve> GenerateIsoCurvesStage3()
-        {
-            List<LineCurve> isoLines = new List<LineCurve>(Pill.samplePoints.Count);
-            for (int i = 0; i < Pill.samplePoints.Count; i++)
-            {
-                Vector3d direction = Vector3d.CrossProduct((Pill.proxLines[i].PointAtEnd - Pill.proxLines[i].PointAtStart), Vector3d.ZAxis);
-                Vector3d direction2 = Vector3d.CrossProduct((Pill.connectionLines[i].PointAtEnd - Pill.connectionLines[i].PointAtStart), Vector3d.ZAxis);
-                //Vector3d sum_direction = StraigtenVector(direction + direction2);
-                Vector3d sum_direction = direction + direction2;
-                LineCurve isoLine = Geometry.GetIsoLine(Pill.samplePoints[i], sum_direction, Setups.IsoRadius, WorkingObstacles);
-                if (isoLine == null) continue;
-                isoLines.Add(isoLine);
-            }
-            return isoLines;
-        }
-
-        /// <summary>
-        /// Generate rays starting from direction in GenerateIsoCurvesStage3 (average vector from connectionLines and proxyLines).
-        /// </summary>
-        /// <param name="raysCount">Number of extra rays to generate. Finally this amount of rays will be generated 2*raysCount + 1.</param>
-        /// <param name="stepAngle">Angle between rays.</param>
-        /// <returns></returns>
-        private List<List<LineCurve>> GenerateIsoCurvesStage3a(int raysCount, double stepAngle)
-        {
-            List<List<LineCurve>> isoLines = new List<List<LineCurve>>(Pill.samplePoints.Count);
-            for (int i = 0; i < Pill.samplePoints.Count; i++)
-            {
-                Vector3d direction = Vector3d.CrossProduct((Pill.proxLines[i].PointAtEnd - Pill.proxLines[i].PointAtStart), Vector3d.ZAxis);
-                Vector3d direction2 = Vector3d.CrossProduct((Pill.connectionLines[i].PointAtEnd - Pill.connectionLines[i].PointAtStart), Vector3d.ZAxis);
-                //Vector3d sum_direction = StraigtenVector(direction + direction2);
-                Vector3d sum_direction = direction + direction2;
-                double stepAngleInRadians = ExtraMath.ToRadians(stepAngle);
-                if (!sum_direction.Rotate(-raysCount * stepAngleInRadians, Vector3d.ZAxis)) continue;
-                //List<double>rotationAngles = Enumerable.Range(-raysCount, (2 * raysCount) + 1).Select(x => x* RhinoMath.ToRadians(stepAngle)).ToList();
-                List<LineCurve> currentIsoLines = new List<LineCurve>((2 * raysCount) + 1);
-                foreach (double angle in Enumerable.Range(0, (2 * raysCount) + 1))
-                {
-                    if (!sum_direction.Rotate(stepAngleInRadians, Vector3d.ZAxis)) continue;
-                    LineCurve isoLine = Geometry.GetIsoLine(Pill.samplePoints[i], sum_direction, Setups.IsoRadius, WorkingObstacles);
-                    if (isoLine == null) continue;
-                    currentIsoLines.Add(isoLine);
-                }
-                if (currentIsoLines.Count == 0) continue;
-                isoLines.Add(currentIsoLines);
-            }
-            return (List<List<LineCurve>>)Combinators.Combinators.CartesianProduct(isoLines);
-        }
-
 
         /// <summary>
         /// Generate bunch of rays arround sample points in range 0 - Math.Pi (half circle).
