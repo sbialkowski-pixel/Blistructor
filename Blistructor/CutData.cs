@@ -26,11 +26,10 @@ namespace Blistructor
         public List<PolylineCurve> Path { private set; get; }
         public PolylineCurve Polygon { private set;  get; }
         public List<Curve> Obstacles { set; private get; }
-        internal string UUID { private set;  get; }
+        //internal Guid UUID { private set;  get; }
 
         public CutData()
         {
-            UUID = Guid.NewGuid().ToString();
             segments = new List<Line>();
             isoSegments = new List<Line>();
             BladeFootPrint = new List<LineCurve>();
@@ -98,9 +97,11 @@ namespace Blistructor
 
         public bool GenerateBladeFootPrint()
         {
+            // If BladeFootPrint was generated previously, do not repet action. 
+            if (BladeFootPrint.Count > 0) return true;
+
             if (isoSegments == null || segments == null) return false;
             if (!GenerateSegments()) return false;
-            //  log.Info("Data are ok.");
             // Loop by all paths and generate Segments and IsoSegments
             for (int i = 0; i < segments.Count; i++)
             {
