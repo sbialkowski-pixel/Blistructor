@@ -101,22 +101,21 @@ namespace Blistructor
                         continue;
                     }
 
-                    Cutter cutter = new Cutter(Grasper.GetCartesianAsObstacle());
+                    Cutter cutter = new Cutter(blisterToCut, Grasper);
                     CutProposal cutProposal;
 
                     // Eech cut, update Jaws.
                     Grasper.UpdateJawsPoints();
-                    //Wejscie w tryb Advanced, powoduje to ze tne tabletki od 0,0 i jak juz jestem przy koncu granicy Graspera to sie wyjebuje...
+                    // Loop on pills
                     while (true)
                     {
-                        cutProposal = cutter.CutNext(blisterToCut);
+                        cutProposal = cutter.CutNextPill();
                         //GET PROPOSAL
-                        // Moze trzeba zamienic GetNextSuccessfulCut i CutNextAdvanced miejscami>
                         if (cutProposal == null)
                         {
                             //All pills are cut, lower requerments (try cut fixed and rejected pills where jaws can occure)
-                            cutProposal = cutter.GetNextCut(CutState.Rejected);
-                            if (cutProposal == null) cutProposal = cutter.GetNextCut(CutState.Fixed);
+                            cutProposal = cutter.GetNextPillCut(CutState.Rejected);
+                            if (cutProposal == null) cutProposal = cutter.GetNextPillCut(CutState.Fixed);
                             // If there is no successful cut proposal (all CutStates == FAIL), just end.
                             if (cutProposal == null)
                             {
@@ -127,38 +126,33 @@ namespace Blistructor
                         else if (cutProposal.State != CutState.Last)
                         {
                             // Checking only Pill which are not fixed by Jaw and cut data allows to grab it no collisions
-                            // Problem, only best cutting data is checked!!!!
-                            if (Grasper.ContainsJaw(cutProposal.BestCuttingData) && Grasper.HasPlaceForJawInCutContext(cutProposal.BestCuttingData))
+                            if (Grasper.ContainsJaw(cutProposal.Data) && Grasper.HasPlaceForJawInCutContext(cutProposal.Data))
                             {
                                 cutProposal.State = CutState.Fixed;
                                 continue;
                             }
-
                         }
-                        //TODO: Tutaj trzeba zrobić jeszcze jednego whila który bedzie leciał po porozycjach w listy cutProposal.CuttingData. 
-                        //I dopiero jak to się wyczerpie, to lecimy z dalej z koksem.
-                        // else if ten u gory jest problemem.
 
                         if (cutProposal.State != CutState.Last)
                         {
-                            cutProposal.Validator = new CutValidator(cutProposal, Grasper);
-                            if (!cutProposal.Validator.CheckConnectivityIntegrityInLeftovers(updateCutState: true)) continue;
-                            if (cutProposal.Validator.HasCutAnyImpactOnJaws)
+                            if (!cutProposal.CheckConnectivityIntegrityInLeftovers(state: CutState.Failed)) continue;
+                            if (cutProposal.HasCutAnyImpactOnJaws)
                             {
-                                if (!cutProposal.Validator.CheckJawsExistance(updateCutState: true)) continue;
-                                if (!cutProposal.Validator.CheckJawExistanceInLeftovers(updateCutState: true)) continue;
-                                if (!cutProposal.Validator.CheckJawLimitVoilations(updateCutState: true)) continue;
-                                if (cutProposal.State == CutState.Succeed)
+                                if (!cutProposal.CheckJawsExistance(state: CutState.Failed)) continue;
+                                if (!cutProposal.CheckJawExistanceInLeftovers(state: CutState.Failed)) continue;
+                                if (!cutProposal.CheckJawLimitVoilations(state: CutState.Failed)) continue;
+                                if (cutProposal.State == CutState.Proposed)
                                 {
-                                    if (!cutProposal.Validator.CheckJawsCollision(updateCutState: true)) continue;
+                                    if (!cutProposal.CheckJawsCollision(state: CutState.Rejected)) continue;
                                 }
                                 else if (cutProposal.State == CutState.Rejected)
                                 {
                                     cutProposal.State = CutState.Succeed;
                                     break;
                                 }
-                                else { continue; }
+                                else { continue; } 
                             }
+                            cutProposal.State = CutState.Succeed;
                         }
                         else
                         {
@@ -168,13 +162,12 @@ namespace Blistructor
                                 return CuttingState.CTR_FAILED;
                             }
                         }
-
-                        if (cutProposal.State == CutState.Failed) continue;
+                        if (cutProposal.State == CutState.Failed) continue;        
                         break;
                     }
 
                     CutBlister chunk = cutProposal.GetCutChunkAndRemoveItFomBlister();
-                    
+
                     if (true)
                     {
                         String path = String.Format("D:\\PIXEL\\Blistructor\\DebugModels\\{1}_Chunk_{0:00}_{2}.3dm", n, id, i);
@@ -210,10 +203,10 @@ namespace Blistructor
                                 file.AllLayers.Add(l_lines);
                                 ObjectAttributes a_polygon = new ObjectAttributes();
                                 a_polygon.LayerIndex = l_polygon.Index;
-                                cutProposal.CuttingData.ForEach(cData => file.Objects.AddCurve(cData.Polygon, a_polygon));
+                                file.Objects.AddCurve(cutProposal.Data.Polygon, a_polygon);
                                 ObjectAttributes a_lines = new ObjectAttributes();
                                 a_lines.LayerIndex = l_lines.Index;
-                                cutProposal.CuttingData.ForEach(cData => cData.IsoSegments.ForEach(line => file.Objects.AddCurve(line, a_lines)));
+                                cutProposal.Data.IsoSegments.ForEach(line => file.Objects.AddCurve(line, a_lines));
                             }
                         }
                         file.Write(path, 6);
@@ -255,33 +248,8 @@ namespace Blistructor
                         // If only one pill left, this cut is second last. So pottentialy can be hold by JAW. Chceck if this cut can be hold by any Jaw OR in past cuts one Jaws has been occupied, so there is no chance that THIS cut will be hold by JAW. If no chanse, apply cut on Grasper.
                         // Additionaly if Queue ==2, the other blister must be hold so, tuch chunk mus reduce grapsers.
                         int pastLast = Chunks.Where(c_chunk => c_chunk.IsLast == true).Count();
-                        if (!cutProposal.Validator.CheckJawExistanceInCut(updateCutState: false) || pastLast > 0 || Queue.Count == 2) Grasper.ApplyCut(chunk);
+                        if (!cutProposal.CheckJawExistanceInCut(state: CutState.None) || pastLast > 0 || Queue.Count == 2) Grasper.ApplyCut(chunk);
                     }
-
-
-                    // if (Queue.Count == 1)
-                    // {
-                    // If current blister has more then one pill, just apply cut on Grasper
-                    //   if (Queue[i].LeftPillsCount > 1) 
-                    //   {
-                    //      Grasper.ApplyCut(chunk);
-                    //  }
-                    //  else
-                    //   {
-                    // If only one pill left, this cut is second last. So pottentialy can be hold by JAW. Chceck if this cut can be hold by any Jaw OR in past cuts one Jaws has been occupied, so there is no chance that THIS cut will be hold by JAW. If no chanse, apply cut on Grasper
-                    //       if(!validator.CheckJawExistanceInCut(updateCutState: false) || pastLast != 0) //Grasper.ApplyCut(chunk);
-                    //   }
-                    // }
-                    // else if(Queue.Count == 2)
-                    // {
-                    /*
-                    If blister is splited on Two, there is some remarks:
-                    - current blister must have at least ONE pill exept this cut already, else leftover will be O or 1 and this point will be not reached.
-                    - other blister must have also at least one pill (may be last)
-                    - JAW must be also on the OTHER blister
-                    - 
-                    */
-                    //}
 
                     //If there is more the 2 piecies of blister, this is critical error. 
                     if (Queue.Count > 2)

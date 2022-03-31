@@ -27,27 +27,42 @@ using Combinators;
 
 namespace Blistructor
 {
+    public class LevelSetup
+    {
+        public int RaySamples { get; private set; }
+        public LevelSetup(int raySamples)
+        {
+            RaySamples = raySamples;
+        }
+
+    }
+
+
     public class Cutter
     {
         private static readonly ILog log = LogManager.GetLogger("Cutter.PillCutter");
         //private List<CutData> CuttingData { get; set; }
         private Blister Blister { get; set; }
         private Pill Pill { get; set; }
+        private Grasper Grasper { get; set; }
 
-        //private Grasper Grasper { get; set; }
         private List<Curve> FixedObstacles { get; set; }
         private List<Curve> WorkingObstacles { get; set; }
-
+        private List<List<CutProposal>> PropositionsLevels { get; set; }
         private List<List<CutProposal>> AlreadyCutLevels { get; set; }
-        private List<int> LevelSetup { get; set; }
+        private List<LevelSetup> LevelSetups { get; set; }
 
-        public Cutter(List<Curve> fixedObstacles)
+        public Cutter(Blister blisterTotCut, Grasper grasper)
         {
-            LevelSetup = new List<int>() { 0, 4, 8, 16, 32 };
-            AlreadyCutLevels = new List<List<CutProposal>>(LevelSetup.Count);
+            Blister = blisterTotCut;
+            LevelSetups = new List<LevelSetup>() { new LevelSetup(0), new LevelSetup(4), new LevelSetup(8), new LevelSetup(16), new LevelSetup(32) };
+            PropositionsLevels = new List<List<CutProposal>>(LevelSetups.Count);
+            AlreadyCutLevels = new List<List<CutProposal>>(LevelSetups.Count);
             //Init internal lists
-            LevelSetup.ForEach(s => AlreadyCutLevels.Add(new List<CutProposal>()));
-            FixedObstacles = fixedObstacles;
+            Grasper = grasper;
+            LevelSetups.ForEach(s => AlreadyCutLevels.Add(new List<CutProposal>()));
+            LevelSetups.ForEach(s => PropositionsLevels.Add(new List<CutProposal>()));
+            FixedObstacles = Grasper.GetCartesianAsObstacle();
             WorkingObstacles = new List<Curve>(FixedObstacles);
         }
 
@@ -55,34 +70,65 @@ namespace Blistructor
         /// <summary>
         /// Cutting with idea to keep each cutting state.
         /// </summary>
-        /// <param name="blisterTotCut"></param>
         /// <returns></returns>
-        public CutProposal CutNext(Blister blisterTotCut)
-        {
-            Blister = blisterTotCut;
 
-            foreach ((List<CutProposal> alreadyCut, int setup) in AlreadyCutLevels.Zip(LevelSetup, (p, s) => (Proposals: p, Setup: s)))
+        public CutProposal CutNextPill()
+        {
+            for (int i = 0; i < LevelSetups.Count; i++)
             {
-                List<Pill> pillsToProcess = Blister.Pills.Where(x => alreadyCut.All(y => y.Pill.Id != x.Id)).ToList();
-                foreach (Pill pill in pillsToProcess)
+                List<CutProposal> propositions = PropositionsLevels[i];
+                List<CutProposal> alreadyCut = AlreadyCutLevels[i];
+
+                CutProposal nextProposal = propositions.FirstOrDefault();
+                if (nextProposal == null)
                 {
-                    CutProposal proposal = TryCut(pill, setup);
-                    alreadyCut.Add(proposal);
-                    if (proposal.State == CutState.Failed) continue;
-                    else return proposal;
+                    List<Pill> pillsToProcess = Blister.Pills.Where(x => alreadyCut.All(y => y.Pill.Id != x.Id)).ToList();
+                    foreach (Pill pill in pillsToProcess)
+                    {
+                        List<CutProposal> proposals = TryCutPill(pill, LevelSetups[i].RaySamples);
+                        if (proposals.Count == 0) continue;
+                        List<CutProposal> sortedProposals = SortProposals(proposals);
+                        propositions.AddRange(sortedProposals);
+                        break;
+                    }
+                }
+
+                while (true)
+                {
+                    nextProposal = propositions.FirstOrDefault();
+
+                    if (nextProposal != null)
+                    {
+                        if (nextProposal.State == CutState.Last) return nextProposal;
+                        if (nextProposal.Data.GenerateBladeFootPrint())
+                        {
+                            alreadyCut.Add(nextProposal);
+                            propositions.Remove(nextProposal);
+                            return nextProposal;
+                        }
+                        else
+                        {
+                            nextProposal.State = CutState.Failed;
+                            alreadyCut.Add(nextProposal);
+                            propositions.Remove(nextProposal);
+                        }
+                    }
+                    else
+                    {
+                        break;
+                    }
                 }
             }
             return null;
-            //log.Warn("No cutting data generated for whole Blister.");
-            // throw new Exception("No cutting data generated for whole Blister.");
         }
+
 
         /// <summary>
         /// After passing all cutProposition (CutNext is returning null), get remaining proposition from internal cutter state.
         /// </summary>
         /// <param name="state">Desiered State</param>
         /// <returns></returns>
-        public CutProposal GetNextCut(CutState state)
+        public CutProposal GetNextPillCut(CutState state)
         {
             foreach (List<CutProposal> alreadyCut in AlreadyCutLevels)
             {
@@ -90,24 +136,23 @@ namespace Blistructor
                 if (nextProposal != null) return nextProposal;
             }
             return null;
-
-            //return AlreadyCut.FirstOrDefault(proposal => proposal.State == state);
         }
 
-        public CutProposal TryCut(Pill pillToCut, int advancedMethodSamples = 0)
+        // CutData bez ceic moze mi zastąpic CUtState = Last.
+        private List<CutProposal> TryCutPill(Pill pillToCut, int advancedMethodSamples = 0)
         {
             // Create obstacles (limiters) for cutting process.
             WorkingObstacles = new List<Curve>(FixedObstacles);
             pillToCut.UpdateObstacles();
             WorkingObstacles.AddRange(pillToCut.obstacles);
 
-            List<CutData> cuttingData = new List<CutData>();
             Pill = pillToCut;
             log.Info(String.Format("Trying to cut Outline id: {0} with status: {1}", pillToCut.Id, pillToCut.State));
             // If Outline is cut, don't try to cut it again. It suppose to be in chunk blisters list.
             if (pillToCut.State == PillState.Cut)
             {
-                return new CutProposal(pillToCut, cuttingData, CutState.Succeed);
+                return new List<CutProposal> { new CutProposal(pillToCut, null, Grasper, CutState.Succeed) };
+                // return new CutProposals(pillToCut, cuttingData, Grasper, CutState.Succeed);
             }
 
             // If Outline is not surrounded by other Outline, update data
@@ -115,19 +160,38 @@ namespace Blistructor
             if (pillToCut.adjacentPills.Count == 0)
             {
                 log.Debug("This is last Outline on blister.");
-                return new CutProposal(pillToCut, cuttingData, CutState.Last);
+
+                return new List<CutProposal> { new CutProposal(pillToCut, null, Grasper, CutState.Last) };
+                // return new CutProposals(pillToCut, cuttingData, Grasper, CutState.Last);
             }
             // If still here, try to cut 
             log.Debug("Perform cutting data generation");
+            List<CutData> cuttingData = new List<CutData>();
             if (advancedMethodSamples > 0) cuttingData = GenerateAdvancedCuttingData(samples: advancedMethodSamples);
             else cuttingData = GenerateSimpleCuttingData_v3();
 
             if (cuttingData.Count > 0)
             {
-                return new CutProposal(pillToCut, cuttingData, CutState.Succeed);
+                return cuttingData.Select(data => new CutProposal(pillToCut, data, Grasper, CutState.Proposed)).ToList();
+                //return new CutProposals(pillToCut, cuttingData, Grasper, CutState.Succeed);
             }
-            return new CutProposal(pillToCut, cuttingData, CutState.Failed);
+            return new List<CutProposal>();
+            //return new CutProposals(pillToCut, cuttingData, Grasper, CutState.Failed);
         }
+
+
+        /// <summary>
+        /// Sort cutting data, so the best is first on list.
+        /// </summary>
+        private List<CutProposal> SortProposals(List<CutProposal> proposals)
+        {
+            //TODO: Sort by maximise Palce for Jaws!!!!
+            //TODO: Sort by Status in order in Enum (descending)
+            // Order by number of cuts to be performed.
+            if (proposals.Count == 1) return proposals;
+            return proposals.OrderBy(x => x.Data.EstimatedCuttingCount * x.Data.Polygon.GetBoundingBox(false).Area * x.Data.BlisterLeftovers.Select(y => y.PointCount).Sum()).ToList();
+        }
+
 
         #region CUT STUFF
         private List<CutData> GenerateSimpleCuttingData_v3()
@@ -242,7 +306,7 @@ namespace Blistructor
             return cuttingDataList;
         }
 
-   
+
         private List<CutData> GenerateAdvancedCuttingData(int samples = 30)
         {
             ConcurrentBag<CutData> cuttingData = new ConcurrentBag<CutData>();

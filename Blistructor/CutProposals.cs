@@ -15,87 +15,127 @@ using log4net;
 
 namespace Blistructor
 {
-    public class CutProposal
+    public class CutProposal : IEquatable<CutProposal>
     {
-        private static readonly ILog log = LogManager.GetLogger("Cutter.PillCutProposals");
-        internal List<CutData> CuttingData { get; set; }
+        private static readonly ILog log = LogManager.GetLogger("Cutter.CutProposal");
 
-        private List<CutData> AlreadyCutData { get; set; }
+        public CutData Data { get; private set; }
+        private CutValidator Validator { get; set; }
+
+        internal Guid UUID { private set; get; }
 
         #region CONTRUCTORS
-        public CutProposal(Pill proposedPillToCut, List<CutData> cuttingData, CutState state)
+        public CutProposal(Pill proposedPillToCut, CutData cutData, Grasper grasper, CutState state)
         {
-            // if _pill.state is CUT, just rewrite fields...
+            UUID = Guid.NewGuid();
             Pill = proposedPillToCut;
             State = state;
-            CuttingData = SortCuttingData(cuttingData);
-            BestCuttingData = FindBestCut();
-        }
-        protected CutProposal(CutProposal proposal)
-        {
-            Pill = proposal.Pill;
-            CuttingData = proposal.CuttingData;
-            BestCuttingData = proposal.BestCuttingData;
-            State = proposal.State;
+            Data = cutData;
+            if (cutData != null)
+                Validator = new CutValidator(Data, grasper);
         }
         #endregion
 
         #region PROPERTIES
-        public CutState State { get; internal set; }
-        public CutData BestCuttingData { get; private set; }
-
         public Pill Pill { get; private set; }
-
         public Blister Blister { get => Pill.blister; }
+        public CutState State { get; internal set; }
+        #endregion
 
-        public CutValidator Validator { get; set; }
-
-        public List<PolylineCurve> GetPaths()
+        public bool Equals(CutProposal other)
         {
-            List<PolylineCurve> output = new List<PolylineCurve>();
-            foreach (CutData cData in CuttingData)
-            {
-                output.AddRange(cData.Path);
-            }
-            return output;
+            if (other == null) return false;
+            return (this.UUID.Equals(other.UUID));
+        }
+
+        #region VALIDATOR
+        /// <summary>
+        /// Check if Cut has any impact on Grasper.
+        /// </summary>
+        /// <returns></returns>
+        public bool HasCutAnyImpactOnJaws
+        {
+            get { return Validator.HasCutAnyImpactOnJaws; }
+        }
+
+        /// <summary>
+        /// Check Connectivity (AdjacingPills) against pill planned to be cut.
+        /// </summary>
+        /// <param name="state">Proposal state, if validation fails</param>
+        /// <returns>True if all ok, false if there is inconsistency.</returns>
+        public bool CheckConnectivityIntegrityInLeftovers(CutState state = CutState.None)
+        {
+            if (State == CutState.Last) return true;
+            bool result = Validator.CheckConnectivityIntegrityInLeftovers(Pill, Blister);
+            if (!result && state != CutState.None) State = state;
+            return result;
+        }
+
+        /// <summary>
+        /// Check for collision between current Jaws and cutImpactIntervals.
+        /// </summary>
+        /// <param name="state">Proposal state, if validation fails</param>        
+        /// <returns></returns>
+        public bool CheckJawsCollision(CutState state = CutState.None)
+        {
+            bool result = Validator.CheckJawsCollision();
+            if (!result && state != CutState.None) State = state;
+            return result;
+        }
+
+        /// <summary>
+        /// If this cut will remove whole jawPossibleLocation line, its is not good, at least if it is not last blister.
+        /// </summary>
+        /// <param name="state">Proposal state, if validation fails</param>        
+        /// <returns>True if any Jaw can occure. False if whole jawPossibleLocation line is removed.</returns>
+        public bool CheckJawsExistance(CutState state = CutState.None)
+        {
+            if (State == CutState.Last) return true;
+            bool result = Validator.CheckJawsExistance();
+            if (!result && state != CutState.None) State = state;
+            return result;
+        }
+
+        /// <summary>
+        /// Create futureJawPosibleIntervals based on cutData and check if leftoves has place for Jaws.
+        /// </summary>
+        /// <param name="state">Proposal state, if validation fails</param>        
+        /// <returns></returns>
+        public bool CheckJawExistanceInLeftovers(CutState state = CutState.None)
+        {
+            if (State == CutState.Last) return true;
+            bool result = Validator.CheckJawsExistance();
+            if (!result && state != CutState.None) State = state;
+            return result;
+        }
+
+        /// <summary>
+        /// Check if this cut proposition vlilates distance limit  between Jaws.
+        /// </summary>
+        /// <param name="state">Proposal state, if validation fails</param>        
+        /// <returns></returns>
+        public bool CheckJawLimitVoilations(CutState state = CutState.None)
+        {
+            bool result = Validator.CheckJawLimitVoilations();
+            if (!result && state != CutState.None) State = state;
+            return result;
+        }
+
+        /// <summary>
+        /// Check if after applying cut, CutBLister can handle any Jaw.
+        /// This is to check if second last piece can be hold by any Jaw.
+        /// </summary>
+        /// <param name="state">Proposal state, if validation fails</param>        
+        /// <returns>True if Jaw can exist on this chuck after applying cut</returns>
+        public bool CheckJawExistanceInCut(CutState state = CutState.None)
+        {
+            bool result = Validator.CheckJawExistanceInCut();
+            if (!result && state != CutState.None) State = state;
+            return result;
         }
         #endregion
 
-        /// <summary>
-        /// Sort cutting data, so the best is first on list.
-        /// </summary>
-        private List<CutData> SortCuttingData(List<CutData> cuttingData)
-        {
-            // Order by number of cuts to be performed.
-            return cuttingData.OrderBy(x => x.EstimatedCuttingCount * x.Polygon.GetBoundingBox(false).Area * x.BlisterLeftovers.Select(y => y.PointCount).Sum()).ToList();
-        }
-
-        public CutData NextCutData()
-        {
-            //Blister.Pills
-            List<CutData> proceedCUtData = CuttingData.Where(x => AlreadyCutData.All(y => y.UUID != x.UUID)).ToList();
-            foreach (CutData cData in proceedCUtData)
-            {
-                AlreadyCutData.Add(cData);
-                if (!cData.GenerateBladeFootPrint()) continue;
-                return cData;
-            }
-            return null;
-        }
-
-        /// <summary>
-        /// Get best Cutting Data from all generated and assign it to /bestCuttingData/ field.
-        /// </summary>
-        private CutData FindBestCut()
-        {
-            foreach (CutData cData in CuttingData)
-            {
-                if (!cData.GenerateBladeFootPrint()) continue;
-                return cData;
-            }
-            return null;
-        }
-
+        #region APPROVAL
         /// <summary>
         /// Get Chunk and remove Pill and any connection data for that pill from current blister. 
         /// </summary>
@@ -121,7 +161,7 @@ namespace Blistructor
                     int locationIndex = Blister.Pills.FindIndex(pill => pill.Id == Pill.Id);
                     Blister.Pills.RemoveAt(locationIndex);
 
-                    return new CutBlister(Pill, BestCuttingData);
+                    return new CutBlister(Pill, Data);
                 default:
                     throw new NotImplementedException($"This state {State} is not implemented!");
             }
@@ -144,7 +184,7 @@ namespace Blistructor
                     return (CurrentBluster: null, Leftovers: new List<Blister>());
                 case CutState.Succeed:
                     log.Debug("Updating current Blister outline and remove cut Pill from blister");
-                    Blister.Outline = BestCuttingData.BlisterLeftovers[0];
+                    Blister.Outline = Data.BlisterLeftovers[0];
                     // Case if Blister is split because of this cut.
                     log.Debug("Remove all cells which are not belong to this Blister anymore.");
                     List<Pill> removerdPills = new List<Pill>(Blister.Pills.Count);
@@ -165,13 +205,13 @@ namespace Blistructor
                             i--;
                         }
                     }
-                    List<Blister> leftovers = new List<Blister>(BestCuttingData.BlisterLeftovers.Count);
+                    List<Blister> leftovers = new List<Blister>(Data.BlisterLeftovers.Count);
 
                     //leftovers.Add(Blister);
 
-                    for (int j = 1; j < BestCuttingData.BlisterLeftovers.Count; j++)
+                    for (int j = 1; j < Data.BlisterLeftovers.Count; j++)
                     {
-                        PolylineCurve blisterLeftover = BestCuttingData.BlisterLeftovers[j];
+                        PolylineCurve blisterLeftover = Data.BlisterLeftovers[j];
                         Blister newBli = new Blister(removerdPills, blisterLeftover);
                         // Verify if new Blister is attached to anchor
                         //if (newBli.HasPossibleAnchor)
@@ -190,46 +230,6 @@ namespace Blistructor
             }
         }
 
-        #region PREVIEW STUFF FOR DEBUG MOSTLY
-        /*
-        public List<PolylineCurve> GetCuttingPath()
-        {
-            // !!!============If cell is anchor it probably doesn't have cutting stuff... To validate===========!!!!
-            if (BestCuttingData == null) return new List<PolylineCurve>();
-
-            // cells[0].bestCuttingData.GenerateBladeFootPrint();
-            return BestCuttingData.Path;
-        }
-
-        public List<LineCurve> GetCuttingLines()
-        {
-            // !!!============If cell is anchor it probably doesn't have cutting stuff... To validate===========!!!!
-            if (BestCuttingData == null) return new List<LineCurve>();
-
-            // cells[0].bestCuttingData.GenerateBladeFootPrint();
-            return BestCuttingData.bladeFootPrint;
-        }
-        public List<LineCurve> GetIsoRays()
-        {
-            // !!!============If cell is anchor it probably doesn't have cutting stuff... To validate===========!!!!
-            if (BestCuttingData == null) return new List<LineCurve>();
-            // cells[0].bestCuttingData.GenerateBladeFootPrint();
-            return BestCuttingData.IsoSegments;
-            //return cells[0].bestCuttingData.IsoRays;
-
-        }
-        public List<PolylineCurve> GetLeftOvers()
-        {
-            if (BestCuttingData == null) return new List<PolylineCurve>();
-            return BestCuttingData.BlisterLeftovers;
-        }
-        public List<PolylineCurve> GetAllPossiblePolygons()
-        {
-            // !!!============If cell is anchor it probably doesn't have cutting stuff... To validate===========!!!!
-            if (BestCuttingData == null) return new List<PolylineCurve>();
-            return BestCuttingData.BlisterLeftovers;
-        }
-        */
         #endregion
     }
 
