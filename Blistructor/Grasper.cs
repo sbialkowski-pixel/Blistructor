@@ -130,9 +130,9 @@ namespace Blistructor
         /// </summary>
         public List<LineCurve> JawsPossibleLocation { get; private set; }
 
-        public JawPoint Jaw1 { get; private set; }
+        //public JawPoint Jaw1 { get; private set; }
 
-        public JawPoint Jaw2 { get; private set; }
+        //public JawPoint Jaw2 { get; private set; }
 
         public List<JawPoint> Jaws { get; private set; }
         #endregion
@@ -796,11 +796,9 @@ namespace Blistructor
             Jaws = FindJawPoints();
         }
 
-        public static List<Interval> ApplyCutOnGrasperLocation(List<Interval> grasperIntervals, CutData cutData)
+        public static List<Interval> ApplyCutOnGrasperLocation(List<Interval> grasperIntervals, Interval restrictedArea)
         {
-            Interval restrictedArea = ComputeTotalCutImpactInterval(cutData, true, Setups.JawKnifeAdditionalSafeDistance);
             if (!restrictedArea.IsValid) return null;
-            //List<Interval> grasperIntervals = GetJawPossibleIntervals();
             List<Interval> remainingGraspersLocation = new List<Interval>(grasperIntervals.Count);
             foreach (Interval currentGraspersLocation in grasperIntervals)
             {
@@ -808,6 +806,13 @@ namespace Blistructor
             }
             remainingGraspersLocation = remainingGraspersLocation.Select(spacing => { spacing.MakeIncreasing(); return spacing; }).ToList();
             return remainingGraspersLocation.OrderBy(spacing => spacing.T0).ToList();
+        }
+
+
+        public static List<Interval> ApplyCutOnGrasperLocation(List<Interval> grasperIntervals, CutData cutData)
+        {
+            Interval restrictedArea = ComputeTotalCutImpactInterval(cutData, true, Setups.JawKnifeAdditionalSafeDistance);
+            return ApplyCutOnGrasperLocation(grasperIntervals, restrictedArea);
         }
 
         public void ApplyCut(CutBlister chunk, bool updateJaws = true)

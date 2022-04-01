@@ -48,6 +48,28 @@ namespace Blistructor
             return (this.UUID.Equals(other.UUID));
         }
 
+        //Metoda do oceny ile miejsca zostaje po cięciu. Przeniesć do validatora
+        //Dodać do alidatora metodę do oceny ceica w celu sortowania
+        //Validator powinien miec wszystko co potrznbne do validoacji i oceny ciecia. 
+        /// <summary>
+        /// Evaluate how Cut influance JawLocationPossible.
+        /// </summary>
+        /// <returns> 0.0 means Cut remove whole JawLocationPossible, 1.0 means no impact on JawsLocation</returns>
+        public double EvaluateFutureJawPosibleIntervalsRange()
+        {
+            if (!Validator.HasCutAnyImpactOnJaws) return 1.0;
+            List<Interval> futureJawPosibleIntervals = Grasper.ApplyCutOnGrasperLocation(Validator.CurrentJawPosibleIntervals, Validator.BlisterImpactInterval);
+            double rangeLength =  Grasper.IntervalsInterval(futureJawPosibleIntervals).Length;
+            double realLength = futureJawPosibleIntervals.Select(inter => inter.Length).Sum();
+            return rangeLength / realLength;
+            //return futureJawPosibleIntervals.Select(inter => inter.Length).Sum();
+        }
+
+        public double EvaluateCutQuality()
+        {
+            return Data.EstimatedCuttingCount * Data.Polygon.GetBoundingBox(false).Area * Data.BlisterLeftovers.Select(y => y.PointCount).Sum();
+        }
+
         #region VALIDATOR
         /// <summary>
         /// Check if Cut has any impact on Grasper.

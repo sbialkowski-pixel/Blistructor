@@ -31,16 +31,16 @@ namespace Blistructor
         private CutData CutData { get; set; }
         private Grasper Grasper { get; set; }
 
-        private List<Interval> CurrentJawPosibleIntervals { get; set; }
-        private List<Interval> CutImpactIntervals { get; set; }
-        private Interval BlisterImpactInterval { get; set; }
+        internal List<Interval> CurrentJawPosibleIntervals { get; set; }
+        internal List<Interval> CutImpactIntervals { get; set; }
+        internal Interval BlisterImpactInterval { get; set; }
 
         public CutValidator(CutData cutData, Grasper grasper)
         {
             CutData = cutData;
             Grasper = grasper;
             CurrentJawPosibleIntervals = Grasper.GetJawPossibleIntervals();
-            CutImpactIntervals = Grasper.ComputCutImpactInterval(CutData, applyJawBoundaries: true);
+            CutImpactIntervals = Grasper.ComputCutImpactInterval(CutData, applyJawBoundaries: true, additionalSafeDistance: Setups.JawKnifeAdditionalSafeDistance);
             BlisterImpactInterval = Grasper.ComputeTotalCutImpactInterval(CutData, CutImpactIntervals);
         }
 
@@ -59,7 +59,6 @@ namespace Blistructor
                 else return false;
             }
         }
-
 
         /// <summary>
         /// Check Connectivity (AdjacingPills) against pill planned to be cut.
@@ -120,7 +119,7 @@ namespace Blistructor
         /// <returns></returns>
         public bool CheckJawExistanceInLeftovers()
         {
-            List<Interval> futureJawPosibleIntervals = Grasper.ApplyCutOnGrasperLocation(CurrentJawPosibleIntervals, CutData);
+            List<Interval> futureJawPosibleIntervals = Grasper.ApplyCutOnGrasperLocation(CurrentJawPosibleIntervals, BlisterImpactInterval);
             List<LineCurve> futureJawPosibleLocation = Grasper.ConvertIntervalsToLines(futureJawPosibleIntervals);
 
             foreach (PolylineCurve leftover in CutData.BlisterLeftovers)
@@ -140,13 +139,13 @@ namespace Blistructor
         /// <returns></returns>
         public bool CheckJawLimitVoilations()
         {
-            List<Interval> futureJawPosibleIntervals = Grasper.ApplyCutOnGrasperLocation(CurrentJawPosibleIntervals, CutData);
+            List<Interval> futureJawPosibleIntervals = Grasper.ApplyCutOnGrasperLocation(CurrentJawPosibleIntervals, BlisterImpactInterval);
             // This cut is not influancing grasper.
             if (futureJawPosibleIntervals == null) return false;
 
             List<JawPoint> newJaws = Grasper.FindJawPoints(futureJawPosibleIntervals);
 
-            if (newJaws.Count <2)
+            if (newJaws.Count < 2)
             {
                 log.Warn(string.Format("This cut failed: Only {0} jaws found. 2 is required.", newJaws.Count));
                 return false;

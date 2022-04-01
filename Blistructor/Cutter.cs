@@ -185,11 +185,9 @@ namespace Blistructor
         /// </summary>
         private List<CutProposal> SortProposals(List<CutProposal> proposals)
         {
-            //TODO: Sort by maximise Palce for Jaws!!!!
-            //TODO: Sort by Status in order in Enum (descending)
             // Order by number of cuts to be performed.
             if (proposals.Count == 1) return proposals;
-            return proposals.OrderBy(x => x.Data.EstimatedCuttingCount * x.Data.Polygon.GetBoundingBox(false).Area * x.Data.BlisterLeftovers.Select(y => y.PointCount).Sum()).ToList();
+            return proposals.OrderBy(x => (int)x.State * x.EvaluateCutQuality() * x.EvaluateFutureJawPosibleIntervalsRange()).ToList();
         }
 
 
@@ -268,6 +266,7 @@ namespace Blistructor
             }
             List<CutData> cuttingDataList = cuttingData.ToList();
             //DEBUG - SAVE FILE:
+#if DEBUG_FILE
             if (debugFileName != "")
             {
                 Random rnd = new Random();
@@ -302,6 +301,7 @@ namespace Blistructor
 
                 file.Write(path, 6);
             }
+#endif
             // END DEBUG
             return cuttingDataList;
         }
@@ -329,42 +329,42 @@ namespace Blistructor
             }
             List<CutData> cuttingDataList = cuttingData.ToList();
             //DEBUG - SAVE FILE:
-            if (true)
-            {
-                Random rnd = new Random();
-                int id = rnd.Next(0, 1000);
-                String path = String.Format("D:\\PIXEL\\Blistructor\\DebugModels\\AdvancedCut_{0}.3dm", id);
-                File3dm file = new File3dm();
+#if DEBUG_FILE   
 
-                Layer l_polygon = new Layer();
-                l_polygon.Name = "polygon";
-                l_polygon.Index = 0;
-                file.AllLayers.Add(l_polygon);
-                Layer l_lines = new Layer();
-                l_lines.Name = "lines";
-                l_lines.Index = 1;
-                file.AllLayers.Add(l_lines);
-                Layer l_obst = new Layer();
-                l_obst.Name = "obstacles";
-                l_obst.Index = 2;
-                file.AllLayers.Add(l_obst);
+            Random rnd = new Random();
+            int id = rnd.Next(0, 1000);
+            String path = String.Format("D:\\PIXEL\\Blistructor\\DebugModels\\AdvancedCut_{0}.3dm", id);
+            File3dm file = new File3dm();
 
-                ObjectAttributes a_polygon = new ObjectAttributes();
-                a_polygon.LayerIndex = l_polygon.Index;
-                cuttingDataList.ForEach(cData => file.Objects.AddCurve(cData.Polygon, a_polygon));
+            Layer l_polygon = new Layer();
+            l_polygon.Name = "polygon";
+            l_polygon.Index = 0;
+            file.AllLayers.Add(l_polygon);
+            Layer l_lines = new Layer();
+            l_lines.Name = "lines";
+            l_lines.Index = 1;
+            file.AllLayers.Add(l_lines);
+            Layer l_obst = new Layer();
+            l_obst.Name = "obstacles";
+            l_obst.Index = 2;
+            file.AllLayers.Add(l_obst);
 
-                ObjectAttributes a_lines = new ObjectAttributes();
-                a_lines.LayerIndex = l_lines.Index;
-                isoLinesStage4.ForEach(list => list.ForEach(l => file.Objects.AddCurve(l, a_lines)));
+            ObjectAttributes a_polygon = new ObjectAttributes();
+            a_polygon.LayerIndex = l_polygon.Index;
+            cuttingDataList.ForEach(cData => file.Objects.AddCurve(cData.Polygon, a_polygon));
 
-                ObjectAttributes a_obs = new ObjectAttributes();
-                a_obs.LayerIndex = l_obst.Index;
-                WorkingObstacles.ForEach(crv => file.Objects.AddCurve(crv, a_obs));
+            ObjectAttributes a_lines = new ObjectAttributes();
+            a_lines.LayerIndex = l_lines.Index;
+            isoLinesStage4.ForEach(list => list.ForEach(l => file.Objects.AddCurve(l, a_lines)));
 
-                file.Write(path, 6);
-            }
-            // END DEBUG
-            return cuttingDataList;
+            ObjectAttributes a_obs = new ObjectAttributes();
+            a_obs.LayerIndex = l_obst.Index;
+            WorkingObstacles.ForEach(crv => file.Objects.AddCurve(crv, a_obs));
+
+            file.Write(path, 6);
+#endif
+                // END DEBUG
+                return cuttingDataList;
         }
 
         #endregion

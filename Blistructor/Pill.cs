@@ -86,22 +86,17 @@ namespace Blistructor
         }
 
         #region PROPERTIES
-        /*public Blister Blister
-        {
-            set
-            {
-                blister = value;
-                EstimateOrientationCircle();
-                SortData();
-            }
-        }*/
-
         public double CoordinateIndicator
         {
             get
             {
                 return Center.X + (Center.Y * 10);
             }
+        }
+
+        public double NeighbourCount
+        {
+            get { return adjacentPills.Count; }
         }
 
         public NurbsCurve OrientationCircle { get; private set; }
@@ -134,9 +129,7 @@ namespace Blistructor
         }
         public double GetClosestDistance(List<Point3d> pts)
         {
-            PointCloud ptC = new PointCloud(pts);
-            int closestIndex = ptC.ClosestPoint(this.Center);
-            return this.Center.DistanceTo(pts[closestIndex]);
+            return pts.Select(p => p.DistanceTo(this.Center)).OrderBy(d => d).First();
         }
         public double GetDistance(Curve crv)
         {
@@ -154,7 +147,7 @@ namespace Blistructor
                 ptc.Add(crv.PointAt(t));
             }
             return GetClosestDistance(ptc);
-        }
+        }        
 
         #endregion
 
