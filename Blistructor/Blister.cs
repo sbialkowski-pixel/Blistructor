@@ -271,6 +271,17 @@ namespace Blistructor
         #endregion
 
         #region SORTS
+
+        public void SortPillsByComplex(Grasper grasper)
+        {
+            double sort(Pill pill)
+            {
+                double jawDistance = pill.GetClosestDistance(grasper.Jaws.Select(jaw => jaw.Location).ToList());
+                return pill.CoordinateIndicator + jawDistance;
+            }
+            Pills.OrderBy(pill => sort(pill)).ToList();
+        }
+
         /// <summary>
         /// Z-Ordering.
         ///<param name="descending">If true, pills will be sorted descending.</param>

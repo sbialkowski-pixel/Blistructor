@@ -31,6 +31,7 @@ namespace Blistructor
             log.Info(String.Format("New blister with {0} pills", pillsOutlines.Count));
             Queue.Add(initialBlister);
             Grasper = new Grasper(Queue);
+            initialBlister.SortPillsByComplex(Grasper);
         }
 
         public BlisterProcessor(Blister blisterToCut)
@@ -93,6 +94,7 @@ namespace Blistructor
                 for (int i = 0; i < Queue.Count; i++)
                 {
                     Blister blisterToCut = Queue[i];
+                    blisterToCut.SortPillsByComplex(Grasper);
                     log.Info(String.Format("{0} pills left to cut on Blister:{1}", blisterToCut.Pills.Count, i));
                     if (blisterToCut.IsDone)
                     {
@@ -135,6 +137,7 @@ namespace Blistructor
 
                         if (cutProposal.State != CutState.Last)
                         {
+                            if ((Queue.Count - 1 + cutProposal.Data.BlisterLeftovers.Count) > 2) continue;
                             if (!cutProposal.CheckConnectivityIntegrityInLeftovers(state: CutState.Failed)) continue;
                             if (cutProposal.HasCutAnyImpactOnJaws)
                             {
@@ -150,7 +153,7 @@ namespace Blistructor
                                     cutProposal.State = CutState.Succeed;
                                     break;
                                 }
-                                else { continue; } 
+                                else { continue; }
                             }
                             cutProposal.State = CutState.Succeed;
                         }
@@ -162,56 +165,55 @@ namespace Blistructor
                                 return CuttingState.CTR_FAILED;
                             }
                         }
-                        if (cutProposal.State == CutState.Failed) continue;        
+                        if (cutProposal.State == CutState.Failed) continue;
                         break;
                     }
 
                     CutBlister chunk = cutProposal.GetCutChunkAndRemoveItFomBlister();
+#if DEBUG_FILE
 
-                    if (true)
+                    String path = String.Format("D:\\PIXEL\\Blistructor\\DebugModels\\{1}_Chunk_{0:00}_{2}.3dm", n, id, i);
+                    File3dm file = new File3dm();
+                    Layer l_chunk = new Layer();
+                    l_chunk.Name = "chunk";
+                    l_chunk.Index = 0;
+                    file.AllLayers.Add(l_chunk);
+                    ObjectAttributes a_chunk = new ObjectAttributes();
+                    a_chunk.LayerIndex = l_chunk.Index;
+
+
+                    file.Objects.AddCurve(chunk.Outline, a_chunk);
+                    file.Objects.AddCurve(chunk.Pill.Outline, a_chunk);
+                    Grasper.JawsPossibleLocation.ForEach(crv => file.Objects.AddCurve(crv, a_chunk));
+                    Queue.ForEach(b => b.Pills.ForEach(p => file.Objects.AddCurve(p.Outline, a_chunk)));
+                    if (chunk.CutData != null)
                     {
-                        String path = String.Format("D:\\PIXEL\\Blistructor\\DebugModels\\{1}_Chunk_{0:00}_{2}.3dm", n, id, i);
-                        File3dm file = new File3dm();
-                        Layer l_chunk = new Layer();
-                        l_chunk.Name = "chunk";
-                        l_chunk.Index = 0;
-                        file.AllLayers.Add(l_chunk);
-                        ObjectAttributes a_chunk = new ObjectAttributes();
-                        a_chunk.LayerIndex = l_chunk.Index;
+                        chunk.CutData.BladeFootPrint.ForEach(crv => file.Objects.AddCurve(crv, a_chunk));
+                        chunk.CutData.BlisterLeftovers.ForEach(crv => file.Objects.AddCurve(crv, a_chunk));
+                        chunk.CutData.Path.ForEach(crv => file.Objects.AddCurve(crv, a_chunk));
 
-
-                        file.Objects.AddCurve(chunk.Outline, a_chunk);
-                        file.Objects.AddCurve(chunk.Pill.Outline, a_chunk);
-                        Grasper.JawsPossibleLocation.ForEach(crv => file.Objects.AddCurve(crv, a_chunk));
-                        Queue.ForEach(b => b.Pills.ForEach(p => file.Objects.AddCurve(p.Outline, a_chunk)));
-                        if (chunk.CutData != null)
+                        if (true)
                         {
-                            chunk.CutData.BladeFootPrint.ForEach(crv => file.Objects.AddCurve(crv, a_chunk));
-                            chunk.CutData.BlisterLeftovers.ForEach(crv => file.Objects.AddCurve(crv, a_chunk));
-                            chunk.CutData.Path.ForEach(crv => file.Objects.AddCurve(crv, a_chunk));
-
-                            if (true)
-                            {
-                                //Proposal part
-                                Layer l_polygon = new Layer();
-                                l_polygon.Name = "polygon";
-                                l_polygon.Index = 1;
-                                file.AllLayers.Add(l_polygon);
-                                Layer l_lines = new Layer();
-                                l_lines.Name = "lines";
-                                l_lines.Index = 2;
-                                file.AllLayers.Add(l_lines);
-                                ObjectAttributes a_polygon = new ObjectAttributes();
-                                a_polygon.LayerIndex = l_polygon.Index;
-                                file.Objects.AddCurve(cutProposal.Data.Polygon, a_polygon);
-                                ObjectAttributes a_lines = new ObjectAttributes();
-                                a_lines.LayerIndex = l_lines.Index;
-                                cutProposal.Data.IsoSegments.ForEach(line => file.Objects.AddCurve(line, a_lines));
-                            }
+                            //Proposal part
+                            Layer l_polygon = new Layer();
+                            l_polygon.Name = "polygon";
+                            l_polygon.Index = 1;
+                            file.AllLayers.Add(l_polygon);
+                            Layer l_lines = new Layer();
+                            l_lines.Name = "lines";
+                            l_lines.Index = 2;
+                            file.AllLayers.Add(l_lines);
+                            ObjectAttributes a_polygon = new ObjectAttributes();
+                            a_polygon.LayerIndex = l_polygon.Index;
+                            file.Objects.AddCurve(cutProposal.Data.Polygon, a_polygon);
+                            ObjectAttributes a_lines = new ObjectAttributes();
+                            a_lines.LayerIndex = l_lines.Index;
+                            cutProposal.Data.IsoSegments.ForEach(line => file.Objects.AddCurve(line, a_lines));
                         }
-                        file.Write(path, 6);
                     }
+                    file.Write(path, 6);
 
+#endif
                     // If anything was cut, add to list
                     if (chunk != null)
                     {
@@ -258,12 +260,19 @@ namespace Blistructor
                         return CuttingState.CTR_LEFTOVERS_FAILURE;
                     }
 
+                    //TODO: Przy sortowaniu, na poczatek trzeba dawać tabletku które wykraczaja poza linie mozliwości łapek,!!!
                     // Update Knife posittion to reorder pills for next cut.
-                    if (Queue.Count > 0)
-                    {
-                        Point3d lastKnifePossition = chunk.Pill.Center;
-                        if (lastKnifePossition.X != double.NaN) blisterToCut.SortPillsByPointDirection(lastKnifePossition, false);
-                    }
+                    //if (Queue.Count > 0)
+                    //{
+                    //    double sort(Pill pill)
+                    //    {
+                    //        double jawDistance  = pill.GetClosestDistance(Grasper.Jaws.Select(jaw => jaw.Location).ToList());
+                    //        return pill.CoordinateIndicator +jawDistance;
+                    //    }
+                    //    //Point3d lastKnifePossition = chunk.Pill.Center;
+                    //    //if (lastKnifePossition.X != double.NaN) blisterToCut.SortPillsByPointDirection(lastKnifePossition, false);
+                    //    blisterToCut.Pills.OrderBy(pill => sort(pill)).ToList();
+                    //}
                 }
                 n++;
             }
