@@ -1,4 +1,6 @@
 ﻿using System;
+using System.IO;
+
 using System.Collections.Generic;
 using System.Linq;
 using log4net;
@@ -19,16 +21,11 @@ namespace Blistructor
         public List<CutBlister> Chunks = new List<CutBlister>();
         public Grasper Grasper { get; private set; }
 
-        public BlisterProcessor()
-        {
-
-        }
-
-        public BlisterProcessor(List<PolylineCurve> pillsOutlines, PolylineCurve blisterOutlines) : this()
+        public BlisterProcessor(List<PolylineCurve> pillsOutlines, PolylineCurve blisterOutlines) 
         {
             Blister initialBlister = new Blister(pillsOutlines, blisterOutlines);
             initialBlister.SortPillsByCoordinates(true);
-            log.Info(String.Format("New blister with {0} pills", pillsOutlines.Count));
+            log.Info(String.Format("New blister with {0} Pills", pillsOutlines.Count));
             Queue.Add(initialBlister);
             Grasper = new Grasper(Queue);
             initialBlister.SortPillsByComplex(Grasper);
@@ -66,6 +63,12 @@ namespace Blistructor
         #endregion
         public CuttingState PerformCut()
         {
+            //DebugShit
+            Random rnd = new Random();
+            int runId = rnd.Next(0, 1000);
+            if (Setups.CreatePillsDebugFiles) Queue[0].Pills.ForEach(pill => pill.GenerateDebugGeometryFile(runId));
+            if (Setups.CreateBlisterDebugFile) Queue[0].GenerateDebugGeometryFile(runId);
+
             // Check if blister is correctly align
             if (!Grasper.IsBlisterStraight(Setups.MaxBlisterPossitionDeviation)) return CuttingState.CTR_WRONG_BLISTER_POSSITION;
             log.Info(String.Format("=== Start Cutting ==="));
@@ -73,10 +76,6 @@ namespace Blistructor
             if (Queue[0].ToTight) return CuttingState.CTR_TO_TIGHT;
             if (Queue[0].LeftPillsCount == 1) return CuttingState.CTR_ONE_PILL;
             if (Grasper.Jaws == null) return CuttingState.CTR_ANCHOR_LOCATION_ERR;
-
-            //DebugShit
-            Random rnd = new Random();
-            int id = rnd.Next(0, 1000);
 
             int n = 0; // control
                        // Main Loop
@@ -95,7 +94,7 @@ namespace Blistructor
                 {
                     Blister blisterToCut = Queue[i];
                     blisterToCut.SortPillsByComplex(Grasper);
-                    log.Info(String.Format("{0} pills left to cut on Blister:{1}", blisterToCut.Pills.Count, i));
+                    log.Info(String.Format("{0} Pills left to cut on Blister:{1}", blisterToCut.Pills.Count, i));
                     if (blisterToCut.IsDone)
                     {
                         log.Info("Blister is already cut or is to tight for cutting.");
@@ -103,19 +102,19 @@ namespace Blistructor
                         continue;
                     }
 
-                    Cutter cutter = new Cutter(blisterToCut, Grasper);
+                    Cutter cutter = new Cutter(blisterToCut, Grasper, runId);
                     CutProposal cutProposal;
 
                     // Eech cut, update Jaws.
                     Grasper.UpdateJawsPoints();
-                    // Loop on pills
+                    // Loop on Pills
                     while (true)
                     {
                         cutProposal = cutter.CutNextPill();
                         //GET PROPOSAL
                         if (cutProposal == null)
                         {
-                            //All pills are cut, lower requerments (try cut fixed and rejected pills where jaws can occure)
+                            //All Pills are cut, lower requerments (try cut fixed and rejected Pills where jaws can occure)
                             cutProposal = cutter.GetNextPillCut(CutState.Rejected);
                             if (cutProposal == null) cutProposal = cutter.GetNextPillCut(CutState.Fixed);
                             // If there is no successful cut proposal (all CutStates == FAIL), just end.
@@ -170,50 +169,9 @@ namespace Blistructor
                     }
 
                     CutBlister chunk = cutProposal.GetCutChunkAndRemoveItFomBlister();
-#if DEBUG_FILE
 
-                    String path = String.Format("D:\\PIXEL\\Blistructor\\DebugModels\\{1}_Chunk_{0:00}_{2}.3dm", n, id, i);
-                    File3dm file = new File3dm();
-                    Layer l_chunk = new Layer();
-                    l_chunk.Name = "chunk";
-                    l_chunk.Index = 0;
-                    file.AllLayers.Add(l_chunk);
-                    ObjectAttributes a_chunk = new ObjectAttributes();
-                    a_chunk.LayerIndex = l_chunk.Index;
+                    if (Setups.CreateChunkDebugFile) GenerateDebugGeometryFile(chunk, Setups.DebugDir, runid, Chunks.Count);
 
-
-                    file.Objects.AddCurve(chunk.Outline, a_chunk);
-                    file.Objects.AddCurve(chunk.Pill.Outline, a_chunk);
-                    Grasper.JawsPossibleLocation.ForEach(crv => file.Objects.AddCurve(crv, a_chunk));
-                    Queue.ForEach(b => b.Pills.ForEach(p => file.Objects.AddCurve(p.Outline, a_chunk)));
-                    if (chunk.CutData != null)
-                    {
-                        chunk.CutData.BladeFootPrint.ForEach(crv => file.Objects.AddCurve(crv, a_chunk));
-                        chunk.CutData.BlisterLeftovers.ForEach(crv => file.Objects.AddCurve(crv, a_chunk));
-                        chunk.CutData.Path.ForEach(crv => file.Objects.AddCurve(crv, a_chunk));
-
-                        if (true)
-                        {
-                            //Proposal part
-                            Layer l_polygon = new Layer();
-                            l_polygon.Name = "polygon";
-                            l_polygon.Index = 1;
-                            file.AllLayers.Add(l_polygon);
-                            Layer l_lines = new Layer();
-                            l_lines.Name = "lines";
-                            l_lines.Index = 2;
-                            file.AllLayers.Add(l_lines);
-                            ObjectAttributes a_polygon = new ObjectAttributes();
-                            a_polygon.LayerIndex = l_polygon.Index;
-                            file.Objects.AddCurve(cutProposal.Data.Polygon, a_polygon);
-                            ObjectAttributes a_lines = new ObjectAttributes();
-                            a_lines.LayerIndex = l_lines.Index;
-                            cutProposal.Data.IsoSegments.ForEach(line => file.Objects.AddCurve(line, a_lines));
-                        }
-                    }
-                    file.Write(path, 6);
-
-#endif
                     // If anything was cut, add to list
                     if (chunk != null)
                     {
@@ -240,7 +198,7 @@ namespace Blistructor
                     if (chunk.IsLast || Queue.Count == 0) continue;
 
                     // If current blister has more then one pill, just apply cut on Grasper
-                    // This mean: blister must have at least 2 pills. So whatever is any other chunk have Jaw (IsLast), just apply cut on Grasper.
+                    // This mean: blister must have at least 2 Pills. So whatever is any other chunk have Jaw (IsLast), just apply cut on Grasper.
                     if (blisterToCut.LeftPillsCount > 1)
                     {
                         Grasper.ApplyCut(chunk);
@@ -261,7 +219,7 @@ namespace Blistructor
                     }
 
                     //TODO: Przy sortowaniu, na poczatek trzeba dawać tabletku które wykraczaja poza linie mozliwości łapek,!!!
-                    // Update Knife posittion to reorder pills for next cut.
+                    // Update Knife posittion to reorder Pills for next cut.
                     //if (Queue.Count > 0)
                     //{
                     //    double sort(Pill pill)
@@ -301,6 +259,55 @@ namespace Blistructor
             // TODO: Validate if more then one chunk hase specific Jaw.
             if (initialPillCount == Chunks.Count) return CuttingState.CTR_SUCCESS;
             else return CuttingState.CTR_FAILED;
+        }
+        public void GenerateDebugGeometryFile(CutBlister chunk, int runId, int chunkId)
+        {
+            // String path = String.Format("D:\\PIXEL\\Blistructor\\DebugModels\\{1}_Chunk_{0:00}_{2}.3dm", n, id, i);
+            string runIdString = $"{runId:00}";
+            Directory.CreateDirectory(Path.Combine(Setups.DebugDir, runIdString));
+            string fileName = $"Chunk_{chunkId:00}.3dm";
+            string filePath = Path.Combine(Setups.DebugDir, runIdString, fileName);
+            File3dm file = new File3dm();
+            
+            Layer l_chunk = new Layer();
+            l_chunk.Name = "chunk";
+            l_chunk.Index = 0;
+            file.AllLayers.Add(l_chunk);
+            ObjectAttributes a_chunk = new ObjectAttributes();
+            a_chunk.LayerIndex = l_chunk.Index;
+
+
+            file.Objects.AddCurve(chunk.Outline, a_chunk);
+            file.Objects.AddCurve(chunk.Pill.Outline, a_chunk);
+            Grasper.JawsPossibleLocation.ForEach(crv => file.Objects.AddCurve(crv, a_chunk));
+            Queue.ForEach(b => b.Pills.ForEach(p => file.Objects.AddCurve(p.Outline, a_chunk)));
+            if (chunk.CutData != null)
+            {
+                chunk.CutData.BladeFootPrint.ForEach(crv => file.Objects.AddCurve(crv, a_chunk));
+                chunk.CutData.BlisterLeftovers.ForEach(crv => file.Objects.AddCurve(crv, a_chunk));
+                chunk.CutData.Path.ForEach(crv => file.Objects.AddCurve(crv, a_chunk));
+
+                if (true)
+                {
+                    //Proposal part
+                    Layer l_polygon = new Layer();
+                    l_polygon.Name = "polygon";
+                    l_polygon.Index = 1;
+                    file.AllLayers.Add(l_polygon);
+                    Layer l_lines = new Layer();
+                    l_lines.Name = "lines";
+                    l_lines.Index = 2;
+                    file.AllLayers.Add(l_lines);
+                    ObjectAttributes a_polygon = new ObjectAttributes();
+                    a_polygon.LayerIndex = l_polygon.Index;
+
+                    file.Objects.AddCurve(chunk.CutData.Polygon, a_polygon);
+                    ObjectAttributes a_lines = new ObjectAttributes();
+                    a_lines.LayerIndex = l_lines.Index;
+                    chunk.CutData.IsoSegments.ForEach(line => file.Objects.AddCurve(line, a_lines));
+                }
+            }
+            file.Write(filePath, 6);
         }
     }
 }

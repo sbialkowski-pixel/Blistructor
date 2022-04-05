@@ -82,9 +82,9 @@ namespace Blistructor
             double maxCartesianDistanceX = Math.Min(fullPredLine.PointAtEnd.X, (Setups.CartesianMaxWidth + Setups.CartesianJawYLimit));
             fullPredLine.SetEndPoint(new Point3d(maxCartesianDistanceX, Setups.JawDepth, 0));
 
-            // NOTE: Check intersection with pills (Or maybe with pillsOffset. Rethink problem)
-            Tuple<List<Curve>, List<Curve>> trimResult = Geometry.TrimWithRegions(fullPredLine, BlisterQueue[0].GetPillsOutline(true));
-            // Gather all parts outside (not in pills) shrink curve on both sides by half of Grasper width and move it back to mid position 
+            // NOTE: Check intersection with Pills (Or maybe with pillsOffset. Rethink problem)
+            Tuple<List<Curve>, List<Curve>> trimResult = Geometry.TrimWithRegions(fullPredLine, BlisterQueue[0].GetPillsOutline(Setups.JawPillSafeDistance));
+            // Gather all parts outside (not in Pills) shrink curve on both sides by half of Grasper width and move it back to mid position 
             foreach (Curve crv in trimResult.Item2)
             {
                 // Shrink pieces on both sides by half of Grasper width.

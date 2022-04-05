@@ -34,11 +34,11 @@ namespace Blistructor
                 // Parse JSON. Item1 -> Blister, Item2 -> Pills
                 Tuple<PolylineCurve, List<PolylineCurve>> pLines = GetContursBasedOnJSON(content);
 
-                // Simplyfy paths on blister and pills
+                // Simplyfy paths on blister and Pills
                 PolylineCurve blister = Geometry.SimplifyContours2(pLines.Item1, Setups.CurveReduceTolerance, Setups.CurveSmoothTolerance);
                 List<PolylineCurve> pills = pLines.Item2.Select(pill => Geometry.SimplifyContours2(pill, Setups.CurveReduceTolerance, Setups.CurveSmoothTolerance)).ToList();
 
-                // Apply calibration on blister and pills
+                // Apply calibration on blister and Pills
                 // Vector3d calibrationVector = new Vector3d(rX, calibrationVectorY, 0);
                 Geometry.ApplyCalibration(blister, Setups.ZeroPosition, Setups.PixelSpacing, Setups.CartesianPickModeAngle);
                 pills.ForEach(pill => Geometry.ApplyCalibration(pill, Setups.ZeroPosition, Setups.PixelSpacing, Setups.CartesianPickModeAngle));

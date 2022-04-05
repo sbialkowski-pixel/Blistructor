@@ -180,8 +180,8 @@ namespace Blistructor
                     Pill.RemoveConnectionData();
                     //Update Current
 
-                    int locationIndex = Blister.Pills.FindIndex(pill => pill.Id == Pill.Id);
-                    Blister.Pills.RemoveAt(locationIndex);
+                  //  int locationIndex = Blister.Pills.FindIndex(pill => pill.Id == Pill.Id);
+                    Blister.Pills.Remove(Pill);
 
                     return new CutBlister(Pill, Data);
                 default:
@@ -205,7 +205,7 @@ namespace Blistructor
                     // return   new List<Blister>();
                     return (CurrentBluster: null, Leftovers: new List<Blister>());
                 case CutState.Succeed:
-                    log.Debug("Updating current Blister outline and remove cut Pill from blister");
+                    log.Debug("Updating current Blister Outline and remove cut Pill from blister");
                     Blister.Outline = Data.BlisterLeftovers[0];
                     // Case if Blister is split because of this cut.
                     log.Debug("Remove all cells which are not belong to this Blister anymore.");
@@ -218,7 +218,7 @@ namespace Blistructor
                             // check if cell is aimed to cut. For 100% all cells in Blister should be Queue.
                             if (Blister.Pills[i].State != PillState.Queue)
                             {
-                                throw new Exception($"Found Pill with state {Blister.Pills[i].State} in queued blister. All pills should have status QUEUED!. Unknown error.");
+                                throw new Exception($"Found Pill with state {Blister.Pills[i].State} in queued blister. All Pills should have status QUEUED!. Unknown error.");
                             }
                             //Remove pill reference to current blister
                             Blister.Pills[i].blister = null;
@@ -244,7 +244,7 @@ namespace Blistructor
                     List<Pill> abandonePills = removerdPills.Where(pill => pill.blister == null).ToList();
                     if (abandonePills.Count > 0)
                     {
-                        throw new Exception($"Abandon pills after applying cutting data: {abandonePills.Count}");
+                        throw new Exception($"Abandon Pills after applying cutting data: {abandonePills.Count}");
                     }
                     return (CurrentBluster: Blister, Leftovers: leftovers);
                 default:

@@ -554,7 +554,7 @@ namespace Blistructor
             }
             List<Diagrams.Voronoi.Cell2> voronoi = Diagrams.Voronoi.Solver.Solve_BruteForce(n2l, outline);
             //Diagrams.Delaunay.Connectivity del_con = Diagrams.Delaunay.Solver.Solve_Connectivity(n2l, 0.0001, true);
-           // List<Diagrams.Voronoi.Cell2> voronoi = Diagrams.Voronoi.Solver.Solve_Connectivity(n2l, del_con, outline);
+           // List<Diagrams.Voronoi.Cell2> voronoi = Diagrams.Voronoi.Solver.Solve_Connectivity(n2l, del_con, Outline);
 
             List<PolylineCurve> output = new List<PolylineCurve>(voronoi.Count);
             foreach (Diagrams.Voronoi.Cell2 pill in voronoi)
@@ -805,12 +805,12 @@ namespace Blistructor
         #region InclusionTests
         public static bool InclusionTest(Pill testCell, Blister blister)
         {
-            return InclusionTest(testCell.Offset, blister.Outline);
+            return InclusionTest(testCell.Outline, blister.Outline);
         }
 
         public static bool InclusionTest(Pill testCell, Curve Region)
         {
-            return InclusionTest(testCell.Offset, Region);
+            return InclusionTest(testCell.Outline, Region);
         }
 
         public static bool InclusionTest(Curve testCurve, Curve Region)

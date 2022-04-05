@@ -20,7 +20,7 @@ namespace Blistructor
         CTR_TO_TIGHT = 1,
         [Description("One Outline on blister only. Nothing to do.")]
         CTR_ONE_PILL = 2,
-        [Description("Cutting Failed. Cannot Found cutting paths for all pills. Blister is to complicated or it is impossible to cut.")]
+        [Description("Cutting Failed. Cannot Found cutting paths for all Pills. Blister is to complicated or it is impossible to cut.")]
         CTR_FAILED = 3,
         [Description("Blister side to small to pick by both grasper or No place for graspers.")]
         CTR_ANCHOR_LOCATION_ERR = 4,

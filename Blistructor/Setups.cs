@@ -58,6 +58,9 @@ namespace Blistructor
         public static double CartesianMinWidth = GetEnvironmentVariableWithDefault("CARTESIAN_JAWS_MIN_RANGE", 10.0);
         public static double CartesianJawYLimit = GetEnvironmentVariableWithDefault("CARTESIAN_JAW_Y_LIMIT", 45.0);
         public static Vector3d CartesianPivotJawVector = new Vector3d(GetEnvironmentVariableWithDefault("CARTESIAN_PIVOT_JAW_X", 112.4), GetEnvironmentVariableWithDefault("CARTESIAN_PIVOT_JAW_Y", 19.5), 0);
+        public static double JawKnifeAdditionalSafeDistance = GetEnvironmentVariableWithDefault("JAW_KNIFE_ADDITIONAL_SAFE_DISTANCE", 1.00);
+        public static double JawPillSafeDistance = GetEnvironmentVariableWithDefault("JAW_PILL_SAFE_DISTANCE", 1.0);
+
         #endregion
 
         #region GLOBA COORDINATE SYSTEM
@@ -73,10 +76,16 @@ namespace Blistructor
 
         public static bool TrimBlisterToXAxis = GetEnvironmentVariableWithDefault("TRIM_BLISTER_X_AXIS", true);
 
-        public static double JawKnifeAdditionalSafeDistance = GetEnvironmentVariableWithDefault("JAW_KNIFE_ADDITIONAL_SAFE_DISTANCE", 1.00);
-
         public static double SegmentationScoreTreshold = GetEnvironmentVariableWithDefault("SEGMENTATION_SCORE_TRESHOLD", 0.9);
 
+        #endregion
+
+        #region DEBUG
+        public static string DebugDir = "D:\\PIXEL\\Blistructor\\DebugModels";
+        public static bool CreateChunkDebugFile = true;
+        public static bool CreateBlisterDebugFile = true;
+        public static bool CreatePillsDebugFiles = true;
+        public static bool CreateCutterDebugFiles = true;
         #endregion
 
         private static T GetEnvironmentVariableWithDefault<T>(string variable, T defaultValue)
@@ -140,6 +149,8 @@ namespace Blistructor
             CartesianJawYLimit = setup.GetValue<double>("cartesianJawYLimit", CartesianJawYLimit);
             List<double> CartesianPivotJawVectorValues = setup.GetValue<List<double>>("cartesianPivotJawVector", new List<double>(){ CartesianPivotJawVector.X, CartesianPivotJawVector.Y });
             CartesianPivotJawVector = new Vector3d(CartesianPivotJawVectorValues[0], CartesianPivotJawVectorValues[1], 0);
+            JawKnifeAdditionalSafeDistance = setup.GetValue<double>("jawKnifeAdditionalSafeDistance", JawKnifeAdditionalSafeDistance);
+            JawPillSafeDistance = setup.GetValue<double>("jawPillSafeDistance", JawPillSafeDistance);
             #endregion
             #region GLOBAL COORDINATE SYSTEM
             BlisterGlobalSystem = setup.GetValue<string>("blisterGlobalSystem", BlisterGlobalSystem);
@@ -154,7 +165,6 @@ namespace Blistructor
             IsoRadius = setup.GetValue<double>("rayLength", IsoRadius);
             MinimumCutOutSize = setup.GetValue<double>("minimumCutOutSize", MinimumCutOutSize);
             TrimBlisterToXAxis = setup.GetValue<bool>("trimBlisterToXAxis", TrimBlisterToXAxis);
-            JawKnifeAdditionalSafeDistance = setup.GetValue<double>("jawKnifeAdditionalSafeDistance", JawKnifeAdditionalSafeDistance);
             SegmentationScoreTreshold = setup.GetValue<double>("segmentationScoreTreshold", SegmentationScoreTreshold);
             #endregion
         }

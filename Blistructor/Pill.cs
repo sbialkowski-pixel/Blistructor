@@ -6,9 +6,8 @@ using System.IO;
 #if PIXEL
 using Pixel.Rhino;
 using Pixel.Rhino.FileIO;
+using Pixel.Rhino.DocObjects;
 using Pixel.Rhino.Geometry;
-using Pixel.Rhino.Geometry.Intersect;
-using ExtraMath = Pixel.Rhino.RhinoMath;
 #else
 using Rhino;
 using Rhino.Geometry;
@@ -24,7 +23,7 @@ using Pixel.Rhino.DocObjects;
 
 namespace Blistructor
 {
-    public class Pill
+    public class Pill : IEquatable<Pill>
     {
         private static readonly ILog log = LogManager.GetLogger("Cutter.Pill");
 
@@ -73,16 +72,7 @@ namespace Blistructor
             Center = Outline.ToPolyline().CenterPoint();
 
             // Create Outline offset
-            Curve ofCur = Outline.Offset(Plane.WorldXY, Setups.BladeWidth / 2);
-            if (ofCur == null)
-            {
-                log.Error("Incorrect Outline offseting");
-                throw new InvalidOperationException("Incorrect Outline offseting");
-            }
-            else
-            {
-                Offset = (PolylineCurve)ofCur;
-            }
+            Offset = GetCustomOffset(Setups.BladeWidth / 2);
         }
 
         #region PROPERTIES
@@ -116,6 +106,24 @@ namespace Blistructor
         }
         */
 
+        public bool Equals(Pill other)
+        {
+            if (other == null) return false;
+            return (this.Id.Equals(other.Id));
+        }
+        public PolylineCurve GetCustomOffset(double offset)
+        {
+            Curve ofCur = Outline.Offset(Plane.WorldXY, offset);
+            if (ofCur == null)
+            {
+                log.Error("Incorrect Outline offseting");
+                throw new InvalidOperationException("Incorrect Outline offseting");
+            }
+            else
+            {
+                return (PolylineCurve)ofCur;
+            }
+        }
 
         #region DISTANCES
         public double GetDirectionIndicator(Point3d pt)
@@ -279,7 +287,7 @@ namespace Blistructor
         {
             obstacles = BuildObstacles_v2();
             // Add extra offset 
-           //obstacles = obstacles.Select(outline => outline.Offset(Plane.WorldXY, Setups.BladeTol)).ToList();
+           //obstacles = obstacles.Select(Outline => Outline.Offset(Plane.WorldXY, Setups.BladeTol)).ToList();
         }
         private List<Curve> BuildObstacles_v2()
         {
@@ -303,23 +311,6 @@ namespace Blistructor
                 }
             }
             limiters.AddRange(uniquePillsOffset.Values.ToList());
-            return Geometry.RemoveDuplicateCurves(limiters);
-        }
-        private List<Curve> BuildObstacles()
-        {
-            List<Curve> limiters = new List<Curve> { Offset };
-            for (int i = 0; i < adjacentPills.Count; i++)
-            {
-                limiters.Add(adjacentPills[i].Offset);
-                List<Curve> prox = adjacentPills[i].GetUniqueProxy(Id);
-                foreach (Curve crv in prox)
-                {
-                    if (Geometry.CurveCurveIntersection(crv, proxLines).Count == 0)
-                    {
-                        limiters.Add(crv);
-                    }
-                }
-            }
             return Geometry.RemoveDuplicateCurves(limiters);
         }
         public JObject GetDisplayJSON()
@@ -351,6 +342,41 @@ namespace Blistructor
             // Add Anchor Data <- to be implement.
             // data.Add("openJaw", new JArray(Anchors.Select(anchor => anchor.Orientation.ToString().ToLower())));
             return data;
+        }
+
+        public void GenerateDebugGeometryFile(int runId)
+        {
+            string runIdString = $"{runId:00}";
+            Directory.CreateDirectory(Path.Combine(Setups.DebugDir, runIdString));
+            string fileName = $"pill_{Id:00}.3dm";
+            string filePath = Path.Combine(Setups.DebugDir, runIdString, fileName);
+            File3dm file = new File3dm();
+            
+            Layer pillLayer = new Layer();
+            pillLayer.Name = $"pill_{this.Id}";
+            pillLayer.Index = 0;
+            file.AllLayers.Add(pillLayer);
+            ObjectAttributes pillAttributes = new ObjectAttributes();
+            pillAttributes.LayerIndex = pillLayer.Index;
+            
+            file.Objects.AddCurve(this.Outline, pillAttributes);
+            file.Objects.AddCurve(this.Offset, pillAttributes);
+            file.Objects.AddCurve(this.Voronoi, pillAttributes);
+            file.Objects.AddPoint(this.Center, pillAttributes);
+
+            Layer connLayer = new Layer
+            {
+                Name = $"connection_{this.Id}",
+                Index = 1
+            };
+            file.AllLayers.Add(connLayer);
+            ObjectAttributes connAttributes = new ObjectAttributes();
+            connAttributes.LayerIndex = connLayer.Index;
+            connectionLines.ForEach(crv => file.Objects.AddCurve(crv, connAttributes));
+            proxLines.ForEach(crv => file.Objects.AddCurve(crv, connAttributes));
+            file.Objects.AddPoints(samplePoints, connAttributes);
+
+            file.Write(filePath, 6);
         }
     }
 }
