@@ -44,7 +44,7 @@ namespace Blistructor
             // Generate BBoxes
             BoundingBox blisterBB = mainOutline.GetBoundingBox(false);
             Rectangle3d rect = new Rectangle3d(Plane.WorldXY, blisterBB.Min, blisterBB.Max);
-            MABBox = Geometry.MinimumAreaRectangleBF(mainOutline);
+            MABBox = Geometry.MinimumAreaRectangleBF(mainOutline).ToPolyline().ToPolylineCurve();
             Geometry.UnifyCurve(MABBox);
             AABBox = rect.ToPolyline().ToPolylineCurve();
             Geometry.UnifyCurve(AABBox);

@@ -538,12 +538,12 @@ namespace Blistructor
             return temp_regions;
         }
 
-        public static PolylineCurve MinimumAreaRectangleBF(Curve crv)
+        public static Rectangle3d MinimumAreaRectangleBF(Curve crv)
         {
-
             Point3d centre = ((PolylineCurve)crv).ToPolyline().CenterPoint();
             double minArea = double.MaxValue;
-            PolylineCurve outCurve = null;
+           // PolylineCurve outCurve = null;
+            Rectangle3d finalRect = new Rectangle3d(Plane.WorldXY, 1.0, 1.0);
 
             for (double i = 0; i < 180; i+=0.5)
             {
@@ -555,13 +555,17 @@ namespace Blistructor
                 {
                     minArea = box.Area;
                     Rectangle3d rect = new Rectangle3d(Plane.WorldXY, box.Min, box.Max);
-                    PolylineCurve r = rect.ToPolyline().ToPolylineCurve();
-                    r.Rotate(-radians, Vector3d.ZAxis, centre);
-                    outCurve = r;
+                    Transform xForm = Transform.Rotation(-radians, Vector3d.ZAxis, centre);
+                    rect.Transform(xForm);
+                    finalRect = rect;
+           //PolylineCurve r = rect.ToPolyline().ToPolylineCurve();
+           //  r.Rotate(-radians, Vector3d.ZAxis, centre);
+           // outCurve = r;
                 }
             }
-           // outCurve.ToPolyline()
-            return outCurve;
+            //Rectangle3d rect = new Rectangle3d(Plane.WorldXY, box.Min, box.Max);
+            // outCurve.ToPolyline()
+            return finalRect;
         }
 
         public static PolylineCurve PolylineThicken(PolylineCurve crv, double thickness)

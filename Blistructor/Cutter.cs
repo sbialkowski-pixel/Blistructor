@@ -22,7 +22,6 @@ using ExtraMath = Rhino.RhinoMath;
 using log4net;
 using Newtonsoft.Json.Linq;
 
-using Combinators;
 
 
 namespace Blistructor
@@ -329,7 +328,7 @@ namespace Blistructor
             ConcurrentBag<CutData> cuttingData = new ConcurrentBag<CutData>();
             if (rays.Count != 0)
             {
-                List<List<LineCurve>> RaysCombinations = Combinators.Combinators.UniqueCombinations(rays);
+                List<List<LineCurve>> RaysCombinations = Combinators.Combinators.UniqueCombinations(rays).OrderBy(data => data.Count).ToList();
                 Parallel.ForEach(RaysCombinations, RaysCombination =>
                 {
                     if (RaysCombination.Count > 0)
@@ -456,7 +455,6 @@ namespace Blistructor
 
             // Loop over combinations even with 1 ray
             foreach (List<int> combinationIndicies in raysIndiciesCombinations)
-            //for (int combId = 0; combId < raysIndiciesCombinations.Count; combId++)
             {
                 List<LineCurve> currentTimmedIsoRays = new List<LineCurve>(combinationIndicies.Count);
                 List<LineCurve> currentFullIsoRays = new List<LineCurve>(combinationIndicies.Count);
@@ -606,10 +604,10 @@ namespace Blistructor
             log.Debug("Check smallest segment size requerment.");
             // Check if smallest segment from cutout blister is smaller than some size.
             PolylineCurve pill_region_Crv = pill_region.ToPolylineCurve();
-            PolylineCurve bbox = Geometry.MinimumAreaRectangleBF(pill_region_Crv);
-            Line[] pill_region_segments = pill_region.GetSegments().OrderBy(line => line.Length).ToArray();
-            if (pill_region_segments[0].Length > Setups.MinimumCutOutSize) return null;
-            log.Debug("CutData created.");
+            Rectangle3d bbox = Geometry.MinimumAreaRectangleBF(pill_region_Crv);
+            if (bbox.Width > Setups.MinimumCutOutSize || bbox.Height > Setups.MinimumCutOutSize) return null;
+            //Line[] pill_region_segments = pill_region.GetSegments().OrderBy(line => line.Length).ToArray();
+            //if (pill_region_segments[0].Length > Setups.MinimumCutOutSize) return null;
             Geometry.UnifyCurve(pill_region_Crv);
             return new CutData(pill_region_Crv, pathCrv, cutted_blister_regions);
 
