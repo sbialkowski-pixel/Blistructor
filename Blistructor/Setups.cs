@@ -85,7 +85,7 @@ namespace Blistructor
         public static bool CreateChunkDebugFile = true;
         public static bool CreateBlisterDebugFile = true;
         public static bool CreatePillsDebugFiles = true;
-        public static bool CreateCutterDebugFiles = true;
+        public static bool CreateCutterDebugFiles = false;
         #endregion
 
         private static T GetEnvironmentVariableWithDefault<T>(string variable, T defaultValue)

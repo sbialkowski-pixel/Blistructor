@@ -170,7 +170,7 @@ namespace Blistructor
 
                     CutBlister chunk = cutProposal.GetCutChunkAndRemoveItFomBlister();
 
-                    if (Setups.CreateChunkDebugFile) GenerateDebugGeometryFile(chunk, Setups.DebugDir, runid, Chunks.Count);
+                    if (Setups.CreateChunkDebugFile) GenerateDebugGeometryFile(chunk, runId, Chunks.Count);
 
                     // If anything was cut, add to list
                     if (chunk != null)
