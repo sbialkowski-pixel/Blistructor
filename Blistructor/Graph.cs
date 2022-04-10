@@ -19,19 +19,14 @@ namespace Blistructor
 {
     public class Graph
     {
-        private Blister Blister { get; set; }
+        protected Blister Blister { get; set; }
+        protected Diagrams.Node2List PillCenterNodes { get; set; }
+        protected List<Diagrams.Node2> BlisterOutlineNodes { get; set; }
+        protected Diagrams.Delaunay.Connectivity Connectivity { get; set; }
 
-        private Diagrams.Node2List PillCenterNodes { get; set; }
-        private List<Diagrams.Node2> BlisterOutlineNodes { get; set; }
-        private Diagrams.Delaunay.Connectivity Connectivity { get; set; }
-        private List<Diagrams.Voronoi.Cell2> VoronoiCells { get; set; }
-
-
-        public OrderedDictionary IrVoronoi { get; private set; }
-        public OrderedDictionary Voronoi { get; private set; }
         public OrderedDictionary PillsGraph { get; private set; }
 
-        public Graph(Blister blister, int irregularVoronoiSamples= 50, double diagramTolerance = 1e-6)
+        public Graph(Blister blister, double diagramTolerance = 1e-6)
         {
             // Create proper data based on Blister
             Blister = blister;
@@ -39,25 +34,11 @@ namespace Blistructor
             BlisterOutlineNodes = BlisterToNode2();
             // Generate all standard Diagrams
             Connectivity = Diagrams.Delaunay.Solver.Solve_Connectivity(PillCenterNodes, diagramTolerance, true);
-            VoronoiCells = Diagrams.Voronoi.Solver.Solve_Connectivity(PillCenterNodes, Connectivity, BlisterOutlineNodes);
             // Fill public properties by PixGeo data
             PillsGraph = GetPillsGraph();
-            Voronoi = VoronoiCellsToPolylineCurves(VoronoiCells);
-            // Generate irregular Voronoi Diagram
-            IrVoronoi = IrregularVoronoi(Connectivity, irregularVoronoiSamples);
         }
 
         #region OrderedDict Getters
-
-        public PolylineCurve GetVoronoi(int pillID)
-        {
-            return (PolylineCurve)Voronoi[(object)pillID];
-        }
-
-        public PolylineCurve GetIrVoronoi(int pillID)
-        {
-            return (PolylineCurve)IrVoronoi[(object)pillID];
-        }
 
         public List<Pill> GetAdjacentPills(int pillID)
         {
@@ -68,7 +49,7 @@ namespace Blistructor
 
         #region DIAGRAM-GEO CONVERTERS
 
-        private Diagrams.Node2List PillsCentersToNodeList()
+        protected Diagrams.Node2List PillsCentersToNodeList()
         {
             Diagrams.Node2List n2l = new Diagrams.Node2List();
             foreach (Pill pill in Blister.Pills)
@@ -78,7 +59,7 @@ namespace Blistructor
             return n2l;
         }
 
-        private Diagrams.Node2List PillsOutlineToNodeList(int resolution)
+        protected Diagrams.Node2List PillsOutlineToNodeList(int resolution)
         {
             Diagrams.Node2List n2l = new Diagrams.Node2List();
 
@@ -94,7 +75,7 @@ namespace Blistructor
             return n2l;
         }
 
-        private List<Diagrams.Node2> BlisterToNode2()
+        protected List<Diagrams.Node2> BlisterToNode2()
         {
             List<Diagrams.Node2> outline = new List<Diagrams.Node2>();
             foreach (Point3d pt in Blister.Outline.ToPolyline())
@@ -104,23 +85,13 @@ namespace Blistructor
             return outline;
         }
 
-        private OrderedDictionary VoronoiCellsToPolylineCurves(List<Diagrams.Voronoi.Cell2> voronoiDiagram) {
-
-            OrderedDictionary output = new OrderedDictionary(voronoiDiagram.Count);
-            foreach ((Diagrams.Voronoi.Cell2 voroCell, Pill pill) in voronoiDiagram.Zip(Blister.Pills, (voronoi, pill) => (voronoi, pill)))
-            {
-                output.Add(pill.Id, voroCell.ToPolyline().ToPolylineCurve());
-            }
-            return output;
-        }
-        
         /// <summary>
         /// Adjacent Pills organized in OrderedDictionaies. 
         /// Dictionary keeps order of pills in bliser. As Key: Current pill.Id,
         /// As Values: List of Pill reerences.
         /// </summary>
         /// <returns>OrderedDictionary with adjacent pills.</returns>
-        private OrderedDictionary GetPillsGraph()
+        protected OrderedDictionary GetPillsGraph()
         {
             OrderedDictionary output = new OrderedDictionary(Connectivity.Count);
             for (int i = 0; i < Connectivity.Count; i++)
@@ -133,6 +104,51 @@ namespace Blistructor
         }
 
         #endregion
+
+        public virtual OrderedDictionary Voronoi { get; protected set; }
+        public virtual OrderedDictionary IrVoronoi { get; protected set; }
+
+        public virtual PolylineCurve GetVoronoi(int pillID) { return null; }
+        public virtual PolylineCurve GetIrVoronoi(int pillID) { return null; }
+    }
+
+
+    public class VoronoiGraph : Graph
+    {
+        private List<Diagrams.Voronoi.Cell2> VoronoiCells { get; set; }
+        public override OrderedDictionary IrVoronoi { get; protected set; }
+        public override OrderedDictionary Voronoi { get; protected set; }
+        public VoronoiGraph(Blister blister, int irregularVoronoiSamples = 50, double diagramTolerance = 1e-6) : base(blister, diagramTolerance)
+        {
+            VoronoiCells = Diagrams.Voronoi.Solver.Solve_Connectivity(PillCenterNodes, Connectivity, BlisterOutlineNodes);
+            Voronoi = VoronoiCellsToPolylineCurves(VoronoiCells);
+            // Generate irregular Voronoi Diagram
+            IrVoronoi = IrregularVoronoi(irregularVoronoiSamples);
+        }
+
+        #region OrderedDict Getters
+
+        public override PolylineCurve GetVoronoi(int pillID)
+        {
+            return (PolylineCurve)Voronoi[(object)pillID];
+        }
+
+        public override PolylineCurve GetIrVoronoi(int pillID)
+        {
+            return (PolylineCurve)IrVoronoi[(object)pillID];
+        }
+        #endregion
+
+        private OrderedDictionary VoronoiCellsToPolylineCurves(List<Diagrams.Voronoi.Cell2> voronoiDiagram)
+        {
+
+            OrderedDictionary output = new OrderedDictionary(voronoiDiagram.Count);
+            foreach ((Diagrams.Voronoi.Cell2 voroCell, Pill pill) in voronoiDiagram.Zip(Blister.Pills, (voronoi, pill) => (voronoi, pill)))
+            {
+                output.Add(pill.Id, voroCell.ToPolyline().ToPolylineCurve());
+            }
+            return output;
+        }
 
         #region DIAGRAMS METHODS
         /// <summary>
@@ -153,19 +169,19 @@ namespace Blistructor
         /// <param name="connectivity">Delauney connectivity diagram</param>
         /// <param name="resolution">Number od VoronoiCell per pill, default = 50</param>
         /// <returns>List of irregular Voronoi cells</returns>
-        public OrderedDictionary IrregularVoronoi(Diagrams.Delaunay.Connectivity connectivity, int resolution = 50)
+        private OrderedDictionary IrregularVoronoi(int resolution = 50)
         {
             Diagrams.Node2List n2l = PillsOutlineToNodeList(resolution);
-            
+
             //Here, new connectivity must be computed.
             Diagrams.Delaunay.Connectivity del_con = Diagrams.Delaunay.Solver.Solve_Connectivity(n2l, 1e-6, true);
             List<Diagrams.Voronoi.Cell2> voronoi = Diagrams.Voronoi.Solver.Solve_Connectivity(n2l, del_con, BlisterOutlineNodes);
 
             OrderedDictionary output = new OrderedDictionary(Connectivity.Count);
             ConcurrentDictionary<int, Tuple<int, PolylineCurve>> test = new ConcurrentDictionary<int, Tuple<int, PolylineCurve>>(Environment.ProcessorCount * 2, Connectivity.Count);
-            Parallel.ForEach(Blister.Pills, (pill, state, index) => 
+            Parallel.ForEach(Blister.Pills, (pill, state, index) =>
             {
-                int i = (int) index;
+                int i = (int)index;
                 List<Point3d> pts = new List<Point3d>();
                 for (int j = 0; j < resolution - 1; j++)
                 {
@@ -190,12 +206,10 @@ namespace Blistructor
                 test[i] = new Tuple<int, PolylineCurve>(Blister.Pills[i].Id, new PolylineCurve(poly));
             });
 
-            List<bool> e =  test.Select(data => { output.Insert(data.Key, data.Value.Item1, data.Value.Item2); return true;}).ToList();
+            List<bool> e = test.Select(data => { output.Insert(data.Key, data.Value.Item1, data.Value.Item2); return true; }).ToList();
             return output;
         }
 
         #endregion
-
     }
-
 }

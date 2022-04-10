@@ -91,8 +91,6 @@ namespace Blistructor
         public PolylineCurve Outline { get; set; }
         public List<Pill> Pills { get; private set; }
         public Graph Graph { get; private set; }
-        public List<PolylineCurve> IrVoronoi { get; private set; }
-        public List<PolylineCurve> Voronoi { get; private set; }
 
       //  public List<PolylineCurve> Voronoi { get; private set; }
         protected string UUID;
@@ -150,6 +148,7 @@ namespace Blistructor
             //  this.cells = cells.OrderBy(cell => cell.CoordinateIndicator).Reverse().ToList();
             // Rebuild cells connectivity.
             log.Debug("Creating ConncectivityData");
+            Graph = new Graph(this);
             CreateConnectivityData();
         }
 
@@ -188,7 +187,7 @@ namespace Blistructor
             ToTight = ArePillsOverlapping();
             log.Info(String.Format("Is to tight? : {0}", ToTight));
             if (ToTight) return;
-            Graph = new Graph(this);
+            Graph = new VoronoiGraph(this);
 
             Pills.ForEach(pill => pill.Voronoi = (PolylineCurve)Graph.Voronoi[(object)pill.Id]);
             Pills.ForEach(pill => pill.IrVoronoi = (PolylineCurve)Graph.IrVoronoi[(object)pill.Id]);
