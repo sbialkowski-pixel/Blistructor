@@ -4,7 +4,6 @@ using System.Linq;
 using System.IO;
 
 #if PIXEL
-using Pixel.Rhino;
 using Pixel.Rhino.FileIO;
 using Pixel.Rhino.DocObjects;
 using Pixel.Rhino.Geometry;
@@ -18,52 +17,47 @@ using ExtraMath = Rhino.RhinoMath;
 using log4net;
 using Newtonsoft.Json.Linq;
 
-using Combinators;
-using Pixel.Rhino.DocObjects;
-
 namespace Blistructor
 {
     public class Pill : IEquatable<Pill>
     {
         private static readonly ILog log = LogManager.GetLogger("Cutter.Pill");
 
-        public int Id { get;  }
-
+        public int Id { get; }
         // Parent Blister
-        internal Blister blister ;
-
-        //public bool PossibleAnchor { get; set; }
+        internal Blister blister;
 
         // Pill Stuff
         public PolylineCurve Outline { get; private set; }
         public PolylineCurve Offset { get; private set; }
-
         public Point3d Center { get; private set; }
 
         // Connection and Adjacent Stuff
+        public PolylineCurve IrVoronoi { get; set; }
         public PolylineCurve Voronoi { get; set; }
-        //!!connectionLines, proxLines, adjacentPills, samplePoints <- all same sizes, and order!!
-        public List<Curve> connectionLines;
-        public List<Curve> proxLines;
-        public List<Pill> adjacentPills;
-        public List<Point3d> samplePoints;
+        //!!ConnectionLines, ProxLines, AdjacentPills, SamplePoints <- all same sizes, and order!!
+        public List<Curve> ConnectionLines { get; internal set; }
+        public List<Curve> ProxLines { get; internal set; }
+        public List<Pill> AdjacentPills { get; internal set; }
+        public List<Point3d> SamplePoints { get; internal set; }
 
         public List<Curve> obstacles;
 
         public Pill(Pill pill)
         {
             Id = pill.Id;
-            Outline = (PolylineCurve) pill.Outline.Duplicate();
-            Offset = (PolylineCurve) pill.Offset.Duplicate();
-            Voronoi = (PolylineCurve) pill.Voronoi.Duplicate();
+            Outline = (PolylineCurve)pill.Outline.Duplicate();
+            Offset = (PolylineCurve)pill.Offset.Duplicate();
+            Voronoi = (PolylineCurve)pill.Voronoi.Duplicate();
+            IrVoronoi = (PolylineCurve)pill.IrVoronoi.Duplicate();
             Center = pill.Center;
         }
 
-        public Pill(int id, PolylineCurve pill, Blister subblister)
+        public Pill(int id, PolylineCurve pill, Blister blister)
         {
             Id = id;
             State = PillState.Queue;
-            blister = subblister;
+            this.blister = blister;
             // Prepare all needed Pill properties
             Outline = pill;
             // Make Pill curve oriented in proper direction.
@@ -86,7 +80,7 @@ namespace Blistructor
 
         public double NeighbourCount
         {
-            get { return adjacentPills.Count; }
+            get { return AdjacentPills.Count; }
         }
 
         public NurbsCurve OrientationCircle { get; private set; }
@@ -94,17 +88,6 @@ namespace Blistructor
         public PillState State { get; set; }
 
         #endregion
-        /*
-        public List<LineCurve> GetTrimmedIsoRays()
-        {
-            List<LineCurve> output = new List<LineCurve>();
-            foreach (CutData cData in cuttingData)
-            {
-                output.AddRange(cData.TrimmedIsoRays);
-            }
-            return output;
-        }
-        */
 
         public bool Equals(Pill other)
         {
@@ -155,7 +138,7 @@ namespace Blistructor
                 ptc.Add(crv.PointAt(t));
             }
             return GetClosestDistance(ptc);
-        }        
+        }
 
         #endregion
 
@@ -175,39 +158,40 @@ namespace Blistructor
         }
         */
 
-        public void AddConnectionData(List<Pill> pills, List<Curve> lines, List<Point3d> midPoints)
+        public void AddConnectionData(List<Pill> pills, List<Curve> lines)
         {
-            adjacentPills = new List<Pill>();
-            samplePoints = new List<Point3d>();
-            connectionLines = new List<Curve>();
+            AdjacentPills = new List<Pill>();
+            SamplePoints = new List<Point3d>();
+            ConnectionLines = new List<Curve>();
 
+            List<Point3d> midPoints = lines.Select(line => line.PointAt(0.5)).ToList();
             EstimateOrientationCircle();
             int[] ind = Geometry.SortPtsAlongCurve(midPoints, OrientationCircle);
 
             foreach (int id in ind)
             {
-                adjacentPills.Add(pills[id]);
-                connectionLines.Add(lines[id]);
+                AdjacentPills.Add(pills[id]);
+                ConnectionLines.Add(lines[id]);
             }
-            proxLines = new List<Curve>();
-            foreach (Pill pill in adjacentPills)
+            ProxLines = new List<Curve>();
+            foreach (Pill pill in AdjacentPills)
             {
                 Point3d ptA, ptB;
                 if (Offset.ClosestPoints(pill.Offset, out ptA, out ptB))
                 {
                     LineCurve proxLine = new LineCurve(ptA, ptB);
-                    proxLines.Add(proxLine);
+                    ProxLines.Add(proxLine);
                     Point3d samplePoint = proxLine.Line.PointAt(0.5);   //PointAtNormalizedLength(0.5);
-                    samplePoints.Add(samplePoint);
+                    SamplePoints.Add(samplePoint);
                 }
             }
         }
 
         public void RemoveConnectionData()
         {
-            for (int i = 0; i < adjacentPills.Count; i++)
+            for (int i = 0; i < AdjacentPills.Count; i++)
             {
-                adjacentPills[i].RemoveConnectionData(Id);
+                AdjacentPills[i].RemoveConnectionData(Id);
             }
         }
 
@@ -217,14 +201,14 @@ namespace Blistructor
         /// <param name="pillId">ID of Pill which is executing this method</param>
         protected void RemoveConnectionData(int pillId)
         {
-            for (int i = 0; i < adjacentPills.Count; i++)
+            for (int i = 0; i < AdjacentPills.Count; i++)
             {
-                if (adjacentPills[i].Id == pillId)
+                if (AdjacentPills[i].Id == pillId)
                 {
-                    adjacentPills.RemoveAt(i);
-                    connectionLines.RemoveAt(i);
-                    proxLines.RemoveAt(i);
-                    samplePoints.RemoveAt(i);
+                    AdjacentPills.RemoveAt(i);
+                    ConnectionLines.RemoveAt(i);
+                    ProxLines.RemoveAt(i);
+                    SamplePoints.RemoveAt(i);
                     i--;
                 }
             }
@@ -233,7 +217,7 @@ namespace Blistructor
 
         public List<int> GetAdjacentPillsIds()
         {
-            return adjacentPills.Select(pill => pill.Id).ToList();
+            return AdjacentPills.Select(pill => pill.Id).ToList();
         }
         public void EstimateOrientationCircle()
         {
@@ -245,23 +229,23 @@ namespace Blistructor
         public void SortData()
         {
             EstimateOrientationCircle();
-            int[] sortingIndexes = Geometry.SortPtsAlongCurve(samplePoints, OrientationCircle);
+            int[] sortingIndexes = Geometry.SortPtsAlongCurve(SamplePoints, OrientationCircle);
 
-            samplePoints = sortingIndexes.Select(index => samplePoints[index]).ToList();
-            connectionLines = sortingIndexes.Select(index => connectionLines[index]).ToList();
-            proxLines = sortingIndexes.Select(index => proxLines[index]).ToList();
-            adjacentPills = sortingIndexes.Select(index => adjacentPills[index]).ToList();
+            SamplePoints = sortingIndexes.Select(index => SamplePoints[index]).ToList();
+            ConnectionLines = sortingIndexes.Select(index => ConnectionLines[index]).ToList();
+            ProxLines = sortingIndexes.Select(index => ProxLines[index]).ToList();
+            AdjacentPills = sortingIndexes.Select(index => AdjacentPills[index]).ToList();
         }
 
         // Get ProxyLines without lines pointed as Id
         public List<Curve> GetUniqueProxy(int id)
         {
             List<Curve> proxyLines = new List<Curve>();
-            for (int i = 0; i < adjacentPills.Count; i++)
+            for (int i = 0; i < AdjacentPills.Count; i++)
             {
-                if (adjacentPills[i].Id != id)
+                if (AdjacentPills[i].Id != id)
                 {
-                    proxyLines.Add(proxLines[i]);
+                    proxyLines.Add(ProxLines[i]);
                 }
             }
             return proxyLines;
@@ -272,12 +256,12 @@ namespace Blistructor
             Dictionary<int, Curve> proxData = new Dictionary<int, Curve>();
 
             //List<Curve> proxyLines = new List<Curve>();
-            for (int i = 0; i < adjacentPills.Count; i++)
+            for (int i = 0; i < AdjacentPills.Count; i++)
             {
-                if (adjacentPills[i].Id != id)
+                if (AdjacentPills[i].Id != id)
                 {
-                    proxData.Add(adjacentPills[i].Id, proxLines[i]);
-                    // proxyLines.Add(proxLines[i]);
+                    proxData.Add(AdjacentPills[i].Id, ProxLines[i]);
+                    // proxyLines.Add(ProxLines[i]);
                 }
             }
             return proxData;
@@ -287,24 +271,24 @@ namespace Blistructor
         {
             obstacles = BuildObstacles_v2();
             // Add extra offset 
-           //obstacles = obstacles.Select(Outline => Outline.Offset(Plane.WorldXY, Setups.BladeTol)).ToList();
+            //obstacles = obstacles.Select(Outline => Outline.Offset(Plane.WorldXY, Setups.BladeTol)).ToList();
         }
         private List<Curve> BuildObstacles_v2()
         {
             List<Curve> limiters = new List<Curve> { Offset };
             Dictionary<int, Curve> uniquePillsOffset = new Dictionary<int, Curve>();
 
-            for (int i = 0; i < adjacentPills.Count; i++)
+            for (int i = 0; i < AdjacentPills.Count; i++)
             {
-                // limiters.Add(adjacentPills[i].pillOffset);
-                Dictionary<int, Curve> proxDict = adjacentPills[i].GetUniqueProxy_v2(Id);
-                uniquePillsOffset[adjacentPills[i].Id] = adjacentPills[i].Offset;
-                //List<Curve> prox = adjacentPills[i].GetUniqueProxy(id);
+                // limiters.Add(AdjacentPills[i].pillOffset);
+                Dictionary<int, Curve> proxDict = AdjacentPills[i].GetUniqueProxy_v2(Id);
+                uniquePillsOffset[AdjacentPills[i].Id] = AdjacentPills[i].Offset;
+                //List<Curve> prox = AdjacentPills[i].GetUniqueProxy(id);
                 foreach (KeyValuePair<int, Curve> prox_crv in proxDict)
                 {
                     uniquePillsOffset[prox_crv.Key] = blister.PillByID(prox_crv.Key).Offset;
 
-                    if (Geometry.CurveCurveIntersection(prox_crv.Value, proxLines).Count == 0)
+                    if (Geometry.CurveCurveIntersection(prox_crv.Value, ProxLines).Count == 0)
                     {
                         limiters.Add(prox_crv.Value);
                     }
@@ -351,17 +335,17 @@ namespace Blistructor
             string fileName = $"pill_{Id:00}.3dm";
             string filePath = Path.Combine(Setups.DebugDir, runIdString, fileName);
             File3dm file = new File3dm();
-            
+
             Layer pillLayer = new Layer();
             pillLayer.Name = $"pill_{this.Id}";
             pillLayer.Index = 0;
             file.AllLayers.Add(pillLayer);
             ObjectAttributes pillAttributes = new ObjectAttributes();
             pillAttributes.LayerIndex = pillLayer.Index;
-            
+
             file.Objects.AddCurve(this.Outline, pillAttributes);
             file.Objects.AddCurve(this.Offset, pillAttributes);
-            file.Objects.AddCurve(this.Voronoi, pillAttributes);
+            file.Objects.AddCurve(this.IrVoronoi, pillAttributes);
             file.Objects.AddPoint(this.Center, pillAttributes);
 
             Layer connLayer = new Layer
@@ -372,9 +356,9 @@ namespace Blistructor
             file.AllLayers.Add(connLayer);
             ObjectAttributes connAttributes = new ObjectAttributes();
             connAttributes.LayerIndex = connLayer.Index;
-            connectionLines.ForEach(crv => file.Objects.AddCurve(crv, connAttributes));
-            proxLines.ForEach(crv => file.Objects.AddCurve(crv, connAttributes));
-            file.Objects.AddPoints(samplePoints, connAttributes);
+            ConnectionLines.ForEach(crv => file.Objects.AddCurve(crv, connAttributes));
+            ProxLines.ForEach(crv => file.Objects.AddCurve(crv, connAttributes));
+            file.Objects.AddPoints(SamplePoints, connAttributes);
 
             file.Write(filePath, 6);
         }

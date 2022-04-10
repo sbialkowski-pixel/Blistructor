@@ -90,7 +90,11 @@ namespace Blistructor
         public bool ToTight { get; private set; } = false;
         public PolylineCurve Outline { get; set; }
         public List<Pill> Pills { get; private set; }
-        public List<PolylineCurve> irVoronoi;
+        public Graph Graph { get; private set; }
+        public List<PolylineCurve> IrVoronoi { get; private set; }
+        public List<PolylineCurve> Voronoi { get; private set; }
+
+      //  public List<PolylineCurve> Voronoi { get; private set; }
         protected string UUID;
 
 
@@ -180,18 +184,15 @@ namespace Blistructor
             log.Debug(String.Format("Instantiated {0} Pills on Blister", Pills.Count));
             // If only 1 cell, finish here.
             if (Pills.Count <= 1) return;
-            // NOTE: Cells Sorting move to Blister nd controled in BListructor...
-            // Order by Corner distance. First Two set as possible Anchor.
-            // log.Debug("Sorting Cells");
-            // cells = cells.OrderBy(cell => cell.CornerDistance).ToList();
-            // for (int i = 0; i < 2; i++)
-            //{
-            //     cells[i].PossibleAnchor = true;
-            // }
+
             ToTight = ArePillsOverlapping();
             log.Info(String.Format("Is to tight? : {0}", ToTight));
             if (ToTight) return;
-            irVoronoi = Geometry.IrregularVoronoi(Pills, Outline.ToPolyline(), 50, 0.05);
+            Graph = new Graph(this);
+
+            Pills.ForEach(pill => pill.Voronoi = (PolylineCurve)Graph.Voronoi[(object)pill.Id]);
+            Pills.ForEach(pill => pill.IrVoronoi = (PolylineCurve)Graph.IrVoronoi[(object)pill.Id]);
+
             CreateConnectivityData();
         }
         #endregion
@@ -354,9 +355,9 @@ namespace Blistructor
                 foreach (Pill pill in Pills)
                 {
 
-                    if (pill.adjacentPills.Count == 1)
+                    if (pill.AdjacentPills.Count == 1)
                     {
-                        if (pill.adjacentPills[0].Id == pillToCut.Id)
+                        if (pill.AdjacentPills[0].Id == pillToCut.Id)
                         {
                             log.Warn("Adjacent Cells Checker - Found alone Outline in multi-Pills Blister. Skip this cutting.");
                             return false;
@@ -455,25 +456,15 @@ namespace Blistructor
                 // log.Debug(String.Format("Checking pill: {0}", currentCell.id));
                 List<Point3d> currentMidPoints = new List<Point3d>();
                 List<Curve> currentConnectionLines = new List<Curve>();
-                List<Pill> currenAdjacentPills = new List<Pill>();
-                foreach (Pill proxPill in Pills)
+                List<Pill> currenAdjacentPills = Graph.GetAdjacentPills(currentPill.Id);
+                foreach (Pill proxPill in currenAdjacentPills)
                 {
-                    // If proxCell is cut out or cutCell is same as proxCell, next cell...
                     if (proxPill.State == PillState.Cut || proxPill.Id == currentPill.Id) continue;
-                    // log.Debug(String.Format("Checking pill: {0}", currentCell.id));
                     Line line = new Line(currentPill.Center, proxPill.Center);
-                    Point3d midPoint = line.PointAt(0.5);
-                    double t;
-                    if (currentPill.Voronoi.ClosestPoint(midPoint, out t, 2.000))
-                    {
-                        // log.Debug(String.Format("Checking pill: {0}", currentCell.id));
-                        currenAdjacentPills.Add(proxPill);
-                        currentConnectionLines.Add(new LineCurve(line));
-                        currentMidPoints.Add(midPoint);
-                    }
+                    currentConnectionLines.Add(new LineCurve(line));
                 }
                 log.Debug(String.Format("Pill ID: {0} - Adjacent:{1}, Conection {2} Proxy {3}", currentPill.Id, currenAdjacentPills.Count, currentConnectionLines.Count, currentMidPoints.Count));
-                currentPill.AddConnectionData(currenAdjacentPills, currentConnectionLines, currentMidPoints);
+                currentPill.AddConnectionData(currenAdjacentPills, currentConnectionLines);
             }
         }
 

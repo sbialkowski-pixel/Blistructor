@@ -15,7 +15,7 @@ using ExtraMath = Rhino.RhinoMath;
 
 using log4net;
 using Diagrams;
-//using Voronoi = Diagrams.Voronoi;
+//using IrVoronoi = Diagrams.IrVoronoi;
 //using Delaunay = Diagrams.Delaunay;
 
 
@@ -536,83 +536,6 @@ namespace Blistructor
                 temp_regions = new List<Curve>(current_temp_regions);
             }
             return temp_regions;
-        }
-
-        //TODO: Dokonczyć reguralny voronoi i dodac jako stage 0 ciecia.
-        public static List<PolylineCurve> RegularVoronoi(List<Pill> pills, Polyline blister,  double tolerance = 0.05)
-        {
-            Diagrams.Node2List n2l = new Diagrams.Node2List();
-            List < Diagrams.Node2 > outline = new List<Diagrams.Node2>();
-            foreach (Pill pill in pills)
-            {
-                n2l.Append(new Diagrams.Node2(pill.Center.X, pill.Center.Y));
-            }
-
-            foreach (Point3d pt in blister)
-            {
-                outline.Add(new Diagrams.Node2(pt.X, pt.Y));
-            }
-            List<Diagrams.Voronoi.Cell2> voronoi = Diagrams.Voronoi.Solver.Solve_BruteForce(n2l, outline);
-            //Diagrams.Delaunay.Connectivity del_con = Diagrams.Delaunay.Solver.Solve_Connectivity(n2l, 0.0001, true);
-           // List<Diagrams.Voronoi.Cell2> voronoi = Diagrams.Voronoi.Solver.Solve_Connectivity(n2l, del_con, Outline);
-
-            List<PolylineCurve> output = new List<PolylineCurve>(voronoi.Count);
-            foreach (Diagrams.Voronoi.Cell2 pill in voronoi)
-            {
-                output.Add(pill.ToPolyline().ToPolylineCurve());
-            }
-            return output;
-        }
-
-        public static List<PolylineCurve> IrregularVoronoi(List<Pill> pills, Polyline blister, int resolution = 50, double tolerance = 0.05)
-        {
-            Diagrams.Node2List n2l = new Diagrams.Node2List();
-            List<Diagrams.Node2> outline = new List<Diagrams.Node2>();
-            foreach (Pill pill in pills)
-            {
-                Point3d[] pts;
-                pill.Outline.DivideByCount(resolution, false, out pts);
-                foreach (Point3d pt in pts)
-                {
-                    n2l.Append(new Diagrams.Node2(pt.X, pt.Y));
-                }
-            }
-
-            foreach (Point3d pt in blister)
-            {
-                outline.Add(new Diagrams.Node2(pt.X, pt.Y));
-            }
-
-            Diagrams.Delaunay.Connectivity del_con = Diagrams.Delaunay.Solver.Solve_Connectivity(n2l, 0.0001, true);
-            List < Diagrams.Voronoi.Cell2 > voronoi = Diagrams.Voronoi.Solver.Solve_Connectivity(n2l, del_con, outline);
-
-            List<PolylineCurve> vCells = new List<PolylineCurve>();
-            for (int i = 0; i < pills.Count; i++)
-            {
-                List<Point3d> pts = new List<Point3d>();
-                for (int j = 0; j < resolution - 1; j++)
-                {
-                    int glob_index = (i * (resolution - 1)) + j;
-                    // vor.Add(voronoi[glob_index].ToPolyline());
-                    if (voronoi[glob_index].C.Count == 0) continue;
-                    Point3d[] vert = voronoi[glob_index].ToPolyline().ToArray();
-                    foreach (Point3d pt in vert)
-                    {
-                        PointContainment result = pills[i].Outline.Contains(pt, Plane.WorldXY, Setups.GeneralTolerance);
-                        if (result == PointContainment.Outside)
-                        {
-                            pts.Add(pt);
-                        }
-                    }
-                }
-                Circle fitCirc = Geometry.FitCircle(pts);
-                Polyline poly = new Polyline(SortPtsAlongCurve(Point3d.CullDuplicates(pts, 0.0001), fitCirc.ToNurbsCurve()));
-                poly.Add(poly[0]);
-                poly.ReduceSegments(tolerance);
-                vCells.Add(new PolylineCurve(poly));
-                pills[i].Voronoi = new PolylineCurve(poly);
-            }
-            return vCells;
         }
 
         public static PolylineCurve MinimumAreaRectangleBF(Curve crv)

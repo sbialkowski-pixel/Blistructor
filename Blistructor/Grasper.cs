@@ -458,7 +458,7 @@ namespace Blistructor
 
         public bool HasPillPlaceForJaw(Pill pill)
         {
-            return HasPlaceForJaw(pill.Voronoi);
+            return HasPlaceForJaw(pill.IrVoronoi);
         }
 
         public bool HasPlaceForJawInCutContext(CutData cutData)

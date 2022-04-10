@@ -70,7 +70,7 @@ namespace Blistructor
         }
 
         //Debug properties.
-
+        //TODO: Dokonczyć reguralny voronoi i dodac jako stage 0 ciecia.
 
         /// <summary>
         /// Cutting with idea to keep each cutting state.
@@ -159,8 +159,8 @@ namespace Blistructor
             }
 
             // If Outline is not surrounded by other Outline, update data
-            log.Debug(String.Format("Check if Outline is alone on blister: No. adjacent Pills: {0}", pillToCut.adjacentPills.Count));
-            if (pillToCut.adjacentPills.Count == 0)
+            log.Debug(String.Format("Check if Outline is alone on blister: No. adjacent Pills: {0}", pillToCut.AdjacentPills.Count));
+            if (pillToCut.AdjacentPills.Count == 0)
             {
                 log.Debug("This is last Outline on blister.");
 
@@ -261,18 +261,18 @@ namespace Blistructor
 
         private List<List<LineCurve>> GenerateIsoCurvesStage0_v2(int raysCount, double stepAngle)
         {
-            List<List<LineCurve>> isoLines = new List<List<LineCurve>>(Pill.samplePoints.Count);
-            for (int i = 0; i < Pill.samplePoints.Count; i++)
+            List<List<LineCurve>> isoLines = new List<List<LineCurve>>(Pill.SamplePoints.Count);
+            for (int i = 0; i < Pill.SamplePoints.Count; i++)
             {
-                Vector3d direction = Vector3d.CrossProduct((Pill.proxLines[i].PointAtEnd - Pill.proxLines[i].PointAtStart), Vector3d.ZAxis);
-                Vector3d direction2 = Vector3d.CrossProduct((Pill.connectionLines[i].PointAtEnd - Pill.connectionLines[i].PointAtStart), Vector3d.ZAxis);
+                Vector3d direction = Vector3d.CrossProduct((Pill.ProxLines[i].PointAtEnd - Pill.ProxLines[i].PointAtStart), Vector3d.ZAxis);
+                Vector3d direction2 = Vector3d.CrossProduct((Pill.ConnectionLines[i].PointAtEnd - Pill.ConnectionLines[i].PointAtStart), Vector3d.ZAxis);
 
                 List<LineCurve> currentIsoLines = new List<LineCurve>((2 * raysCount) + 1);
                 // If both vectors are much different, add IsoLines based on both, else only average will be taken.
                 if (Math.Abs(VecSim(direction, direction2)) > 0.9)
                 {
                     foreach (Vector3d vec in new List<Vector3d>() { direction, direction2 }) { }
-                    LineCurve isoLine = Geometry.GetIsoLine(Pill.samplePoints[i], direction, Setups.IsoRadius, WorkingObstacles);
+                    LineCurve isoLine = Geometry.GetIsoLine(Pill.SamplePoints[i], direction, Setups.IsoRadius, WorkingObstacles);
                     if (isoLine == null) continue;
                     currentIsoLines.Add(isoLine);
                 }
@@ -283,7 +283,7 @@ namespace Blistructor
                 foreach (double angle in Enumerable.Range(0, (2 * raysCount) + 1))
                 {
                     if (!sum_direction.Rotate(stepAngleInRadians, Vector3d.ZAxis)) continue;
-                    LineCurve isoLine = Geometry.GetIsoLine(Pill.samplePoints[i], sum_direction, Setups.IsoRadius, WorkingObstacles);
+                    LineCurve isoLine = Geometry.GetIsoLine(Pill.SamplePoints[i], sum_direction, Setups.IsoRadius, WorkingObstacles);
                     if (isoLine == null) continue;
                     currentIsoLines.Add(isoLine);
                 }
@@ -303,9 +303,9 @@ namespace Blistructor
         {
             // Obstacles need to be calculated or updated earlier
             List<List<LineCurve>> isoLines = new List<List<LineCurve>>();
-            for (int i = 0; i < Pill.samplePoints.Count; i++)
+            for (int i = 0; i < Pill.SamplePoints.Count; i++)
             {
-                Circle cir = new Circle(Pill.samplePoints[i], Setups.IsoRadius);
+                Circle cir = new Circle(Pill.SamplePoints[i], Setups.IsoRadius);
                 List<LineCurve> iLines = new List<LineCurve>();
                 IEnumerable<double> parts = Enumerable.Range(0, samples).Select(x => x * (Math.PI / samples));
                 List<Point3d> pts = parts.Select(part => cir.PointAt(part)).ToList();
@@ -313,7 +313,7 @@ namespace Blistructor
                 for (int j = 0; j < pts.Count; j++)
                 {
                     Point3d Pt = pts[j];
-                    LineCurve ray = Geometry.GetIsoLine(Pill.samplePoints[i], Pt - Pill.samplePoints[i], Setups.IsoRadius, WorkingObstacles);
+                    LineCurve ray = Geometry.GetIsoLine(Pill.SamplePoints[i], Pt - Pill.SamplePoints[i], Setups.IsoRadius, WorkingObstacles);
                     if (ray != null)
                     {
                         iLines.Add(ray);
