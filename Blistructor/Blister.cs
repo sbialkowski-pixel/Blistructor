@@ -135,7 +135,7 @@ namespace Blistructor
                 // If cell is not cutOut, check if belong to this Blister.
                 if (Geometry.InclusionTest(pill, this))
                 {
-                    pill.blister = this;
+                    pill.ParentBlister = this;
                     this.Pills.Add(pill);
                 }
 
@@ -145,6 +145,7 @@ namespace Blistructor
             log.Debug("Creating ConncectivityData");
             Graph = new VoronoiGraph(this);
             Pills.ForEach(pill => pill.Voronoi = (PolylineCurve)Graph.Voronoi[(object)pill.Id]);
+            Pills.ForEach(pill => pill.IrVoronoi = (PolylineCurve)Graph.IrVoronoi[(object)pill.Id]);
             CreateConnectivityData();
         }
 
@@ -177,7 +178,7 @@ namespace Blistructor
             Graph = new VoronoiGraph(this);
 
             Pills.ForEach(pill => pill.Voronoi = (PolylineCurve)Graph.Voronoi[(object)pill.Id]);
-            //Pills.ForEach(pill => pill.IrVoronoi = (PolylineCurve)Graph.IrVoronoi[(object)pill.Id]);
+            Pills.ForEach(pill => pill.IrVoronoi = (PolylineCurve)Graph.IrVoronoi[(object)pill.Id]);
             CreateConnectivityData();
         }
         #endregion

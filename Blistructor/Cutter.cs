@@ -147,7 +147,7 @@ namespace Blistructor
             // Create obstacles (limiters) for cutting process.
             WorkingObstacles = new List<Curve>(FixedObstacles);
             pillToCut.UpdateObstacles();
-            WorkingObstacles.AddRange(pillToCut.obstacles);
+            WorkingObstacles.AddRange(pillToCut.Obstacles);
 
             Pill = pillToCut;
             log.Info(String.Format("Trying to cut Outline id: {0} with status: {1}", pillToCut.Id, pillToCut.State));
@@ -410,13 +410,13 @@ namespace Blistructor
             if (ray == null) return outLine;
             //  log.Debug("Ray not null");
             Geometry.FlipIsoRays(Pill.OrientationCircle, ray);
-            Tuple<List<Curve>, List<Curve>> result = Geometry.TrimWithRegion(ray, Pill.blister.Outline);
+            Tuple<List<Curve>, List<Curve>> result = Geometry.TrimWithRegion(ray, Pill.ParentBlister.Outline);
             if (result == null) return null;
             if (result.Item1.Count < 1) return outLine;
             // log.Debug("After trimming.");
             foreach (Curve crv in result.Item1)
             {
-                PointContainment test = Pill.blister.Outline.Contains(crv.PointAtNormalizedLength(0.5), Plane.WorldXY, 0.1);
+                PointContainment test = Pill.ParentBlister.Outline.Contains(crv.PointAtNormalizedLength(0.5), Plane.WorldXY, 0.1);
                 if (test == PointContainment.Inside) return (LineCurve)crv;
 
             }
@@ -559,7 +559,7 @@ namespace Blistructor
             if (pathCrv == null) return null;
             // Check if this curves creates closed polygon with blister edge.
             List<Curve> splitters = pathCrv.Cast<Curve>().ToList();
-            List<Curve> splited_blister = Geometry.SplitRegion(Pill.blister.Outline, splitters);
+            List<Curve> splited_blister = Geometry.SplitRegion(Pill.ParentBlister.Outline, splitters);
             // If after split there is less then 2 region it means nothing was cutted and bliseter stays unchanged
             if (splited_blister == null) return null;
             //splitters.ForEach(crv => file.Objects.AddCurve(crv));
@@ -591,7 +591,7 @@ namespace Blistructor
 
             // Chceck if only this Outline is inside pill_region, After checking if Outline region exists of course....
             log.Debug("Chceck if only this Outline is inside pill_region.");
-            foreach (Pill pill in Pill.blister.Pills)
+            foreach (Pill pill in Pill.ParentBlister.Pills)
             {
                 if (pill.Id == Pill.Id) continue;
                 RegionContainment test = Curve.PlanarClosedCurveRelationship(pill.Offset, pill_region_curve);

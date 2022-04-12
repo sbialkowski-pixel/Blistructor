@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Collections.Concurrent;
@@ -17,7 +18,9 @@ using Rhino.Geometry.Intersect;
 
 namespace Blistructor
 {
-    //TODO: Delauney jest GUPI. Walidacja tak jak w pliki FItCIrcleVoronoi2! Na bazie CUrve.Union.
+    /// <summary>
+    /// Class to creates ConnectivityGraph between pills based on Delaunay mesh. 
+    /// </summary>
     public class Graph
     {
         protected Blister Blister { get; set; }
@@ -25,22 +28,37 @@ namespace Blistructor
         protected List<Diagrams.Node2> BlisterOutlineNodes { get; set; }
         protected Diagrams.Delaunay.Connectivity Connectivity { get; set; }                                                                                                                                                                   
 
-        public OrderedDictionary PillsGraph { get; private set; }
+        /// <summary>
+        /// OrderedDictionar containing PillsConnectivityGraph, where Key is CurrentPill.Id and Values are List of Adjacent Pills.
+        /// </summary>
+        public OrderedDictionary PillsGraph { get; protected set; }
 
-        public Graph(Blister blister, double diagramTolerance = 1e-6)
+        /// <summary>
+        /// Creates ConnectivityGraph between pills based on Delaunay mesh.
+        /// This graph is always convex!
+        /// </summary>
+        /// <param name="blister">Blister to generate Connectivity Graph for.</param>
+        /// <param name="diagramJitter">Amount of random noise. Make sure there is at least some noise
+        /// if your input nodes are structured, default = 0.0</param>
+        public Graph(Blister blister, double diagramJitter = 0.0)
         {
             // Create proper data based on Blister
             Blister = blister;
             PillCenterNodes = PillsCentersToNodeList();
             BlisterOutlineNodes = BlisterToNode2();
             // Generate all standard Diagrams
-            Connectivity = Diagrams.Delaunay.Solver.Solve_Connectivity(PillCenterNodes, diagramTolerance, true);
+            Connectivity = Diagrams.Delaunay.Solver.Solve_Connectivity(PillCenterNodes, diagramJitter, false);
             // Fill public properties by PixGeo data
             PillsGraph = GetPillsGraph();
         }
 
         #region OrderedDict Getters
 
+        /// <summary>
+        /// Retrive list of adjacent pills to given one
+        /// </summary>
+        /// <param name="pillID">Pill ID to get neighbours</param>
+        /// <returns>List of adjacent pills</returns>
         public List<Pill> GetAdjacentPills(int pillID)
         {
             return (List<Pill>)PillsGraph[(object)pillID];
@@ -106,38 +124,74 @@ namespace Blistructor
 
         #endregion
 
+        #region  VIRTUAL METHODS
         public virtual OrderedDictionary Voronoi { get; protected set; }
-        //public virtual OrderedDictionary IrVoronoi { get; protected set; }
+        public virtual OrderedDictionary IrVoronoi { get; protected set; }
 
         public virtual PolylineCurve GetVoronoi(int pillID) { return null; }
-        //public virtual PolylineCurve GetIrVoronoi(int pillID) { return null; }
+        public virtual PolylineCurve GetIrVoronoi(int pillID) { return null; }
+#endregion
     }
 
 
     public class VoronoiGraph : Graph
     {
         private List<Diagrams.Voronoi.Cell2> VoronoiCells { get; set; }
-       // public override OrderedDictionary IrVoronoi { get; protected set; }
+        
+        public override OrderedDictionary IrVoronoi { get; protected set; }
         public override OrderedDictionary Voronoi { get; protected set; }
-        public VoronoiGraph(Blister blister, int irregularVoronoiSamples = 50, double diagramTolerance = 1e-6) : base(blister, diagramTolerance)
+        /// <summary>
+        ///  Creates ConnectivityGraph between pills based on Delaunay mesh. 
+        ///  Additionaly validate it agains Irregular or RegularVoronoi to remove convex connection.
+        /// </summary>
+        /// <param name="blister">Blister to generate Voronoi Diagrams for.</param>
+        /// <param name="irregularVoronoiSamples">Number of samples per pill to generate Irregular Voronoi, default 50</param>
+        /// <param name="irregularVoronoiTreshold">Treshold to generate IrVoronoi. 
+        /// If average of CircleDeviation from all pills in blister is lower then this treshold, IrVoronoi will be generated. 
+        /// Else IrVoronoi holds reference to regular Voronoi diagram.</param>
+        /// <param name="diagramJitter">Delanuey </param>
+        public VoronoiGraph(Blister blister, int irregularVoronoiSamples = 50, double irregularVoronoiTreshold= 0.9,  double diagramJitter = 0.0) : base(blister, diagramJitter)
         {
             VoronoiCells = Diagrams.Voronoi.Solver.Solve_Connectivity(PillCenterNodes, Connectivity, BlisterOutlineNodes);
             Voronoi = VoronoiCellsToPolylineCurves(VoronoiCells);
-            // Generate irregular Voronoi Diagram
-           // IrVoronoi = IrregularVoronoi(irregularVoronoiSamples);
+            if (Blister.Pills.Select(pill => pill.CircleDeviation).Average() < irregularVoronoiTreshold)
+            {
+                // Generate irregular Voronoi Diagram
+                IrVoronoi = IrregularVoronoi(irregularVoronoiSamples);
+            }
+            else IrVoronoi = Voronoi;
+           PillsGraph = ValidateGraph(IrVoronoi);
         }
 
         #region OrderedDict Getters
+
+        protected OrderedDictionary ValidateGraph(OrderedDictionary Voronoi)
+        {
+            OrderedDictionary output = new OrderedDictionary(PillsGraph.Count);
+            foreach (DictionaryEntry entry in PillsGraph)
+            {                      
+                Pill currentPill = Blister.PillByID((int)entry.Key);
+                List<Pill> proxPills = (List<Pill>)entry.Value;
+                List<Pill> verifiedPills = new List<Pill>(proxPills.Count);
+                foreach (Pill proxPill in proxPills)
+                {
+                    List<Curve> toUnion = new List<Curve>() { (Curve)Voronoi[(object)currentPill.Id], (Curve)Voronoi[(object)proxPill.Id] };
+                    if (Curve.CreateBooleanUnion(toUnion).Count == 1) verifiedPills.Add(proxPill);
+                }
+                output.Add(currentPill.Id, verifiedPills);
+            }
+            return output;
+        }
 
         public override PolylineCurve GetVoronoi(int pillID)
         {
             return (PolylineCurve)Voronoi[(object)pillID];
         }
 
-        //public override PolylineCurve GetIrVoronoi(int pillID)
-        //{
-        //    return (PolylineCurve)IrVoronoi[(object)pillID];
-        //}
+        public override PolylineCurve GetIrVoronoi(int pillID)
+        {
+            return (PolylineCurve)IrVoronoi[(object)pillID];
+        }
         #endregion
 
         private OrderedDictionary VoronoiCellsToPolylineCurves(List<Diagrams.Voronoi.Cell2> voronoiDiagram)
@@ -199,7 +253,7 @@ namespace Blistructor
                         }
                     }
                 }
-                Circle fitCirc = Geometry.FitCircle(pts);
+                Circle fitCirc = Geometry.FitCircle(new Polyline(pts));
                 Polyline poly = new Polyline(Geometry.SortPtsAlongCurve(Point3d.CullDuplicates(pts, 0.0001), fitCirc.ToNurbsCurve()));
                 poly.Add(poly[0]);
                 poly.ReduceSegments(0.00001);

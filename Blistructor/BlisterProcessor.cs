@@ -137,7 +137,7 @@ namespace Blistructor
                         if (cutProposal.State != CutState.Last)
                         {
                             if ((Queue.Count - 1 + cutProposal.Data.BlisterLeftovers.Count) > 2) continue;
-                            if (!cutProposal.CheckConnectivityIntegrityInLeftovers(state: CutState.Failed)) continue;
+                            //if (!cutProposal.CheckConnectivityIntegrityInLeftovers(state: CutState.Failed)) continue;
                             if (cutProposal.HasCutAnyImpactOnJaws)
                             {
                                 if (!cutProposal.CheckJawsExistance(state: CutState.Failed)) continue;

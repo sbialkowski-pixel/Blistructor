@@ -23,20 +23,35 @@ namespace Blistructor
     {
         private static readonly ILog log = LogManager.GetLogger("Cutter.Pill");
 
+        #region Properties
+        internal Blister ParentBlister { get; set; }
         public int Id { get; }
-        // Parent Blister
-        internal Blister blister;
+
         public PillState State { get; set; }
 
-        // Pill Stuff
-
+        /// <summary>
+        /// Pill Outline deviation form Circle. 1.0 means pill shape is circular; 0.0 means is not circular at all.
+        /// </summary>
+        public double CircleDeviation { get; private set; }
+        /// <summary>
+        /// Pill shape
+        /// </summary>
         public PolylineCurve Outline { get; private set; }
+        /// <summary>
+        /// Pill shape offset by Sapfe distance (Setups.BladeWidth/2)
+        /// </summary>
         public PolylineCurve Offset { get; private set; }
+        /// <summary>
+        /// Pill center (vertex avrage)
+        /// </summary>
         public Point3d Center { get; private set; }
+        /// <summary>
+        /// Circle calculated based on Outline BBox. It is not same circle, as used in CircleDeviation property!
+        /// </summary>
         public PolylineCurve OrientationCircle { get; private set; }
 
         // Connection and Adjacent Stuff
-        //public PolylineCurve IrVoronoi { get; set; }
+        public PolylineCurve IrVoronoi { get; set; }
         public PolylineCurve Voronoi { get; set; }
         //!!ConnectionLines, ProxLines, AdjacentPills, SamplePoints <- all same sizes, and order!!
         public List<Curve> ConnectionLines { get; internal set; }
@@ -44,7 +59,9 @@ namespace Blistructor
         public List<Pill> AdjacentPills { get; internal set; }
         public List<Point3d> SamplePoints { get; internal set; }
 
-        public List<Curve> obstacles;
+        public List<Curve> Obstacles;
+
+        #endregion
 
         public Pill(Pill pill)
         {
@@ -54,7 +71,7 @@ namespace Blistructor
             Offset = (PolylineCurve)pill.Offset.Duplicate();
             Voronoi = (PolylineCurve)pill.Voronoi.Duplicate();
             OrientationCircle = (PolylineCurve)pill.OrientationCircle.Duplicate();
-            // IrVoronoi = (PolylineCurve)pill.IrVoronoi.Duplicate();
+            IrVoronoi = (PolylineCurve)pill.IrVoronoi.Duplicate();
             Center = pill.Center;
         }
 
@@ -62,7 +79,7 @@ namespace Blistructor
         {
             Id = id;
             State = PillState.Queue;
-            this.blister = blister;
+            this.ParentBlister = blister;
             // Prepare all needed Pill properties
             Outline = pill;
             // Make Pill curve oriented in proper direction.
@@ -71,6 +88,7 @@ namespace Blistructor
             Center = Outline.ToPolyline().CenterPoint();
             // Create Outline offset
             Offset = GetCustomOffset(Setups.BladeWidth / 2);
+            CircleDeviation = Geometry.DeviationFromCircle(Outline.ToPolyline());
         }
 
         #region PROPERTIES
@@ -223,7 +241,7 @@ namespace Blistructor
         {
             double circle_radius = Outline.GetBoundingBox(false).Diagonal.Length / 2;
             NurbsCurve orientationCircle = (new Circle(Center, circle_radius)).ToNurbsCurve();
-            Geometry.EditSeamBasedOnCurve(orientationCircle, blister.Outline);
+            Geometry.EditSeamBasedOnCurve(orientationCircle, ParentBlister.Outline);
            OrientationCircle = orientationCircle.TryGetPolyline().ToPolylineCurve();
 
         }
@@ -271,7 +289,7 @@ namespace Blistructor
 
         public void UpdateObstacles()
         {
-            obstacles = BuildObstacles_v2();
+            Obstacles = BuildObstacles_v2();
             // Add extra offset 
             //obstacles = obstacles.Select(Outline => Outline.Offset(Plane.WorldXY, Setups.BladeTol)).ToList();
         }
@@ -288,7 +306,7 @@ namespace Blistructor
                 //List<Curve> prox = AdjacentPills[i].GetUniqueProxy(id);
                 foreach (KeyValuePair<int, Curve> prox_crv in proxDict)
                 {
-                    uniquePillsOffset[prox_crv.Key] = blister.PillByID(prox_crv.Key).Offset;
+                    uniquePillsOffset[prox_crv.Key] = ParentBlister.PillByID(prox_crv.Key).Offset;
 
                     if (Geometry.CurveCurveIntersection(prox_crv.Value, ProxLines).Count == 0)
                     {

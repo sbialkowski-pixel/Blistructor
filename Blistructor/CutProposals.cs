@@ -38,7 +38,7 @@ namespace Blistructor
 
         #region PROPERTIES
         public Pill Pill { get; private set; }
-        public Blister Blister { get => Pill.blister; }
+        public Blister Blister { get => Pill.ParentBlister; }
         public CutState State { get; internal set; }
         #endregion
 
@@ -176,14 +176,14 @@ namespace Blistructor
                 case CutState.Succeed:
                     // Update Pill & Create CutOut
                     log.Debug("Removing Connection data from cut Pill. Updating pill status to Cut");
-                    Pill.State = PillState.Cut;
-                    Pill.RemoveConnectionData();
+                    //Pill.State = PillState.Cut;
+                    //Pill.RemoveConnectionData();
                     //Update Current
-
-                  //  int locationIndex = Blister.Pills.FindIndex(pill => pill.Id == Pill.Id);
                     Blister.Pills.Remove(Pill);
+                    // New Pill based on existing does not have anny connection relations.
+                    Pill cutPill = new Pill(Pill) { State = PillState.Cut };
 
-                    return new CutBlister(Pill, Data);
+                    return new CutBlister(cutPill, Data);
                 default:
                     throw new NotImplementedException($"This state {State} is not implemented!");
             }
@@ -195,7 +195,7 @@ namespace Blistructor
         /// Apply all leftovers on current blister.
         /// </summary>
         /// <returns>Tuple with Current blister and list of leftover blister</returns>
-        public (Blister CurrentBluster, List<Blister> Leftovers) GetLeftoversAndUpdateCurrentBlister()
+        public (Blister CurrentBlister, List<Blister> Leftovers) GetLeftoversAndUpdateCurrentBlister()
         {
             switch (State)
             {
@@ -203,13 +203,32 @@ namespace Blistructor
                     throw new Exception("Cannot apply cutting on failed CutStates proposal. Big mistake!!!!");
                 case CutState.Last:
                     // return   new List<Blister>();
-                    return (CurrentBluster: null, Leftovers: new List<Blister>());
+                    return (CurrentBlister: null, Leftovers: new List<Blister>());
                 case CutState.Succeed:
                     log.Debug("Updating current Blister Outline and remove cut Pill from blister");
+
+                    // Remove parentBLitser form all pills
+                    Blister.Pills.Select(pill => pill.ParentBlister = null);
+                    List<int> pillCountPerLeftover = new List<int>(Blister.Pills.Count);
+                    List<Blister> newBlisters = new List<Blister>(Data.BlisterLeftovers.Count);
+                    foreach (PolylineCurve leftover in Data.BlisterLeftovers)
+                    {
+                        Blister newBli = new Blister(Blister.Pills, leftover);
+                        newBlisters.Add(newBli);
+                    }
+                    if (!newBlisters.Zip(pillCountPerLeftover, (blister, count) => blister.Pills.Count == count).All(pred=> pred == true))
+                    {
+                        throw new Exception($"Probabely Leftovers are overlapping. Same pill belongs to more then one leftover!");
+                    }
+
+
+
+                    /*
                     Blister.Outline = Data.BlisterLeftovers[0];
                     // Case if Blister is split because of this cut.
                     log.Debug("Remove all cells which are not belong to this Blister anymore.");
                     List<Pill> removerdPills = new List<Pill>(Blister.Pills.Count);
+                    List<Pill> validPills = new List<Pill>(Blister.Pills.Count);
                     for (int i = 0; i < Blister.Pills.Count; i++)
                     {
                         // If cell is no more inside this Blister, remove it.
@@ -226,7 +245,13 @@ namespace Blistructor
                             Blister.Pills.RemoveAt(i);
                             i--;
                         }
+                        else
+                        {
+                            validPills.Add(Blister.Pills[i]);
+                        }
                     }
+                    Blister newCurrentBli = new Blister(validPills, Data.BlisterLeftovers[0]);
+
                     List<Blister> leftovers = new List<Blister>(Data.BlisterLeftovers.Count);
 
                     //leftovers.Add(Blister);
@@ -235,18 +260,19 @@ namespace Blistructor
                     {
                         PolylineCurve blisterLeftover = Data.BlisterLeftovers[j];
                         Blister newBli = new Blister(removerdPills, blisterLeftover);
-                        // Verify if new Blister is attached to anchor
-                        //if (newBli.HasPossibleAnchor)
-                        //{
-                        //};
                         leftovers.Add(newBli);
                     }
-                    List<Pill> abandonePills = removerdPills.Where(pill => pill.blister == null).ToList();
-                    if (abandonePills.Count > 0)
-                    {
-                        throw new Exception($"Abandon Pills after applying cutting data: {abandonePills.Count}");
-                    }
-                    return (CurrentBluster: Blister, Leftovers: leftovers);
+                    */
+                   // List<Pill> abandonePills = removerdPills.Where(pill => pill.blister == null).ToList();
+                   // if (abandonePills.Count > 0)
+                   // {
+                   //     throw new Exception($"Abandon Pills after applying cutting data: {abandonePills.Count}");
+                   // }
+
+                    Blister currentBlister = newBlisters[0];
+                    newBlisters.RemoveAt(0);
+
+                    return (CurrentBlister: currentBlister, Leftovers: newBlisters);
                 default:
                     throw new NotImplementedException($"This state {State} is not implemented!");
             }
