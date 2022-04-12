@@ -26,11 +26,14 @@ namespace Blistructor
         public int Id { get; }
         // Parent Blister
         internal Blister blister;
+        public PillState State { get; set; }
 
         // Pill Stuff
+
         public PolylineCurve Outline { get; private set; }
         public PolylineCurve Offset { get; private set; }
         public Point3d Center { get; private set; }
+        public PolylineCurve OrientationCircle { get; private set; }
 
         // Connection and Adjacent Stuff
         //public PolylineCurve IrVoronoi { get; set; }
@@ -46,10 +49,12 @@ namespace Blistructor
         public Pill(Pill pill)
         {
             Id = pill.Id;
+            State = pill.State;
             Outline = (PolylineCurve)pill.Outline.Duplicate();
             Offset = (PolylineCurve)pill.Offset.Duplicate();
             Voronoi = (PolylineCurve)pill.Voronoi.Duplicate();
-           // IrVoronoi = (PolylineCurve)pill.IrVoronoi.Duplicate();
+            OrientationCircle = (PolylineCurve)pill.OrientationCircle.Duplicate();
+            // IrVoronoi = (PolylineCurve)pill.IrVoronoi.Duplicate();
             Center = pill.Center;
         }
 
@@ -64,7 +69,6 @@ namespace Blistructor
             Geometry.UnifyCurve(Outline);
 
             Center = Outline.ToPolyline().CenterPoint();
-
             // Create Outline offset
             Offset = GetCustomOffset(Setups.BladeWidth / 2);
         }
@@ -82,10 +86,6 @@ namespace Blistructor
         {
             get { return AdjacentPills.Count; }
         }
-
-        public NurbsCurve OrientationCircle { get; private set; }
-
-        public PillState State { get; set; }
 
         #endregion
 
@@ -218,12 +218,14 @@ namespace Blistructor
         public List<int> GetAdjacentPillsIds()
         {
             return AdjacentPills.Select(pill => pill.Id).ToList();
-        }
-        public void EstimateOrientationCircle()
+        }                                         
+        private void EstimateOrientationCircle()
         {
             double circle_radius = Outline.GetBoundingBox(false).Diagonal.Length / 2;
-            OrientationCircle = (new Circle(Center, circle_radius)).ToNurbsCurve();
-            Geometry.EditSeamBasedOnCurve(OrientationCircle, blister.Outline);
+            NurbsCurve orientationCircle = (new Circle(Center, circle_radius)).ToNurbsCurve();
+            Geometry.EditSeamBasedOnCurve(orientationCircle, blister.Outline);
+           OrientationCircle = orientationCircle.TryGetPolyline().ToPolylineCurve();
+
         }
 
         public void SortData()
