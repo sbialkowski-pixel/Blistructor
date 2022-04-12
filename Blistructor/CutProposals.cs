@@ -202,13 +202,12 @@ namespace Blistructor
                 case CutState.Failed:
                     throw new Exception("Cannot apply cutting on failed CutStates proposal. Big mistake!!!!");
                 case CutState.Last:
-                    // return   new List<Blister>();
                     return (CurrentBlister: null, Leftovers: new List<Blister>());
                 case CutState.Succeed:
                     log.Debug("Updating current Blister Outline and remove cut Pill from blister");
 
                     // Remove parentBLitser form all pills
-                    Blister.Pills.Select(pill => pill.ParentBlister = null);
+                    Blister.Pills.ForEach(pill => pill.ParentBlister = null);
                     List<int> pillCountPerLeftover = new List<int>(Blister.Pills.Count);
                     List<Blister> newBlisters = new List<Blister>(Data.BlisterLeftovers.Count);
                     foreach (PolylineCurve leftover in Data.BlisterLeftovers)

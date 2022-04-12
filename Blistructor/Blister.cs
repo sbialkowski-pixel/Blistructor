@@ -135,8 +135,9 @@ namespace Blistructor
                 // If cell is not cutOut, check if belong to this Blister.
                 if (Geometry.InclusionTest(pill, this))
                 {
-                    pill.ParentBlister = this;
-                    this.Pills.Add(pill);
+                    Pill newPill = new Pill(pill);
+                    newPill.ParentBlister = this;
+                    this.Pills.Add(newPill);
                 }
 
             }
@@ -256,7 +257,7 @@ namespace Blistructor
             double sort(Pill pill)
             {
                 double jawDistance = pill.GetClosestDistance(grasper.Jaws.Select(jaw => jaw.Location).ToList());
-                return  pill.NeighbourCount*( pill.CoordinateIndicator + jawDistance);
+                return  (1.0/pill.NeighbourCount)* ( pill.CoordinateIndicator + jawDistance);
             }
             Pills.OrderBy(pill => sort(pill)).ToList();
         }
@@ -356,11 +357,11 @@ namespace Blistructor
                 // Add initileze set
                 HashSet<int> initSet = new HashSet<int>();
                 initSet.Add(Pills[0].Id);
-                initSet.UnionWith(Pills[0].GetAdjacentPillsIds());
+                initSet.UnionWith(Pills[0].GetAdjacentPillsIds);
                 setsList.Add(initSet);
                 for (int i = 1; i < Pills.Count; i++)
                 {
-                    List<int> pillsIds = Pills[i].GetAdjacentPillsIds();
+                    List<int> pillsIds = Pills[i].GetAdjacentPillsIds;
                     // Remove foundCell Id
                     pillsIds.Remove(pillToCut.Id);
                     pillsIds.Add(Pills[i].Id);

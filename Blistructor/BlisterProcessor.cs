@@ -66,8 +66,6 @@ namespace Blistructor
             //DebugShit
             Random rnd = new Random();
             int runId = rnd.Next(0, 1000);
-            if (Setups.CreatePillsDebugFiles) Queue[0].Pills.ForEach(pill => pill.GenerateDebugGeometryFile(runId));
-            if (Setups.CreateBlisterDebugFile) Queue[0].GenerateDebugGeometryFile(runId);
 
             // Check if blister is correctly align
             if (!Grasper.IsBlisterStraight(Setups.MaxBlisterPossitionDeviation)) return CuttingState.CTR_WRONG_BLISTER_POSSITION;
@@ -81,6 +79,8 @@ namespace Blistructor
                        // Main Loop
             while (Queue.Count > 0)
             {
+                if (Setups.CreatePillsDebugFiles) Queue[0].Pills.ForEach(pill => pill.GenerateDebugGeometryFile(runId, Chunks.Count));
+                if (Setups.CreateBlisterDebugFile) Queue[0].GenerateDebugGeometryFile(runId);
 
                 Queue = Queue.OrderBy(blister => blister.LeftPillsCount).ToList();
 
@@ -102,7 +102,7 @@ namespace Blistructor
                         continue;
                     }
 
-                    Cutter cutter = new Cutter(blisterToCut, Grasper, runId);
+                    Cutter cutter = new Cutter(blisterToCut, Grasper, runId, Chunks.Count);
                     CutProposal cutProposal;
 
                     // Eech cut, update Jaws.
@@ -190,6 +190,7 @@ namespace Blistructor
                     else
                     {
                         (Blister cBlister, List<Blister> Leftovers) = cutProposal.GetLeftoversAndUpdateCurrentBlister();
+                        Queue[i] = cBlister;
                         Queue.AddRange(Leftovers);
                     }
 
@@ -262,11 +263,11 @@ namespace Blistructor
         }
         public void GenerateDebugGeometryFile(CutBlister chunk, int runId, int chunkId)
         {
-            // String path = String.Format("D:\\PIXEL\\Blistructor\\DebugModels\\{1}_Chunk_{0:00}_{2}.3dm", n, id, i);
             string runIdString = $"{runId:00}";
-            Directory.CreateDirectory(Path.Combine(Setups.DebugDir, runIdString));
+            string chunkIdString = $"{chunkId:00}";
+            Directory.CreateDirectory(Path.Combine(Setups.DebugDir, runIdString, chunkIdString));
             string fileName = $"Chunk_{chunkId:00}.3dm";
-            string filePath = Path.Combine(Setups.DebugDir, runIdString, fileName);
+            string filePath = Path.Combine(Setups.DebugDir, runIdString, chunkIdString, fileName);
             File3dm file = new File3dm();
             
             Layer l_chunk = new Layer();

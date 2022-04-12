@@ -53,9 +53,11 @@ namespace Blistructor
         private List<LevelSetup> LevelSetups { get; set; }
 
         public int RunId { get; set; }
-        public Cutter(Blister blisterTotCut, Grasper grasper, int runID = 0)
+        public int ChunkId { get; set; }
+        public Cutter(Blister blisterTotCut, Grasper grasper, int runID = 0, int chunkId = 0)
         {
             RunId = runID;
+            ChunkId = chunkId;
             Blister = blisterTotCut;
             LevelSetups = new List<LevelSetup>() { new LevelSetup(0, 0), new LevelSetup(4, 1), new LevelSetup(8, 2), new LevelSetup(16, 3), new LevelSetup(32, 4) };
             PropositionsLevels = new List<List<CutProposal>>(LevelSetups.Count);
@@ -175,7 +177,7 @@ namespace Blistructor
             }
             else
             {
-                isoLines = GenerateIsoCurvesStage0_v2(2, 5.0);
+                isoLines = GenerateIsoCurvesStage0_v2(5, 10.0);
             }
             cuttingData = GenerateCuttingData(isoLines);
             if (Setups.CreateCutterDebugFiles) GenerateDebugGeometryFile(isoLines, cuttingData, levelSetup, pillToCut.Id);
@@ -192,9 +194,10 @@ namespace Blistructor
             Random rnd = new Random();
             int currentRunId = rnd.Next(0, 1000);
             string runIdString = $"{this.RunId:00}";
-            Directory.CreateDirectory(Path.Combine(Setups.DebugDir, runIdString));
+            string chunkIdString = $"{this.ChunkId:00}";
+            Directory.CreateDirectory(Path.Combine(Setups.DebugDir, runIdString, chunkIdString));
             string fileName = $"cutter_pill{pillId:00}_level{levelSetup.Depth}_run{currentRunId}.3dm";
-            string filePath = Path.Combine(Setups.DebugDir, runIdString, fileName);
+            string filePath = Path.Combine(Setups.DebugDir, runIdString, chunkIdString, fileName);
             File3dm file = new File3dm();
 
             //CUtData
@@ -265,26 +268,38 @@ namespace Blistructor
             {
                 Vector3d direction = Vector3d.CrossProduct((Pill.ProxLines[i].PointAtEnd - Pill.ProxLines[i].PointAtStart), Vector3d.ZAxis);
                 Vector3d direction2 = Vector3d.CrossProduct((Pill.ConnectionLines[i].PointAtEnd - Pill.ConnectionLines[i].PointAtStart), Vector3d.ZAxis);
+                direction.Unitize();
+                direction2.Unitize();
 
                 List<LineCurve> currentIsoLines = new List<LineCurve>((2 * raysCount) + 1);
                 // If both vectors are much different, add IsoLines based on both, else only average will be taken.
                 if (Math.Abs(VecSim(direction, direction2)) > 0.9)
                 {
-                    foreach (Vector3d vec in new List<Vector3d>() { direction, direction2 }) { }
-                    LineCurve isoLine = Geometry.GetIsoLine(Pill.SamplePoints[i], direction, Setups.IsoRadius, WorkingObstacles);
-                    if (isoLine == null) continue;
-                    currentIsoLines.Add(isoLine);
+                    Vector3d avr_direction = direction + direction2;
+                    avr_direction.Unitize();
+                    LineCurve iLine = Geometry.GetIsoLine(Pill.SamplePoints[i], avr_direction, Setups.IsoRadius, WorkingObstacles);
+                    if (iLine != null) currentIsoLines.Add(iLine);
+                }
+                else
+                {
+                    foreach (Vector3d vec in new List<Vector3d>() { direction, direction2 })
+                    {
+                        LineCurve iLine = Geometry.GetIsoLine(Pill.SamplePoints[i], vec, Setups.IsoRadius, WorkingObstacles);
+                        if (iLine != null) currentIsoLines.Add(iLine);
+                    }
                 }
                 // Compute avr vector and generate bunch of rays.
                 Vector3d sum_direction = direction + direction2;
+                sum_direction.Unitize();
                 double stepAngleInRadians = ExtraMath.ToRadians(stepAngle);
-                if (!sum_direction.Rotate(-raysCount * stepAngleInRadians, Vector3d.ZAxis)) continue;
-                foreach (double angle in Enumerable.Range(0, (2 * raysCount) + 1))
+                if (sum_direction.Rotate(-raysCount * stepAngleInRadians, Vector3d.ZAxis))
                 {
-                    if (!sum_direction.Rotate(stepAngleInRadians, Vector3d.ZAxis)) continue;
-                    LineCurve isoLine = Geometry.GetIsoLine(Pill.SamplePoints[i], sum_direction, Setups.IsoRadius, WorkingObstacles);
-                    if (isoLine == null) continue;
-                    currentIsoLines.Add(isoLine);
+                    foreach (double angle in Enumerable.Range(0, (2 * raysCount) + 1))
+                    {
+                        if (!sum_direction.Rotate(stepAngleInRadians, Vector3d.ZAxis)) continue;
+                        LineCurve isoLine = Geometry.GetIsoLine(Pill.SamplePoints[i], sum_direction, Setups.IsoRadius, WorkingObstacles);
+                        if (isoLine != null) currentIsoLines.Add(isoLine);
+                    }
                 }
                 if (currentIsoLines.Count == 0) continue;
                 isoLines.Add(currentIsoLines);
@@ -605,7 +620,7 @@ namespace Blistructor
             // Check if smallest segment from cutout blister is smaller than some size.
             PolylineCurve pill_region_Crv = pill_region.ToPolylineCurve();
             Rectangle3d bbox = Geometry.MinimumAreaRectangleBF(pill_region_Crv);
-            if ( Math.Min(bbox.Width, bbox.Height) > Setups.MinimumCutOutSize) return null;
+            if (Math.Min(bbox.Width, bbox.Height) > Setups.MinimumCutOutSize) return null;
             //Line[] pill_region_segments = pill_region.GetSegments().OrderBy(line => line.Length).ToArray();
             //if (pill_region_segments[0].Length > Setups.MinimumCutOutSize) return null;
             Geometry.UnifyCurve(pill_region_Crv);
