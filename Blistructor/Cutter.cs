@@ -605,7 +605,7 @@ namespace Blistructor
             // Check if smallest segment from cutout blister is smaller than some size.
             PolylineCurve pill_region_Crv = pill_region.ToPolylineCurve();
             Rectangle3d bbox = Geometry.MinimumAreaRectangleBF(pill_region_Crv);
-            if (bbox.Width > Setups.MinimumCutOutSize || bbox.Height > Setups.MinimumCutOutSize) return null;
+            if ( Math.Min(bbox.Width, bbox.Height) > Setups.MinimumCutOutSize) return null;
             //Line[] pill_region_segments = pill_region.GetSegments().OrderBy(line => line.Length).ToArray();
             //if (pill_region_segments[0].Length > Setups.MinimumCutOutSize) return null;
             Geometry.UnifyCurve(pill_region_Crv);

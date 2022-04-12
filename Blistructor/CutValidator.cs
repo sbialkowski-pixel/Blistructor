@@ -73,6 +73,7 @@ namespace Blistructor
                 // Duplicate Pills to not interference with original blister.
                 List<Pill> dupPills = blistr.Pills.Select(p => new Pill(p)).ToList();
                 Blister newBli = new Blister(dupPills, leftover);
+                newBli.SortPillsByCoordinates(true);
                 if (!newBli.CheckConnectivityIntegrity(pill))
                 {
                     log.Warn("This cut failed: CheckConnectivityIntegrity failed. Proposed cut cause inconsistency in leftovers");
