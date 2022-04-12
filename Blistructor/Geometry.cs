@@ -15,8 +15,6 @@ using ExtraMath = Rhino.RhinoMath;
 
 using log4net;
 using Diagrams;
-//using IrVoronoi = Diagrams.IrVoronoi;
-//using Delaunay = Diagrams.Delaunay;
 
 
 namespace Blistructor
@@ -195,27 +193,42 @@ namespace Blistructor
             Array.Sort(tA, points);
             return points;
         }
-        
-       
-        public static Circle FitCircle(List<Point3d> points)
+
+
+
+        /// <summary>
+        /// Try to fit circle into polyline shape
+        /// </summary>
+        /// <param name="pline">Base shape to look for circle</param>
+        /// <returns>Fitted circle</returns>
+        public static Circle FitCircle(Polyline pline)
         {
-            Polyline pline = new Polyline(points);
             Point3d center = pline.CenterPoint();
-            double radius = (double)points.Select(pt => pt.DistanceTo(center)).Sum() / (double)points.Count;
+            double radius = (double)pline.Select(pt => pt.DistanceTo(center)).Sum() / (double)pline.Count;
             return new Circle(center, radius);
         }
-        
-        /*
-        public static Polyline ConvexHull(List<Point3d> pts)
+
+        /// <summary>
+        /// Shape Deviation from circle
+        /// </summary>
+        /// <param name="pline">Shape to evaluate</param>
+        /// <param name="circle">Circle to measure deviation from</param>
+        /// <returns>Values between 1.0 - 0.0 where 1.00 means shape is very close to circle, 0.0 means pline ois far away of being circle-like.</returns>
+        public static double DeviationFromCircle(Polyline pline, Circle circle)
         {
-            List<GH_Point> po = new List<GH_Point>();
-            foreach (Point3d pt in pts)
-            {
-                po.Add(new GH_Point(pt));
-            }
-            return Grasshopper.Kernel.Geometry.ConvexHull.Solver.ComputeHull(po);
+            return 1 - (pline.Select(p => (p - circle.ClosestPoint(p)).Length).Max() / circle.Radius);
         }
-        */
+
+        /// <summary>
+        /// Shape Deviation from circle
+        /// </summary>
+        /// <param name="pline">Shape to evaluat</param>
+        /// <returns>>Values between 1.0 - 0.0 where 1.0 means shape is almost perfct circle, 0.0 means pline is far away of being circle-like.</returns>
+        public static double DeviationFromCircle(Polyline pline)
+        {
+            Circle circle = FitCircle(pline);
+            return 1 - (pline.Select(p => (p - circle.ClosestPoint(p)).Length).Max() / circle.Radius);
+        }
 
         public static List<List<IntersectionEvent>> CurveCurveIntersection(Curve baseCrv, List<Curve> otherCrv)
         {
