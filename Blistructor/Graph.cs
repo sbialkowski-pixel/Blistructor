@@ -17,12 +17,13 @@ using Rhino.Geometry.Intersect;
 
 namespace Blistructor
 {
+    //TODO: Delauney jest GUPI. Walidacja tak jak w pliki FItCIrcleVoronoi2! Na bazie CUrve.Union.
     public class Graph
     {
         protected Blister Blister { get; set; }
         protected Diagrams.Node2List PillCenterNodes { get; set; }
         protected List<Diagrams.Node2> BlisterOutlineNodes { get; set; }
-        protected Diagrams.Delaunay.Connectivity Connectivity { get; set; }
+        protected Diagrams.Delaunay.Connectivity Connectivity { get; set; }                                                                                                                                                                   
 
         public OrderedDictionary PillsGraph { get; private set; }
 
@@ -106,24 +107,24 @@ namespace Blistructor
         #endregion
 
         public virtual OrderedDictionary Voronoi { get; protected set; }
-        public virtual OrderedDictionary IrVoronoi { get; protected set; }
+        //public virtual OrderedDictionary IrVoronoi { get; protected set; }
 
         public virtual PolylineCurve GetVoronoi(int pillID) { return null; }
-        public virtual PolylineCurve GetIrVoronoi(int pillID) { return null; }
+        //public virtual PolylineCurve GetIrVoronoi(int pillID) { return null; }
     }
 
 
     public class VoronoiGraph : Graph
     {
         private List<Diagrams.Voronoi.Cell2> VoronoiCells { get; set; }
-        public override OrderedDictionary IrVoronoi { get; protected set; }
+       // public override OrderedDictionary IrVoronoi { get; protected set; }
         public override OrderedDictionary Voronoi { get; protected set; }
         public VoronoiGraph(Blister blister, int irregularVoronoiSamples = 50, double diagramTolerance = 1e-6) : base(blister, diagramTolerance)
         {
             VoronoiCells = Diagrams.Voronoi.Solver.Solve_Connectivity(PillCenterNodes, Connectivity, BlisterOutlineNodes);
             Voronoi = VoronoiCellsToPolylineCurves(VoronoiCells);
             // Generate irregular Voronoi Diagram
-            IrVoronoi = IrregularVoronoi(irregularVoronoiSamples);
+           // IrVoronoi = IrregularVoronoi(irregularVoronoiSamples);
         }
 
         #region OrderedDict Getters
@@ -133,10 +134,10 @@ namespace Blistructor
             return (PolylineCurve)Voronoi[(object)pillID];
         }
 
-        public override PolylineCurve GetIrVoronoi(int pillID)
-        {
-            return (PolylineCurve)IrVoronoi[(object)pillID];
-        }
+        //public override PolylineCurve GetIrVoronoi(int pillID)
+        //{
+        //    return (PolylineCurve)IrVoronoi[(object)pillID];
+        //}
         #endregion
 
         private OrderedDictionary VoronoiCellsToPolylineCurves(List<Diagrams.Voronoi.Cell2> voronoiDiagram)
@@ -177,8 +178,8 @@ namespace Blistructor
             Diagrams.Delaunay.Connectivity del_con = Diagrams.Delaunay.Solver.Solve_Connectivity(n2l, 1e-6, true);
             List<Diagrams.Voronoi.Cell2> voronoi = Diagrams.Voronoi.Solver.Solve_Connectivity(n2l, del_con, BlisterOutlineNodes);
 
-            OrderedDictionary output = new OrderedDictionary(Connectivity.Count);
-            ConcurrentDictionary<int, Tuple<int, PolylineCurve>> test = new ConcurrentDictionary<int, Tuple<int, PolylineCurve>>(Environment.ProcessorCount * 2, Connectivity.Count);
+            OrderedDictionary output = new OrderedDictionary(del_con.Count);
+            ConcurrentDictionary<int, Tuple<int, PolylineCurve>> test = new ConcurrentDictionary<int, Tuple<int, PolylineCurve>>(Environment.ProcessorCount * 2, del_con.Count);
             Parallel.ForEach(Blister.Pills, (pill, state, index) =>
             {
                 int i = (int)index;
@@ -187,7 +188,7 @@ namespace Blistructor
                 {
                     int glob_index = (i * (resolution - 1)) + j;
                     // vor.Add(voronoi[glob_index].ToPolyline());
-                    if (voronoi[glob_index].C.Count == 0) continue;
+                    if (voronoi[glob_index].C.Count == 0) continue;  // To chyab za duzo nie robi, bo tu contour jest zawsze C =contour
                     Point3d[] vert = voronoi[glob_index].ToPolyline().ToArray();
                     foreach (Point3d pt in vert)
                     {

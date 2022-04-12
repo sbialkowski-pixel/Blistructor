@@ -101,7 +101,7 @@ namespace Blistructor
         /// Internal constructor for non-Outline stuff
         /// </summary>
         /// <param name="outline">Blister Shape</param>
-        private Blister(PolylineCurve outline) //: this(anchor)
+        private Blister(PolylineCurve outline)
         {
             Pills = new List<Pill>();
             Geometry.UnifyCurve(outline);
@@ -143,22 +143,10 @@ namespace Blistructor
             log.Debug(String.Format("Instantiated {0} cells on Blister", Pills.Count));
             if (LeftPillsCount == 1) return;
             log.Debug("Sorting Cells");
-            // Order by CoordinateIndicator so it means Z-ordering.
-            SortPillsByCoordinates(true);
-            //  this.cells = cells.OrderBy(cell => cell.CoordinateIndicator).Reverse().ToList();
-            // Rebuild cells connectivity.
             log.Debug("Creating ConncectivityData");
-            Graph = new Graph(this);
+            Graph = new VoronoiGraph(this);
+            Pills.ForEach(pill => pill.Voronoi = (PolylineCurve)Graph.Voronoi[(object)pill.Id]);
             CreateConnectivityData();
-        }
-
-        /// <summary>
-        /// New initial Blister with Pills creation base on Pills outlines.
-        /// </summary>
-        /// <param name="pillsOutline">Pills Outline</param>
-        /// <param name="outline">Blister edge Outline</param>
-        public Blister(List<PolylineCurve> pillsOutline, Polyline outline) : this(pillsOutline, outline.ToPolylineCurve())
-        {
         }
 
         /// <summary>
@@ -190,8 +178,7 @@ namespace Blistructor
             Graph = new VoronoiGraph(this);
 
             Pills.ForEach(pill => pill.Voronoi = (PolylineCurve)Graph.Voronoi[(object)pill.Id]);
-            Pills.ForEach(pill => pill.IrVoronoi = (PolylineCurve)Graph.IrVoronoi[(object)pill.Id]);
-
+            //Pills.ForEach(pill => pill.IrVoronoi = (PolylineCurve)Graph.IrVoronoi[(object)pill.Id]);
             CreateConnectivityData();
         }
         #endregion

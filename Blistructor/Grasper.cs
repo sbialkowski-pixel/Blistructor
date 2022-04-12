@@ -456,10 +456,10 @@ namespace Blistructor
             return HasPlaceForJaw(blister.Outline);
         }
 
-        public bool HasPillPlaceForJaw(Pill pill)
-        {
-            return HasPlaceForJaw(pill.IrVoronoi);
-        }
+        //public bool HasPillPlaceForJaw(Pill pill)
+        //{
+        //    return HasPlaceForJaw(pill.IrVoronoi);
+        //}
 
         public bool HasPlaceForJawInCutContext(CutData cutData)
         {

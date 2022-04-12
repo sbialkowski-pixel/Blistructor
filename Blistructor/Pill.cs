@@ -33,7 +33,7 @@ namespace Blistructor
         public Point3d Center { get; private set; }
 
         // Connection and Adjacent Stuff
-        public PolylineCurve IrVoronoi { get; set; }
+        //public PolylineCurve IrVoronoi { get; set; }
         public PolylineCurve Voronoi { get; set; }
         //!!ConnectionLines, ProxLines, AdjacentPills, SamplePoints <- all same sizes, and order!!
         public List<Curve> ConnectionLines { get; internal set; }
@@ -49,7 +49,7 @@ namespace Blistructor
             Outline = (PolylineCurve)pill.Outline.Duplicate();
             Offset = (PolylineCurve)pill.Offset.Duplicate();
             Voronoi = (PolylineCurve)pill.Voronoi.Duplicate();
-            IrVoronoi = (PolylineCurve)pill.IrVoronoi.Duplicate();
+           // IrVoronoi = (PolylineCurve)pill.IrVoronoi.Duplicate();
             Center = pill.Center;
         }
 
@@ -345,7 +345,7 @@ namespace Blistructor
 
             file.Objects.AddCurve(this.Outline, pillAttributes);
             file.Objects.AddCurve(this.Offset, pillAttributes);
-            file.Objects.AddCurve(this.IrVoronoi, pillAttributes);
+            file.Objects.AddCurve(this.Voronoi, pillAttributes);
             file.Objects.AddPoint(this.Center, pillAttributes);
 
             Layer connLayer = new Layer
