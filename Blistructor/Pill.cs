@@ -53,13 +53,14 @@ namespace Blistructor
         // Connection and Adjacent Stuff
         public PolylineCurve IrVoronoi { get; set; }
         public PolylineCurve Voronoi { get; set; }
+        #endregion
+        #region Properties - Connection
         //!!ConnectionLines, ProxLines, AdjacentPills, SamplePoints <- all same sizes, and order!!
+        public List<Pill> AdjacentPills { get; internal set; }
         public List<Curve> ConnectionLines { get; internal set; }
         public List<Curve> ProxLines { get; internal set; }
-        public List<Pill> AdjacentPills { get; internal set; }
         public List<Point3d> SamplePoints { get; internal set; }
-
-        public List<Curve> Obstacles;
+        public List<Curve> Obstacles { get; internal set; }
 
         #endregion
 
@@ -70,8 +71,9 @@ namespace Blistructor
             Outline = (PolylineCurve)pill.Outline.Duplicate();
             Offset = (PolylineCurve)pill.Offset.Duplicate();
             Voronoi = (PolylineCurve)pill.Voronoi.Duplicate();
-            OrientationCircle = (PolylineCurve)pill.OrientationCircle.Duplicate();
             IrVoronoi = (PolylineCurve)pill.IrVoronoi.Duplicate();
+            OrientationCircle = (PolylineCurve)pill.OrientationCircle.Duplicate();
+            AdjacentPills = new List<Pill>();
             Center = pill.Center;
         }
 
@@ -91,7 +93,7 @@ namespace Blistructor
             CircleDeviation = Geometry.DeviationFromCircle(Outline.ToPolyline());
         }
 
-        #region PROPERTIES
+        #region PROPERTIES - OTHER
         public double CoordinateIndicator
         {
             get
@@ -104,7 +106,10 @@ namespace Blistructor
         {
             get { return AdjacentPills.Count; }
         }
-
+        public List<int> GetAdjacentPillsIds
+        {
+            get { return AdjacentPills.Select(pill => pill.Id).ToList(); }
+        }
         #endregion
 
         public bool Equals(Pill other)
@@ -159,22 +164,6 @@ namespace Blistructor
         }
 
         #endregion
-
-        /*
-        public void SetDistance(LineCurve guideLine)
-        {
-            double t;
-            guideLine.ClosestPoint(PillCenter, out t);
-            GuideDistance = PillCenter.DistanceTo(guideLine.PointAt(t));
-            double distance_A = PillCenter.DistanceTo(guideLine.PointAtStart);
-            double distance_B = PillCenter.DistanceTo(guideLine.PointAtEnd);
-            //Rhino.RhinoApp.WriteLine(String.Format("Dist_A: {0}, Dist_B: {1}", distance_A, distance_B));
-            CornerDistance = Math.Min(distance_A, distance_B);
-
-            //CornerDistance = distance_A + distance_B;
-            //CornerDistance = pillCenter.DistanceTo(guideLine.PointAtStart);
-        }
-        */
 
         public void AddConnectionData(List<Pill> pills, List<Curve> lines)
         {
@@ -233,16 +222,12 @@ namespace Blistructor
             SortData();
         }
 
-        public List<int> GetAdjacentPillsIds()
-        {
-            return AdjacentPills.Select(pill => pill.Id).ToList();
-        }                                         
         private void EstimateOrientationCircle()
         {
             double circle_radius = Outline.GetBoundingBox(false).Diagonal.Length / 2;
             NurbsCurve orientationCircle = (new Circle(Center, circle_radius)).ToNurbsCurve();
             Geometry.EditSeamBasedOnCurve(orientationCircle, ParentBlister.Outline);
-           OrientationCircle = orientationCircle.TryGetPolyline().ToPolylineCurve();
+            OrientationCircle = orientationCircle.TryGetPolyline().ToPolylineCurve();
 
         }
 
@@ -293,6 +278,7 @@ namespace Blistructor
             // Add extra offset 
             //obstacles = obstacles.Select(Outline => Outline.Offset(Plane.WorldXY, Setups.BladeTol)).ToList();
         }
+
         private List<Curve> BuildObstacles_v2()
         {
             List<Curve> limiters = new List<Curve> { Offset };
@@ -348,12 +334,14 @@ namespace Blistructor
             return data;
         }
 
-        public void GenerateDebugGeometryFile(int runId)
+        public void GenerateDebugGeometryFile(int runId, int chunkId)
         {
+            // TODO: TU SIE WYWALA JAK JESt OTSta
             string runIdString = $"{runId:00}";
-            Directory.CreateDirectory(Path.Combine(Setups.DebugDir, runIdString));
+            string chunkIdString = $"{chunkId:00}";
+            Directory.CreateDirectory(Path.Combine(Setups.DebugDir, runIdString, chunkIdString));
             string fileName = $"pill_{Id:00}.3dm";
-            string filePath = Path.Combine(Setups.DebugDir, runIdString, fileName);
+            string filePath = Path.Combine(Setups.DebugDir, runIdString, chunkIdString, fileName);
             File3dm file = new File3dm();
 
             Layer pillLayer = new Layer();
@@ -376,9 +364,9 @@ namespace Blistructor
             file.AllLayers.Add(connLayer);
             ObjectAttributes connAttributes = new ObjectAttributes();
             connAttributes.LayerIndex = connLayer.Index;
-            ConnectionLines.ForEach(crv => file.Objects.AddCurve(crv, connAttributes));
-            ProxLines.ForEach(crv => file.Objects.AddCurve(crv, connAttributes));
-            file.Objects.AddPoints(SamplePoints, connAttributes);
+            if (ConnectionLines != null) ConnectionLines.ForEach(crv => file.Objects.AddCurve(crv, connAttributes));
+            if (ConnectionLines != null) ProxLines.ForEach(crv => file.Objects.AddCurve(crv, connAttributes));
+            if (SamplePoints != null) file.Objects.AddPoints(SamplePoints, connAttributes);
 
             file.Write(filePath, 6);
         }
