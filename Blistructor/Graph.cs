@@ -175,8 +175,20 @@ namespace Blistructor
                 List<Pill> verifiedPills = new List<Pill>(proxPills.Count);
                 foreach (Pill proxPill in proxPills)
                 {
-                    List<Curve> toUnion = new List<Curve>() { (Curve)Voronoi[(object)currentPill.Id], (Curve)Voronoi[(object)proxPill.Id] };
+                    PolylineCurve currentVoronoi = (PolylineCurve)Voronoi[(object)currentPill.Id];
+                    PolylineCurve proxVoronoi = (PolylineCurve)Voronoi[(object)proxPill.Id];
+                    List<Curve> toUnion = new List<Curve>() { currentVoronoi, proxVoronoi };
                     if (Curve.CreateBooleanUnion(toUnion).Count == 1) verifiedPills.Add(proxPill);
+                     // In case Union faile, extra check with overplapping points.
+                    else
+                    {
+                        int pointCount = currentVoronoi.PointCount + proxVoronoi.PointCount - 2;
+                        List<Point3d> testPts = new List<Point3d>(pointCount);
+                        testPts.AddRange(currentVoronoi.ToPolyline());
+                        testPts.AddRange(proxVoronoi.ToPolyline());
+                        Point3d[] culled = Point3d.CullDuplicates(testPts, 0.0001);
+                        if (culled.Length < pointCount) verifiedPills.Add(proxPill);
+                    }
                 }
                 output.Add(currentPill.Id, verifiedPills);
             }
