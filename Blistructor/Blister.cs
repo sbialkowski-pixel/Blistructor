@@ -142,7 +142,6 @@ namespace Blistructor
             }
             log.Debug(String.Format("Instantiated {0} cells on Blister", Pills.Count));
             if (LeftPillsCount == 1) return;
-            log.Debug("Sorting Cells");
             log.Debug("Creating ConncectivityData");
             Graph = new VoronoiGraph(this);
             Pills.ForEach(pill => pill.Voronoi = (PolylineCurve)Graph.Voronoi[(object)pill.Id]);
@@ -256,7 +255,7 @@ namespace Blistructor
             double sort(Pill pill)
             {
                 double jawDistance = pill.GetClosestDistance(grasper.Jaws.Select(jaw => jaw.Location).ToList());
-                return pill.CoordinateIndicator + jawDistance;
+                return  pill.NeighbourCount*( pill.CoordinateIndicator + jawDistance);
             }
             Pills.OrderBy(pill => sort(pill)).ToList();
         }
