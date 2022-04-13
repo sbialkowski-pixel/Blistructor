@@ -47,7 +47,7 @@ namespace Blistructor
             PillCenterNodes = PillsCentersToNodeList();
             BlisterOutlineNodes = BlisterToNode2();
             // Generate all standard Diagrams
-            Connectivity = Diagrams.Delaunay.Solver.Solve_Connectivity(PillCenterNodes, diagramJitter, false);
+            Connectivity = Diagrams.Delaunay.Solver.Solve_Connectivity(PillCenterNodes, diagramJitter, true);
             // Fill public properties by PixGeo data
             PillsGraph = GetPillsGraph();
         }
