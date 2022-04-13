@@ -195,9 +195,9 @@ namespace Blistructor
             int currentRunId = rnd.Next(0, 1000);
             string runIdString = $"{this.RunId:00}";
             string chunkIdString = $"{this.ChunkId:00}";
-            Directory.CreateDirectory(Path.Combine(Setups.DebugDir, runIdString, chunkIdString));
-            string fileName = $"cutter_pill{pillId:00}_level{levelSetup.Depth}_run{currentRunId}.3dm";
-            string filePath = Path.Combine(Setups.DebugDir, runIdString, chunkIdString, fileName);
+            Directory.CreateDirectory(Path.Combine(Setups.DebugDir, runIdString));
+            string fileName = $"{chunkIdString}_cutter_pill{pillId:00}_level{levelSetup.Depth}_run{currentRunId}.3dm";
+            string filePath = Path.Combine(Setups.DebugDir, runIdString, fileName);
             File3dm file = new File3dm();
 
             //CUtData

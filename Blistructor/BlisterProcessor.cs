@@ -265,9 +265,9 @@ namespace Blistructor
         {
             string runIdString = $"{runId:00}";
             string chunkIdString = $"{chunkId:00}";
-            Directory.CreateDirectory(Path.Combine(Setups.DebugDir, runIdString, chunkIdString));
-            string fileName = $"Chunk_{chunkId:00}.3dm";
-            string filePath = Path.Combine(Setups.DebugDir, runIdString, chunkIdString, fileName);
+            Directory.CreateDirectory(Path.Combine(Setups.DebugDir, runIdString));
+            string fileName = $"{chunkId:00}_chunk.3dm";
+            string filePath = Path.Combine(Setups.DebugDir, runIdString, fileName);
             File3dm file = new File3dm();
             
             Layer l_chunk = new Layer();

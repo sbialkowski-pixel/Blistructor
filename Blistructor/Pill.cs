@@ -339,13 +339,13 @@ namespace Blistructor
             // TODO: TU SIE WYWALA JAK JESt OTSta
             string runIdString = $"{runId:00}";
             string chunkIdString = $"{chunkId:00}";
-            Directory.CreateDirectory(Path.Combine(Setups.DebugDir, runIdString, chunkIdString));
-            string fileName = $"pill_{Id:00}.3dm";
-            string filePath = Path.Combine(Setups.DebugDir, runIdString, chunkIdString, fileName);
+            Directory.CreateDirectory(Path.Combine(Setups.DebugDir, runIdString));
+            string fileName = $"{chunkIdString}_pill_{Id:00}.3dm";
+            string filePath = Path.Combine(Setups.DebugDir, runIdString, fileName);
             File3dm file = new File3dm();
 
             Layer pillLayer = new Layer();
-            pillLayer.Name = $"pill_{this.Id}";
+            pillLayer.Name = $"{chunkIdString}_pill_{this.Id}";
             pillLayer.Index = 0;
             file.AllLayers.Add(pillLayer);
             ObjectAttributes pillAttributes = new ObjectAttributes();
