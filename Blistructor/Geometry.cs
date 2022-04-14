@@ -451,6 +451,7 @@ namespace Blistructor
         {
             List<double> region_t_params = new List<double>();
             List<double> splitter_t_params = new List<double>();
+            splittingCurve = splittingCurve.Extend(CurveEnd.Both, Setups.IntersectionTolerance);
             List<IntersectionEvent> intersection = Intersection.CurveCurve(splittingCurve, region, Setups.IntersectionTolerance);
             if (!region.IsClosed)
             {
@@ -465,8 +466,13 @@ namespace Blistructor
             {
                 return null;
             }
+            // Filter intersection for spliter, which overlaps with region edges
+            PolylineCurve rregion = (PolylineCurve)region;
+            intersection = intersection.Where(inter => rregion.ToPolyline().Where(pt => inter.PointB.DistanceTo(pt) < 0.1).Count() < 1).ToList();
+
             foreach (IntersectionEvent inter in intersection)
             {
+                inter.PointA.DistanceTo(inter.PointB);
                 splitter_t_params.Add(inter.ParameterA);
                 region_t_params.Add(inter.ParameterB);
             }
@@ -515,36 +521,41 @@ namespace Blistructor
 
         public static List<Curve> SplitRegion(Curve region, List<Curve> splitters)
         {
-            //List<PolylineCurve> out_regions = new List<PolylineCurve>();
-            List<Curve> temp_regions = new List<Curve>();
-            temp_regions.Add(region);
-
-            foreach (Curve splitter in splitters)
+            List<Curve> temp_regions = new List<Curve> { region };
+            double safeCounter = 0;
+            double regionsCount = 0;
+            while (regionsCount <= temp_regions.Count)
             {
-                List<Curve> current_temp_regions = new List<Curve>();
-                foreach (Curve current_region in temp_regions)
+                if (safeCounter > 10) break;
+                regionsCount = temp_regions.Count;
+                foreach (Curve splitter in splitters)
                 {
-                    List<Curve> choped_region = SplitRegion(current_region, splitter);
-                    if (choped_region != null)
+                    List<Curve> current_temp_regions = new List<Curve>();
+                    foreach (Curve current_region in temp_regions)
                     {
-                        foreach (Curve _region in choped_region)
+                        List<Curve> choped_region = SplitRegion(current_region, splitter);
+                        if (choped_region != null)
                         {
-                            List<Curve> c_inter = Curve.CreateBooleanIntersection(_region, region);
-                            foreach (Curve inter_curve in c_inter)
+                            foreach (Curve _region in choped_region)
                             {
-                                current_temp_regions.Add(inter_curve);
+                                List<Curve> c_inter = Curve.CreateBooleanIntersection(_region, region);
+                                foreach (Curve inter_curve in c_inter)
+                                {
+                                    current_temp_regions.Add(inter_curve);
+                                }
+                            }
+                        }
+                        else
+                        {
+                            if (region.Contains(current_region.CenterPoint(), Plane.WorldXY, Setups.GeneralTolerance) == PointContainment.Inside)
+                            {
+                                current_temp_regions.Add(current_region);
                             }
                         }
                     }
-                    else
-                    {
-                        if (region.Contains(current_region.CenterPoint(), Plane.WorldXY, Setups.GeneralTolerance) == PointContainment.Inside)
-                        {
-                            current_temp_regions.Add(current_region);
-                        }
-                    }
+                    temp_regions = new List<Curve>(current_temp_regions);
                 }
-                temp_regions = new List<Curve>(current_temp_regions);
+                safeCounter++;
             }
             return temp_regions;
         }
@@ -581,7 +592,6 @@ namespace Blistructor
 
         public static PolylineCurve PolylineThicken(PolylineCurve crv, double thickness)
         {
-
             List<Curve> Outline = new List<Curve>();
             Curve offser_1 = crv.Offset(Plane.WorldXY, thickness);
             if (offser_1 != null) Outline.Add(offser_1);
