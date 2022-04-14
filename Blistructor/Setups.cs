@@ -58,8 +58,8 @@ namespace Blistructor
         public static double CartesianMinWidth = GetEnvironmentVariableWithDefault("CARTESIAN_JAWS_MIN_RANGE", 10.0);
         public static double CartesianJawYLimit = GetEnvironmentVariableWithDefault("CARTESIAN_JAW_Y_LIMIT", 45.0);
         public static Vector3d CartesianPivotJawVector = new Vector3d(GetEnvironmentVariableWithDefault("CARTESIAN_PIVOT_JAW_X", 112.4), GetEnvironmentVariableWithDefault("CARTESIAN_PIVOT_JAW_Y", 19.5), 0);
-        public static double JawKnifeAdditionalSafeDistance = GetEnvironmentVariableWithDefault("JAW_KNIFE_ADDITIONAL_SAFE_DISTANCE", 0.5);
-        public static double JawPillSafeDistance = GetEnvironmentVariableWithDefault("JAW_PILL_SAFE_DISTANCE", 1.0);
+        public static double JawKnifeAdditionalSafeDistance = GetEnvironmentVariableWithDefault("JAW_KNIFE_ADDITIONAL_SAFE_DISTANCE", 1);
+        public static double JawPillSafeDistance = GetEnvironmentVariableWithDefault("JAW_PILL_SAFE_DISTANCE", 0.0);
 
         #endregion
 

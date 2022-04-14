@@ -70,9 +70,6 @@ namespace Blistructor
             WorkingObstacles = new List<Curve>(FixedObstacles);
         }
 
-        //Debug properties.
-        //TODO: Dokonczyć reguralny voronoi i dodac jako stage 0 ciecia.
-
         /// <summary>
         /// Cutting with idea to keep each cutting state.
         /// </summary>
@@ -425,11 +422,11 @@ namespace Blistructor
             if (ray == null) return outLine;
             //  log.Debug("Ray not null");
             Geometry.FlipIsoRays(Pill.OrientationCircle, ray);
-            Tuple<List<Curve>, List<Curve>> result = Geometry.TrimWithRegion(ray, Pill.ParentBlister.Outline);
-            if (result == null) return null;
-            if (result.Item1.Count < 1) return outLine;
+            (List<Curve> Inside, List<Curve> _) = Geometry.TrimWithRegion(ray, Pill.ParentBlister.Outline);
+            if (Inside == null) return null;
+            if (Inside.Count < 1) return outLine;
             // log.Debug("After trimming.");
-            foreach (Curve crv in result.Item1)
+            foreach (Curve crv in Inside)
             {
                 PointContainment test = Pill.ParentBlister.Outline.Contains(crv.PointAtNormalizedLength(0.5), Plane.WorldXY, 0.1);
                 if (test == PointContainment.Inside) return (LineCurve)crv;
@@ -444,7 +441,7 @@ namespace Blistructor
         /// <param name="rays"></param>
         private List<CutData> PolygonBuilder_v2(List<LineCurve> rays, bool use_all_combinations = true)
         {
-
+            
             // Trim incoming rays and build current working full ray aray.
             List<LineCurve> trimedRays = new List<LineCurve>(rays.Count);
             List<LineCurve> fullRays = new List<LineCurve>(rays.Count);
@@ -469,6 +466,9 @@ namespace Blistructor
             List<CutData> cuttingData = new List<CutData>();
 
             // Loop over combinations even with 1 ray
+            //TO JEST WSZYSTKO DO PRZEROBIENIA CHYBA!!!!
+            // Dodoałem na koncu tej funkcji generowanie sladów noża DO WERYFIKACJIA
+            //A dodąłem bo nie było ich bo w cutterze jak sie buduje obiekt CUtProposal to nie ma CutData segmenta i dla Grapsera nie ma kolizji LOL
             foreach (List<int> combinationIndicies in raysIndiciesCombinations)
             {
                 List<LineCurve> currentTimmedIsoRays = new List<LineCurve>(combinationIndicies.Count);
@@ -515,6 +515,7 @@ namespace Blistructor
                     //cutData.TrimmedIsoRays = currentTimmedIsoRays;
                     cutData.IsoSegments = currentFullIsoRays;
                     cutData.Obstacles = WorkingObstacles;
+                    cutData.GenerateBladeFootPrint();
                     cuttingData.Add(cutData);
                 }
 

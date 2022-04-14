@@ -52,9 +52,10 @@ namespace Blistructor
             // Find lowest mid point on Blister AA Bounding Box
             List<Line> aaSegments = new List<Line>(AABBox.ToPolyline().GetSegments());
             LineCurve guideLine = new LineCurve(aaSegments.OrderBy(line => line.PointAt(0.5).Y).ToList()[0]);
-            // Move line to Y => 0
-            guideLine.SetStartPoint(new Point3d(guideLine.PointAtStart.X, Setups.JawDepth, 0));
-            guideLine.SetEndPoint(new Point3d(guideLine.PointAtEnd.X, Setups.JawDepth, 0));
+            // Create line at Y = 1 mm
+            double constructionDistance = 1;
+            guideLine.SetStartPoint(new Point3d(guideLine.PointAtStart.X, constructionDistance, 0));
+            guideLine.SetEndPoint(new Point3d(guideLine.PointAtEnd.X, constructionDistance, 0));
 
             // Find where GUideLine intersect with BlisterOutline on max Grasper Level
             Polyline guideLineAsPline = new Polyline(2) { guideLine.PointAtStart, guideLine.PointAtEnd };
@@ -76,6 +77,9 @@ namespace Blistructor
                 throw new AnchorException("Cannot find guiding line for Anchors");
             }
             predLinePoints = predLinePoints.OrderBy(pt => pt.X).ToList();
+            // Place predLine in final possition.
+            predLinePoints = predLinePoints.Select(p => { p.Y = Setups.JawDepth; return p; }).ToList();
+
             LineCurve fullPredLine = new LineCurve(predLinePoints[0], predLinePoints[1]);
 
             //Add limit fullPredLine to CartesianMaxWidth+CartesianJawYLimit as a max possible location for any Grasper
@@ -83,9 +87,9 @@ namespace Blistructor
             fullPredLine.SetEndPoint(new Point3d(maxCartesianDistanceX, Setups.JawDepth, 0));
 
             // NOTE: Check intersection with Pills (Or maybe with pillsOffset. Rethink problem)
-            Tuple<List<Curve>, List<Curve>> trimResult = Geometry.TrimWithRegions(fullPredLine, BlisterQueue[0].GetPillsOutline(Setups.JawPillSafeDistance));
-            // Gather all parts outside (not in Pills) shrink curve on both sides by half of Grasper width and move it back to mid position 
-            foreach (Curve crv in trimResult.Item2)
+            (List<Curve> inside, List<Curve> outside) = Geometry.TrimWithRegions(fullPredLine, BlisterQueue[0].GetPillsOutline(Setups.JawPillSafeDistance));
+            // Gather all parts outside (not in Pills) shrink curve on both sides by half of Grasper width 
+            foreach (Curve crv in outside)
             {
                 // Shrink pieces on both sides by half of Grasper width.
                 Line ln = ((LineCurve)crv).Line;
@@ -345,8 +349,8 @@ namespace Blistructor
                     offset = cutData.Polygon;
                     log.Warn("Offset failed during ComputeTotalCutImpactInterval. Using pure Polygon.");
                 }
-                Tuple<List<Curve>, List<Curve>> blisterGrasperIntersection = Geometry.TrimWithRegion(limitLine, offset);
-                List<LineCurve> common = blisterGrasperIntersection.Item1.Select(crv => (LineCurve)crv).ToList();
+                (List<Curve> inside, List<Curve> _) = Geometry.TrimWithRegion(limitLine, offset);
+                List<LineCurve> common = inside.Select(crv => (LineCurve)crv).ToList();
 
                 List<Interval> impactIntervals = ConvertLinesToIntervals(common);
                 impactIntervals.AddRange(cutImpactIntervals);
@@ -434,8 +438,8 @@ namespace Blistructor
         {
             foreach (LineCurve ln in jawsPossibleLocation)
             {
-                Tuple<List<Curve>, List<Curve>> trim = Geometry.TrimWithRegion(ln, regionToEvaluate);
-                if (trim.Item1.Count == 0) continue;
+                (List<Curve> inside, List<Curve> _) = Geometry.TrimWithRegion(ln, regionToEvaluate);
+                if (inside.Count == 0) continue;
                 else
                 {
                     //Very simple statment. Not sure if will be working.

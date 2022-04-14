@@ -194,8 +194,6 @@ namespace Blistructor
             return points;
         }
 
-
-
         /// <summary>
         /// Try to fit circle into polyline shape
         /// </summary>
@@ -246,7 +244,7 @@ namespace Blistructor
 
         public static List<List<List<IntersectionEvent>>> CurveCurveIntersection(List<Curve> baseCrv, List<Curve> otherCrv)
         {
-            List<List< List<IntersectionEvent>>> allIntersections = new List<List<List<IntersectionEvent>>>(baseCrv.Count);
+            List<List<List<IntersectionEvent>>> allIntersections = new List<List<List<IntersectionEvent>>>(baseCrv.Count);
             for (int i = 0; i < baseCrv.Count; i++)
             {
                 List<List<IntersectionEvent>> currentInter = new List<List<IntersectionEvent>>(otherCrv.Count);
@@ -282,7 +280,7 @@ namespace Blistructor
         /// <param name="crv">Curve to Split by region</param>
         /// <param name="region">Region to split curve by</param>
         /// <returns>Tuple with Insied,Ousied curves, if failed, null</returns>
-        public static Tuple<List<Curve>, List<Curve>> TrimWithRegion(Curve crv, Curve region)
+        public static (List<Curve> Inside, List<Curve> Outside) TrimWithRegion(Curve crv, Curve region)
         {
             List<Curve> inside = new List<Curve>();
             List<Curve> outside = new List<Curve>();
@@ -312,13 +310,13 @@ namespace Blistructor
                                 break;
                             case PointContainment.Unset:
                                 log.Warn("Trim Failed on Split - Unset returned");
-                                return null;
+                                return (Inside: null, Outside: null);
                             case PointContainment.Coincident:
                                 log.Warn("Trim Failed on Split - Coincident returned");
-                                return null;
+                                return (Inside: null, Outside: null);
                             default:
                                 log.Warn(String.Format("Trim Failed on Split - {0}", result.ToString()));
-                                return null;
+                                return (Inside: null, Outside: null);
                         }
                     }
                 }
@@ -339,19 +337,19 @@ namespace Blistructor
                         break;
                     case PointContainment.Unset:
                         log.Warn("Trim Failed on Split - Unset returned");
-                        return null;
+                        return (Inside: null, Outside: null);
                     case PointContainment.Coincident:
                         log.Warn("Trim Failed on Split - Coincident returned");
-                        return null;
+                        return (Inside: null, Outside: null);
                     default:
                         log.Warn(String.Format("Trim Failed on Split - {0}", result.ToString()));
-                        return null;
+                        return (Inside: null, Outside: null);
                 }
             }
-            return Tuple.Create(inside, outside);
+            return (Inside: inside, Outside: outside);
         }
-                                                                      
-        public static Tuple<List<Curve>, List<Curve>> TrimWithRegions(Curve crv, List<Curve> regions)
+
+        public static (List<Curve> Inside, List<Curve> Outside) TrimWithRegions(Curve crv, List<Curve> regions)
         {
             List<Curve> inside = new List<Curve>();
             List<Curve> outside = new List<Curve>();
@@ -406,7 +404,7 @@ namespace Blistructor
                     outside.Add(crv);
                 }
             }
-            return Tuple.Create(inside, outside);
+            return (Inside: inside, Outside: outside);
         }
 
         /// <summary>
@@ -415,17 +413,17 @@ namespace Blistructor
         /// <param name="crv"></param>
         /// <param name="region"></param>
         /// <returns>Tuple <Inside, Outside></returns>
-        public static Tuple<List<Curve>, List<Curve>> TrimWithRegion(List<Curve> crv, Curve region)
+        public static (List<Curve> Inside, List<Curve> Outside) TrimWithRegion(List<Curve> crv, Curve region)
         {
             List<Curve> inside = new List<Curve>();
             List<Curve> outside = new List<Curve>();
             foreach (Curve c in crv)
             {
-                Tuple<List<Curve>, List<Curve>> result = Geometry.TrimWithRegion(c, region);
-                inside.AddRange(result.Item1);
-                outside.AddRange(result.Item2);
+                (List<Curve> _inside, List<Curve> _outside) = Geometry.TrimWithRegion(c, region);
+                inside.AddRange(_inside);
+                outside.AddRange(_outside);
             }
-            return Tuple.Create(inside, outside);
+            return (Inside: inside, Outside: outside);
         }
 
         // BUGERSONS!!!!
@@ -435,13 +433,13 @@ namespace Blistructor
             List<List<Curve>> outside = new List<List<Curve>>();
             foreach (Curve region in regions)
             {
-                Tuple<List<Curve>, List<Curve>> result = Geometry.TrimWithRegion(crv, region);
-                inside.Add(result.Item1);
-                outside.Add(result.Item2);
+                (List<Curve> _inside, List<Curve> _outside) = Geometry.TrimWithRegion(crv, region);
+                inside.Add(_inside);
+                outside.Add(_outside);
             }
             return Tuple.Create(inside, outside);
         }
-        
+
         /// <summary>
         /// Split Closed Curve by any other curve
         /// </summary>
@@ -555,10 +553,10 @@ namespace Blistructor
         {
             Point3d centre = ((PolylineCurve)crv).ToPolyline().CenterPoint();
             double minArea = double.MaxValue;
-           // PolylineCurve outCurve = null;
+            // PolylineCurve outCurve = null;
             Rectangle3d finalRect = new Rectangle3d(Plane.WorldXY, 1.0, 1.0);
 
-            for (double i = 0; i < 180; i+=0.5)
+            for (double i = 0; i < 180; i += 0.5)
             {
                 double radians = ExtraMath.ToRadians(i);
                 Curve currentCurve = crv.DuplicateCurve();
@@ -571,9 +569,9 @@ namespace Blistructor
                     Transform xForm = Transform.Rotation(-radians, Vector3d.ZAxis, centre);
                     rect.Transform(xForm);
                     finalRect = rect;
-           //PolylineCurve r = rect.ToPolyline().ToPolylineCurve();
-           //  r.Rotate(-radians, Vector3d.ZAxis, centre);
-           // outCurve = r;
+                    //PolylineCurve r = rect.ToPolyline().ToPolylineCurve();
+                    //  r.Rotate(-radians, Vector3d.ZAxis, centre);
+                    // outCurve = r;
                 }
             }
             //Rectangle3d rect = new Rectangle3d(Plane.WorldXY, box.Min, box.Max);
