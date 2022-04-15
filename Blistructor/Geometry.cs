@@ -447,6 +447,152 @@ namespace Blistructor
         /// <param name="splittingCurve">Curve for spliting</param>
         /// <returns>Splitted regions or null if no splitting occured or region is not closed curve.</returns>
 
+        #region SPLIT REGION
+        public class SplitResult
+        {
+            public List<Curve> SplittedRegions { get; set; }
+            public List<Curve> Splitters { get; set; }
+            public List<Curve> RemainingSplitters { get; set; }
+
+            public SplitResult()
+            {
+                SplittedRegions = new List<Curve>();
+                Splitters = new List<Curve>();
+                RemainingSplitters = new List<Curve>();
+            }
+
+            public void Append(SplitResult otherResult)
+            {
+                SplittedRegions.AddRange(otherResult.SplittedRegions);
+                Splitters.AddRange(otherResult.Splitters);
+                RemainingSplitters.AddRange(otherResult.RemainingSplitters);
+            }
+
+        }
+
+        public static List<Curve> CurvesInsideRegion(List<Curve> crvToEvaluate, Curve region)
+        {
+            List<Curve> insideCrv = new List<Curve>();
+            foreach (Curve crv in crvToEvaluate)
+            {
+                Point3d testPt = crv.PointAtNormalizedLength(0.5);
+                PointContainment result = region.Contains(testPt, Plane.WorldXY, 0.000001);
+                if (result == PointContainment.Inside)
+                {
+                    insideCrv.Add(crv);
+                }
+            }
+            return insideCrv;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="region"></param>
+        /// <param name="splittingCurve"></param>
+        /// <returns></returns>
+        public static SplitResult NewSplitRegion(Curve region, Curve splittingCurve)
+        {
+            List<double> region_t_params = new List<double>();
+            List<double> splitter_t_params = new List<double>();
+            splittingCurve = splittingCurve.Extend(CurveEnd.Both, 0.001);
+            List<IntersectionEvent> intersection = Intersection.CurveCurve(splittingCurve, region, 0.001);
+            if (!region.IsClosed || intersection == null)
+            {
+                return null;
+            }
+
+            PolylineCurve rregion = (PolylineCurve)region;
+            intersection = intersection.Where(inter => rregion.ToPolyline().Where(pt => inter.PointB.DistanceTo(pt) < 0.1).Count() < 1).ToList();
+
+            if (intersection.Count == 0)
+            {
+                return null;
+            }
+
+            SplitResult result = new SplitResult();
+
+            if (intersection.Count < 2)
+            {
+                List<Curve> splited_splitter2 = splittingCurve.Split(intersection[0].ParameterA).ToList();
+                result.RemainingSplitters = CurvesInsideRegion(splited_splitter2, region);
+                result.SplittedRegions.Add(region);
+                return result;
+            }
+            foreach (IntersectionEvent inter in intersection)
+            {
+                splitter_t_params.Add(inter.ParameterA);
+                region_t_params.Add(inter.ParameterB);
+            }
+            splitter_t_params.Sort();
+            region_t_params.Sort();
+            List<Curve> splited_splitter = splittingCurve.Split(splitter_t_params).ToList();
+            List<Curve> sCurve = CurvesInsideRegion(splited_splitter, region);
+
+            if (sCurve.Count == 1 && region_t_params.Count == 2)
+            {
+                List<Curve> splited_region = region.Split(region_t_params).ToList();
+                if (splited_region.Count == 2)
+                {
+                    foreach (Curve out_segment in splited_region)
+                    {
+                        Curve[] temp = Curve.JoinCurves(new List<Curve>() { out_segment, sCurve[0] });
+                        if (temp.Length != 1)
+                        {
+                            break;
+                        }
+                        if (temp[0].IsClosed)
+                        {
+                            result.SplittedRegions.Add(temp[0]);
+                            result.Splitters = sCurve;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                // Use recursieve option
+                result.Append(NewSplitRegion(region, sCurve));
+            }
+            return result;
+        }
+
+        public static SplitResult NewSplitRegion(Curve region, List<Curve> splitters)
+        {
+            SplitResult result = new SplitResult();
+
+            List<SplitResult> results = new List<SplitResult>();
+            List<Curve> finalRegions = new List<Curve>() { region };
+            double regionsCount = 0;
+            while (regionsCount != finalRegions.Count)
+            {
+                regionsCount = finalRegions.Count;
+                foreach (Curve splitter in splitters)
+                {
+                    List<Curve> workingRegions = new List<Curve>();
+                    foreach (Curve current_region in finalRegions)
+                    {
+                        SplitResult choped_region = NewSplitRegion(current_region, splitter);
+                        if (choped_region != null)
+                        {
+                            result.Append(choped_region);
+                            workingRegions.AddRange(choped_region.SplittedRegions);
+                        }
+                        else
+                        {
+                            workingRegions.Add(current_region);
+                        }
+                    }
+                    finalRegions = workingRegions;
+                }
+            }
+            result.SplittedRegions = finalRegions;
+            result.RemainingSplitters = RemoveDuplicateCurves(result.RemainingSplitters);
+            result.Splitters = RemoveDuplicateCurves(result.Splitters);
+            return result;
+        }
+
+
         public static List<Curve> SplitRegion(Curve region, Curve splittingCurve)
         {
             List<double> region_t_params = new List<double>();
@@ -462,7 +608,7 @@ namespace Blistructor
             {
                 return null;
             }
-            if (intersection.Count % 2 != 0 || intersection.Count == 0)
+            if (intersection.Count < 2)
             {
                 return null;
             }
@@ -479,6 +625,7 @@ namespace Blistructor
             splitter_t_params.Sort();
             region_t_params.Sort();
             Curve[] splited_splitter = splittingCurve.Split(splitter_t_params);
+            // splited_splitter.To
             List<Curve> sCurve = new List<Curve>();
             foreach (Curve crv in splited_splitter)
             {
@@ -559,7 +706,7 @@ namespace Blistructor
             }
             return temp_regions;
         }
-
+        #endregion
         public static Rectangle3d MinimumAreaRectangleBF(Curve crv)
         {
             Point3d centre = ((PolylineCurve)crv).ToPolyline().CenterPoint();
