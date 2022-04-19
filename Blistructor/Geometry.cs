@@ -597,13 +597,14 @@ namespace Blistructor
         {
             List<double> region_t_params = new List<double>();
             List<double> splitter_t_params = new List<double>();
-            splittingCurve = splittingCurve.Extend(CurveEnd.Both, Setups.IntersectionTolerance);
-            List<IntersectionEvent> intersection = Intersection.CurveCurve(splittingCurve, region, Setups.IntersectionTolerance);
             if (!region.IsClosed)
             {
                 return null;
             }
 
+            splittingCurve = splittingCurve.Extend(CurveEnd.Both, Setups.IntersectionTolerance);
+            List<IntersectionEvent> intersection = Intersection.CurveCurve(splittingCurve, region, Setups.IntersectionTolerance);
+      
             if (intersection == null)
             {
                 return null;
@@ -683,21 +684,23 @@ namespace Blistructor
                         List<Curve> choped_region = SplitRegion(current_region, splitter);
                         if (choped_region != null)
                         {
-                            foreach (Curve _region in choped_region)
-                            {
-                                List<Curve> c_inter = Curve.CreateBooleanIntersection(_region, region);
-                                foreach (Curve inter_curve in c_inter)
-                                {
-                                    current_temp_regions.Add(inter_curve);
-                                }
-                            }
+                            current_temp_regions.AddRange(choped_region);
+                            ////foreach (Curve _region in choped_region)
+                         //   {
+                              //  List<Curve> c_inter = Curve.CreateBooleanIntersection(_region, region);
+                               // current_temp_regions.AddRange(c_inter);
+                                //foreach (Curve inter_curve in c_inter)
+                                //{
+                                //    current_temp_regions.Add(inter_curve);
+                                //}
+                          //  }
                         }
                         else
                         {
-                            if (region.Contains(current_region.CenterPoint(), Plane.WorldXY, Setups.GeneralTolerance) == PointContainment.Inside)
-                            {
+                            //if (region.Contains(current_region.CenterPoint(), Plane.WorldXY, Setups.GeneralTolerance) == PointContainment.Inside)
+                            //{
                                 current_temp_regions.Add(current_region);
-                            }
+                           // }
                         }
                     }
                     temp_regions = new List<Curve>(current_temp_regions);
