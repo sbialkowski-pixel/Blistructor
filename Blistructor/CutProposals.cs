@@ -59,6 +59,7 @@ namespace Blistructor
         {
             if (!Validator.HasCutAnyImpactOnJaws) return 1.0;
             List<Interval> futureJawPosibleIntervals = Grasper.ApplyCutOnGrasperLocation(Validator.CurrentJawPosibleIntervals, Validator.BlisterImpactInterval);
+            if (futureJawPosibleIntervals.Count == 0) return 0.0;
             double rangeLength =  Grasper.IntervalsInterval(futureJawPosibleIntervals).Length;
             double realLength = futureJawPosibleIntervals.Select(inter => inter.Length).Sum();
             return rangeLength / realLength;

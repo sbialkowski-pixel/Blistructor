@@ -30,10 +30,14 @@ namespace Blistructor
     {
         public int Depth { get; private set; }
         public int RaySamples { get; private set; }
-        public LevelSetup(int raySamples, int depth = 0)
+        public int RaySamples_v0 { get; private set; }
+        public double RayAngles { get; private set; }
+        public LevelSetup(int raySamples, int raySamples_v0=0, double rayAngles=10.0, int depth = 0)
         {
             Depth = depth;
             RaySamples = raySamples;
+            RaySamples_v0 = raySamples_v0;
+            RayAngles = rayAngles;
         }
     }
 
@@ -59,7 +63,8 @@ namespace Blistructor
             RunId = runID;
             ChunkId = chunkId;
             Blister = blisterTotCut;
-            LevelSetups = new List<LevelSetup>() { new LevelSetup(0, 0), new LevelSetup(4, 1), new LevelSetup(8, 2), new LevelSetup(16, 3), new LevelSetup(32, 4) };
+           // LevelSetups = new List<LevelSetup>() { new LevelSetup(0, 0), new LevelSetup(4, 1), new LevelSetup(8, 2), new LevelSetup(16, 3), new LevelSetup(32, 4) };
+            LevelSetups = new List<LevelSetup>() { new LevelSetup(4, 2, 10,0), new LevelSetup(4, 5, 10,1), new LevelSetup(8, 1,10,2), new LevelSetup(16,1,10, 3), new LevelSetup(32,1,10,4) };
             PropositionsLevels = new List<List<CutProposal>>(LevelSetups.Count);
             AlreadyCutLevels = new List<List<CutProposal>>(LevelSetups.Count);
             //Init internal lists
@@ -167,15 +172,21 @@ namespace Blistructor
             // If still here, try to cut 
             log.Debug("Perform cutting data generation");
             List<CutData> cuttingData = new List<CutData>();
-            List<List<LineCurve>> isoLines = new List<List<LineCurve>>();
-            if (levelSetup.Depth > 0)
-            {
-                isoLines = GenerateIsoCurvesStage4(samples: levelSetup.RaySamples);
-            }
-            else
-            {
-                isoLines = GenerateIsoCurvesStage0_v2(5, 10.0);
-            }
+           // List<List<LineCurve>> isoLines = new List<List<LineCurve>>();
+           //// if (levelSetup.Depth > 0)
+           // {
+           //     isoLines = GenerateIsoCurvesStage4(samples: levelSetup.RaySamples);
+           // }
+           // else
+           // {
+           //     isoLines = GenerateIsoCurvesStage0_v2(5, 10.0);
+           // }
+
+            List<List<LineCurve>> isoLines1 = GenerateIsoCurvesStage4(samples: levelSetup.RaySamples);
+            List<List<LineCurve>> isoLines2 = GenerateIsoCurvesStage0_v2(levelSetup.RaySamples_v0, levelSetup.RayAngles);
+            List<List<LineCurve>> isoLines = isoLines1.Zip(isoLines2, (l1, l2) => { l1.AddRange(l2); return l1; }).ToList();
+
+
             cuttingData = GenerateCuttingData(isoLines);
             if (Setups.CreateCutterDebugFiles) GenerateDebugGeometryFile(isoLines, cuttingData, levelSetup, pillToCut.Id);
 
