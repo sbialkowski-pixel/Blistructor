@@ -67,8 +67,15 @@ namespace BlistructorWeb
                 rp.AsText("Cutter server is fine.");
             }, "GET");
 
-            //------------------- start server -------------------           
+            //------------------- start server -------------------   
+
+            System.Reflection.Assembly assembly = System.Reflection.Assembly.GetExecutingAssembly();
+            System.Diagnostics.FileVersionInfo fvi = System.Diagnostics.FileVersionInfo.GetVersionInfo(assembly.Location);
+            string version = fvi.FileVersion;
+
+
             var port = 8080;
+            log.Info("Blistructor. version: "+ version);
             log.Info("Running HTTP server on: " + port);
 
             var cts = new CancellationTokenSource();
