@@ -99,7 +99,8 @@ namespace Blistructor
             cuttingResult.Merge(PrepareEmptyJSON());
             cuttingResult["pillsDetected"] = pillsOutlines.Count;
             cuttingResult["pillsCutted"] = cutter.Chunks.Count;
-            cuttingResult["jawsLocation"] = cutter.Grasper.GetJSON();
+            cuttingResult["jawsDistance"] = cutter.Grasper.GetLocalJSON();
+            cuttingResult["jawsLocation"] = cutter.Grasper.GetGlobalJSON();
 
             JArray allCuttingInstruction = new JArray();
             JArray allDisplayInstruction = new JArray();

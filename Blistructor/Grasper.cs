@@ -836,8 +836,17 @@ namespace Blistructor
             if ((AABBox.Area() / MABBox.Area()) > maxDeviation) return false;
             else return true;
         }
+        public JObject GetLocalJSON()
+        {
+            Jaws = FindJawPoints();
+            JObject jawPoints = new JObject();
+            if (Jaws.Count == 0) return jawPoints;
+            jawPoints.Add("jaw_2", Jaws[0].Location.X);
+            jawPoints.Add("jaw_1", Jaws[1].Location.X);
+            return jawPoints;
+        }
 
-        public JObject GetJSON()
+       public JObject GetGlobalJSON()
         {
             Jaws = FindJawPoints();
             JObject jawPoints = new JObject();
