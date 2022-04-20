@@ -597,7 +597,7 @@ namespace Blistructor
         {
             List<double> region_t_params = new List<double>();
             List<double> splitter_t_params = new List<double>();
-            if (!region.IsClosed)
+            if (region==null && splittingCurve==null && !region.IsClosed)
             {
                 return null;
             }
