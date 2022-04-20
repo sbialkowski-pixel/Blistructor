@@ -109,7 +109,7 @@ namespace Blistructor
                 if (footPrint.Count == 0) return false;
                 BladeFootPrint.AddRange(footPrint);
             }
-            log.Info(String.Format("Generated {0} Blade Footprints.", BladeFootPrint.Count));
+            log.Debug(String.Format("Generated {0} Blade Footprints.", BladeFootPrint.Count));
             return true;
         }
 
