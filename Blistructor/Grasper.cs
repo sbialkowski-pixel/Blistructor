@@ -841,8 +841,8 @@ namespace Blistructor
             Jaws = FindJawPoints();
             JObject jawPoints = new JObject();
             if (Jaws.Count == 0) return jawPoints;
-            jawPoints.Add("jaw_2", Jaws[0].Location.X);
-            jawPoints.Add("jaw_1", Jaws[1].Location.X);
+            if (Jaws.Count > 0) jawPoints.Add("jaw_2", Jaws[0].Location.X);
+            if (Jaws.Count > 1) jawPoints.Add("jaw_1", Jaws[1].Location.X);
             return jawPoints;
         }
 
