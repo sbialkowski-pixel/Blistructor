@@ -226,12 +226,6 @@ namespace Blistructor
             }
         }
 
-        public List<Curve> GetPillsOutline(bool offset)
-        {
-            if (offset) return Pills.Select(pill => (Curve)pill.Offset).ToList();
-            else return Pills.Select(pill => (Curve)pill.Outline).ToList();
-        }
-
         public List<Curve> GetPillsOutline(double offset)
         {
             return Pills.Select(pill => (Curve)pill.GetCustomOffset(offset)).ToList();

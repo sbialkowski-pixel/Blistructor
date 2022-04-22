@@ -89,7 +89,7 @@ namespace Blistructor
 
             Center = Outline.ToPolyline().CenterPoint();
             // Create Outline offset
-            Offset = GetCustomOffset(Setups.BladeWidth / 2);
+            Offset = GetCustomOffset(Setups.MinimumInterPillDistance / 2);
             CircleDeviation = Geometry.DeviationFromCircle(Outline.ToPolyline());
         }
 
