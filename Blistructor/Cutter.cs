@@ -32,7 +32,7 @@ namespace Blistructor
         public int RaySamples { get; private set; }
         public int RaySamples_v0 { get; private set; }
         public double RayAngles { get; private set; }
-        public LevelSetup(int raySamples, int raySamples_v0=0, double rayAngles=10.0, int depth = 0)
+        public LevelSetup(int raySamples, int raySamples_v0 = 0, double rayAngles = 10.0, int depth = 0)
         {
             Depth = depth;
             RaySamples = raySamples;
@@ -58,13 +58,37 @@ namespace Blistructor
 
         public int RunId { get; set; }
         public int ChunkId { get; set; }
+
+        public int PropositionsLevel
+        {
+            get
+            {
+                for (int i = 0; i < PropositionsLevels.Count; i++)
+                {
+                    if (PropositionsLevels[i].Count == 0) return i - 1;
+                }
+                return 0;
+            }
+        }
+
+        public int AlreadyCutLevel
+        {
+            get
+            {
+                for (int i = 0; i < AlreadyCutLevels.Count; i++)
+                {
+                    if (AlreadyCutLevels[i].Count == 0) return i - 1;
+                }
+                return 0;
+            }
+        }
         public Cutter(Blister blisterTotCut, Grasper grasper, int runID = 0, int chunkId = 0)
         {
             RunId = runID;
             ChunkId = chunkId;
             Blister = blisterTotCut;
-           // LevelSetups = new List<LevelSetup>() { new LevelSetup(0, 0), new LevelSetup(4, 1), new LevelSetup(8, 2), new LevelSetup(16, 3), new LevelSetup(32, 4) };
-            LevelSetups = new List<LevelSetup>() { new LevelSetup(4, 2, 10,0), new LevelSetup(4, 5, 10,1), new LevelSetup(8, 1,10,2), new LevelSetup(16,1,10, 3), new LevelSetup(32,1,10,4) };
+            // LevelSetups = new List<LevelSetup>() { new LevelSetup(0, 0), new LevelSetup(4, 1), new LevelSetup(8, 2), new LevelSetup(16, 3), new LevelSetup(32, 4) };
+            LevelSetups = new List<LevelSetup>() { new LevelSetup(4, 2, 10, 0), new LevelSetup(4, 5, 10, 1), new LevelSetup(8, 1, 10, 2), new LevelSetup(16, 1, 10, 3), new LevelSetup(32, 1, 10, 4) };
             PropositionsLevels = new List<List<CutProposal>>(LevelSetups.Count);
             AlreadyCutLevels = new List<List<CutProposal>>(LevelSetups.Count);
             //Init internal lists
@@ -130,6 +154,61 @@ namespace Blistructor
         }
 
 
+        public CutProposal CutNextPillStatusWized()
+        {
+
+            for (int i = 0; i < LevelSetups.Count; i++)
+            {
+                List<CutProposal> propositions = PropositionsLevels[i];
+                List<CutProposal> alreadyCut = AlreadyCutLevels[i];
+                CutProposal nextProposal = propositions.FirstOrDefault();
+                if (nextProposal == null)
+                {
+                    List<Pill> pillsToProcess = Blister.Pills.Where(x => alreadyCut.All(y => y.Pill.Id != x.Id)).ToList();
+                    foreach (Pill pill in pillsToProcess)
+                    {
+                        List<CutProposal> proposals = TryCutPill(pill, LevelSetups[i]);
+                        if (proposals.Count == 0) continue;
+                        propositions.AddRange(proposals);
+                        break;
+                    }
+                    propositions = SortProposals(propositions);
+                    PropositionsLevels[i] = propositions;
+                }
+
+                while (true)
+                {
+                    nextProposal = propositions.FirstOrDefault();
+
+                    if (nextProposal != null)
+                    {
+                        if (nextProposal.State == CutState.Last) return nextProposal;
+                        if (nextProposal.Data.GenerateBladeFootPrint())
+                        {
+                            alreadyCut.Add(nextProposal);
+                            propositions.Remove(nextProposal);
+                            return nextProposal;
+                        }
+                        else
+                        {
+                            nextProposal.State = CutState.Failed;
+                            alreadyCut.Add(nextProposal);
+                            propositions.Remove(nextProposal);
+                        }
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+                // AlreadyCutLevels[i] = SortProposals(alreadyCut);
+                nextProposal = GetNextPillCut(CutState.Fixed);
+                if (nextProposal == null) nextProposal = GetNextPillCut(CutState.Rejected);
+                if (nextProposal != null) return nextProposal;
+            }
+            return null;
+        }
+
         /// <summary>
         /// After passing all cutProposition (CutNext is returning null), get remaining proposition from internal cutter state.
         /// </summary>
@@ -172,15 +251,15 @@ namespace Blistructor
             // If still here, try to cut 
             log.Debug("Perform cutting data generation");
             List<CutData> cuttingData = new List<CutData>();
-           // List<List<LineCurve>> isoLines = new List<List<LineCurve>>();
-           //// if (levelSetup.Depth > 0)
-           // {
-           //     isoLines = GenerateIsoCurvesStage4(samples: levelSetup.RaySamples);
-           // }
-           // else
-           // {
-           //     isoLines = GenerateIsoCurvesStage0_v2(5, 10.0);
-           // }
+            // List<List<LineCurve>> isoLines = new List<List<LineCurve>>();
+            //// if (levelSetup.Depth > 0)
+            // {
+            //     isoLines = GenerateIsoCurvesStage4(samples: levelSetup.RaySamples);
+            // }
+            // else
+            // {
+            //     isoLines = GenerateIsoCurvesStage0_v2(5, 10.0);
+            // }
 
             List<List<LineCurve>> isoLines1 = GenerateIsoCurvesStage4(samples: levelSetup.RaySamples);
             List<List<LineCurve>> isoLines2 = GenerateIsoCurvesStage0_v2(levelSetup.RaySamples_v0, levelSetup.RayAngles);
@@ -252,7 +331,7 @@ namespace Blistructor
         {
             // Order by number of cuts to be performed.
             if (proposals.Count == 1) return proposals;
-            return proposals.OrderBy(x => (int)x.State * x.EvaluateCutQuality() * x.EvaluateFutureJawPosibleIntervalsRange()).ToList();
+            return proposals.OrderBy(x => x.Evaluate()).ToList();
         }
 
 
@@ -352,7 +431,10 @@ namespace Blistructor
             if (rays.Count != 0)
             {
                 List<List<LineCurve>> RaysCombinations = Combinators.Combinators.UniqueCombinations(rays).OrderBy(data => data.Count).ToList();
-                Parallel.ForEach(RaysCombinations, RaysCombination =>
+                var parOpts = new ParallelOptions { MaxDegreeOfParallelism = -1 }; //No limit to parallel degree
+
+                //parOpts.MaxDegreeOfParallelism = 1; //Set parallel to 1
+                Parallel.ForEach(RaysCombinations, parOpts,  RaysCombination =>
                 {
                     if (RaysCombination.Count > 0)
                     {
@@ -363,42 +445,6 @@ namespace Blistructor
             }
             List<CutData> cuttingDataList = cuttingData.ToList();
             //DEBUG - SAVE FILE:
-#if DEBUG_FILE
-            if (debugFileName != "")
-            {
-                Random rnd = new Random();
-                int id = rnd.Next(0, 1000);
-                string path = string.Format("D:\\PIXEL\\Blistructor\\DebugModels\\{0}_{1}.3dm", debugFileName, id);
-                File3dm file = new File3dm();
-
-                Layer l_polygon = new Layer();
-                l_polygon.Name = "polygon";
-                l_polygon.Index = 0;
-                file.AllLayers.Add(l_polygon);
-                Layer l_lines = new Layer();
-                l_lines.Name = "lines";
-                l_lines.Index = 1;
-                file.AllLayers.Add(l_lines);
-                Layer l_obst = new Layer();
-                l_obst.Name = "obstacles";
-                l_obst.Index = 2;
-                file.AllLayers.Add(l_obst);
-
-                ObjectAttributes a_polygon = new ObjectAttributes();
-                a_polygon.LayerIndex = l_polygon.Index;
-                cuttingDataList.ForEach(cData => file.Objects.AddCurve(cData.Polygon, a_polygon));
-
-                ObjectAttributes a_lines = new ObjectAttributes();
-                a_lines.LayerIndex = l_lines.Index;
-                rays.ForEach(list => list.ForEach(l => file.Objects.AddCurve(l, a_lines)));
-
-                ObjectAttributes a_obs = new ObjectAttributes();
-                a_obs.LayerIndex = l_obst.Index;
-                WorkingObstacles.ForEach(crv => file.Objects.AddCurve(crv, a_obs));
-
-                file.Write(path, 6);
-            }
-#endif
             // END DEBUG
             return cuttingDataList;
         }
@@ -452,7 +498,7 @@ namespace Blistructor
         /// <param name="rays"></param>
         private List<CutData> PolygonBuilder_v2(List<LineCurve> rays, bool use_all_combinations = true)
         {
-            
+
             // Trim incoming rays and build current working full ray aray.
             List<LineCurve> trimedRays = new List<LineCurve>(rays.Count);
             List<LineCurve> fullRays = new List<LineCurve>(rays.Count);

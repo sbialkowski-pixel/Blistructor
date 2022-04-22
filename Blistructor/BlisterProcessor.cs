@@ -110,21 +110,22 @@ namespace Blistructor
                     // Loop on Pills
                     while (true)
                     {
-                        cutProposal = cutter.CutNextPill();
+                        cutProposal = cutter.CutNextPillStatusWized();
                         //GET PROPOSAL
                         if (cutProposal == null)
                         {
                             //All Pills are cut, lower requerments (try cut fixed and rejected Pills where jaws can occure)
-                            cutProposal = cutter.GetNextPillCut(CutState.Rejected);
-                            if (cutProposal == null) cutProposal = cutter.GetNextPillCut(CutState.Fixed);
+                          //  cutProposal = cutter.GetNextPillCut(CutState.Rejected);
+                           // if (cutProposal == null) cutProposal = cutter.GetNextPillCut(CutState.Fixed);
                             // If there is no successful cut proposal (all CutStates == FAIL), just end.
-                            if (cutProposal == null)
-                            {
+                           // if (cutProposal == null)
+                          //  {
                                 log.Error("!!!Cannot cut blister anymore!!!");
                                 return CuttingState.CTR_FAILED;
-                            }
+                         //   }
                         }
-                        else if (cutProposal.State != CutState.Last)
+                        else if (cutProposal.State == CutState.Proposed)
+                       //  else if (cutProposal.State != CutState.Last)
                         {
                             // Checking only Pill which are not fixed by Jaw and cut data allows to grab it no collisions
                             if (Grasper.ContainsJaw(cutProposal.Data) && Grasper.HasPlaceForJawInCutContext(cutProposal.Data))
@@ -147,7 +148,7 @@ namespace Blistructor
                                 {
                                     if (!cutProposal.CheckJawsCollision(state: CutState.Rejected)) continue;
                                 }
-                                else if (cutProposal.State == CutState.Rejected)
+                                else if (cutProposal.State == CutState.Rejected || cutProposal.State == CutState.Fixed)
                                 {
                                     cutProposal.State = CutState.Succeed;
                                     break;
@@ -207,7 +208,7 @@ namespace Blistructor
                     else
                     {
                         // If only one pill left, this cut is second last. So pottentialy can be hold by JAW. Chceck if this cut can be hold by any Jaw OR in past cuts one Jaws has been occupied, so there is no chance that THIS cut will be hold by JAW. If no chanse, apply cut on Grasper.
-                        // Additionaly if Queue ==2, the other blister must be hold so, tuch chunk mus reduce grapsers.
+                        // Additionaly if Queue ==2, the other blister must be hold so, this chunk must reduce grapsers.
                         int pastLast = Chunks.Where(c_chunk => c_chunk.IsLast == true).Count();
                         if (!cutProposal.CheckJawExistanceInCut(state: CutState.None) || pastLast > 0 || Queue.Count == 2) Grasper.ApplyCut(chunk);
                     }

@@ -18,11 +18,21 @@ namespace Blistructor
     public class CutProposal : IEquatable<CutProposal>
     {
         private static readonly ILog log = LogManager.GetLogger("Cutter.CutProposal");
-
-        public CutData Data { get; private set; }
+        
+        #region PROPERTIES
         private CutValidator Validator { get; set; }
-
         internal Guid UUID { private set; get; }
+        public CutData Data { get; private set; }
+        public Pill Pill { get; private set; }
+        public Blister Blister { get => Pill.ParentBlister; }
+        public CutState State { get; internal set; }
+
+        public double CutQuality { get; private set ; }
+        public double LeftoverQuality { get; private set; }
+        public double CutImpactRatio { get; private set; }
+        public double Quality { get; private set; }
+
+        #endregion
 
         #region CONTRUCTORS
         public CutProposal(Pill proposedPillToCut, CutData cutData, Grasper grasper, CutState state)
@@ -33,13 +43,11 @@ namespace Blistructor
             Data = cutData;
             if (cutData != null)
                 Validator = new CutValidator(Data, grasper);
+            CutQuality = EvaluateCutQuality();
+            LeftoverQuality = EvaluateLeftoverQuality();
+            CutImpactRatio = EvaluateCutImpactIntervals();
+            Quality = Evaluate();
         }
-        #endregion
-
-        #region PROPERTIES
-        public Pill Pill { get; private set; }
-        public Blister Blister { get => Pill.ParentBlister; }
-        public CutState State { get; internal set; }
         #endregion
 
         public bool Equals(CutProposal other)
@@ -48,27 +56,65 @@ namespace Blistructor
             return (this.UUID.Equals(other.UUID));
         }
 
-        //Metoda do oceny ile miejsca zostaje po cięciu. Przeniesć do validatora
-        //Dodać do alidatora metodę do oceny ceica w celu sortowania
-        //Validator powinien miec wszystko co potrznbne do validoacji i oceny ciecia. 
+        public double Evaluate()
+        {
+            if (Data == null) return 1/(int)State;
+            return (1.0/((int)State)) * (CutQuality + LeftoverQuality + CutImpactRatio);
+        }
         /// <summary>
-        /// Evaluate how Cut influance JawLocationPossible.
+        /// Geenrate Evaluate FutureJawPosibleInterval and evaluate remaining JawLocationPossible. (0.0-1.0)
         /// </summary>
         /// <returns> 0.0 means Cut remove whole JawLocationPossible, 1.0 means no impact on JawsLocation</returns>
         public double EvaluateFutureJawPosibleIntervalsRange()
         {
-            if (!Validator.HasCutAnyImpactOnJaws) return 1.0;
+            if (Validator == null || !Validator.HasCutAnyImpactOnJaws) return 1.0;
             List<Interval> futureJawPosibleIntervals = Grasper.ApplyCutOnGrasperLocation(Validator.CurrentJawPosibleIntervals, Validator.BlisterImpactInterval);
             if (futureJawPosibleIntervals.Count == 0) return 0.0;
             double rangeLength =  Grasper.IntervalsInterval(futureJawPosibleIntervals).Length;
             double realLength = futureJawPosibleIntervals.Select(inter => inter.Length).Sum();
             return rangeLength / realLength;
-            //return futureJawPosibleIntervals.Select(inter => inter.Length).Sum();
         }
 
+        /// <summary>
+        /// Evaluate how cut influance JawLocationPossible (0.0-1.0)
+        /// </summary>
+        /// <returns> 1.0 means no impact (no cut-jaws intersection) on JawsLocation, values near 0.0 means lower impact on JawLocationPossible. Lower is better</returns>
+        public double EvaluateCutImpactIntervals()
+        {
+            if (Validator == null || !Validator.HasCutAnyImpactOnJaws) return 1.0;
+            if (Validator.CutImpactIntervals.Count == 0) return 1.0;
+            double rangeLength = Validator.CutImpactIntervals.Select(interval => interval.Length).Sum();
+            double realLength = Validator.CurrentJawPosibleIntervals.Select(inter => inter.Length).Sum();
+            return rangeLength / realLength;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <returns>Lower is better</returns>
         public double EvaluateCutQuality()
         {
-            return Data.EstimatedCuttingCount * Data.Polygon.GetBoundingBox(false).Area * Data.BlisterLeftovers.Select(y => y.PointCount).Sum();
+            if (Validator == null) return 1.0;
+            return Data.RealCuttingCount;
+        }
+
+        /// <summary>
+        /// This method evaluates LeftoverQuality. (0.0-1.0)
+        /// It calculates dotProduct from 2 ratios.
+        /// bBoxLeftoverAreaRation -> ration between leftover area and it BBOx area
+        /// bBoxNormalizedAspectRation -> bBox edges (sorted ascening) ratio 
+        /// </summary>
+        /// <returns> (bBoxLeftoverAreaRatio + bBoxNormalizedAspectRatio)/2. Values closer to 0.0 means better leftover. Lower is better</returns>
+        public double EvaluateLeftoverQuality()
+        {
+            if (Validator == null) return 1.0;
+            double leftoverArea = Data.Polygon.Area();
+            double bBoxLeftoverAreaRatio = leftoverArea / Data.PolygonMAR.Area; // This will be always 0.0-1.0
+            List<double> bBoxEdgeLenght = (new List<double> { Data.PolygonMAR.X.Length, Data.PolygonMAR.Y.Length }).OrderBy(d => d).ToList();
+            double bBoxNormalizedAspectRatio = bBoxEdgeLenght[0] / bBoxEdgeLenght[1] ;  // This will be always 0.0-1.0
+            // double perimeterAreaRatio = Data.Polygon.GetLength() / leftoverArea;
+            return 1-(1.5*bBoxLeftoverAreaRatio + 0.5*bBoxNormalizedAspectRatio)/2 ;
+           // return 1 - bBoxLeftoverAreaRatio;
         }
 
         #region VALIDATOR
@@ -127,7 +173,7 @@ namespace Blistructor
         public bool CheckJawExistanceInLeftovers(CutState state = CutState.None)
         {
             if (State == CutState.Last) return true;
-            bool result = Validator.CheckJawsExistance();
+            bool result = Validator.CheckJawExistanceInLeftovers();
             if (!result && state != CutState.None) State = state;
             return result;
         }
