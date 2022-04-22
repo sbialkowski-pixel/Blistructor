@@ -9,8 +9,14 @@ using ExtraMath = Pixel.Rhino.RhinoMath;
 
 namespace Blistructor
 {
+
     static public class Setups
     {
+        public static bool CreateChunkDebugFile = false;
+        public static bool CreateBlisterDebugFile = false;
+        public static bool CreatePillsDebugFiles = false;
+        public static bool CreateCutterDebugFiles = false;
+
 
         #region CALIBRATOR DATA
         public static double PixelSpacing = GetEnvironmentVariableWithDefault("PIXEL_SPACING", 1.0);
@@ -45,7 +51,7 @@ namespace Blistructor
         //Axis (Cartesian Global) to calculate angles. 
         public static string BladeRotationAxis = GetEnvironmentVariableWithDefault("BLADE_ROTATION_AXIS", "X");
         // Knife cutting angles is calculated base od Global Cartesian X axis. Extra Rotation (in radians) if other angles are need. 
-    
+
         public static double BladeRotationCalibration = ExtraMath.ToRadians(GetEnvironmentVariableWithDefault("BLADE_EXTRA_ROTATION", 0));
         #endregion
 
@@ -80,13 +86,7 @@ namespace Blistructor
 
         #endregion
 
-        #region DEBUG
         public static string DebugDir = "D:\\PIXEL\\Blistructor\\DebugModels";
-        public static bool CreateChunkDebugFile = true;
-        public static bool CreateBlisterDebugFile = true;
-        public static bool CreatePillsDebugFiles = true;
-        public static bool CreateCutterDebugFiles = true;
-        #endregion
 
         private static T GetEnvironmentVariableWithDefault<T>(string variable, T defaultValue)
         {
@@ -106,19 +106,19 @@ namespace Blistructor
 
         public static void ApplySetups(JObject setup)
         {
-            #region CALIBRATOR DATA
+#region CALIBRATOR DATA
             PixelSpacing = setup.GetValue<double>("pixelSpacing", PixelSpacing);
             List<double> ZeroPositionValues = setup.GetValue<List<double>>("zeroPositionCalibration", new List<double>() { ZeroPosition.X, ZeroPosition.Y });
             ZeroPosition = new Vector3d(ZeroPositionValues[0], ZeroPositionValues[1], 0);
-            #endregion  
-            #region GENERAL TOLERANCES
+#endregion
+#region GENERAL TOLERANCES
             GeneralTolerance = setup.GetValue<double>("generalTolerance", GeneralTolerance);
             IntersectionTolerance = setup.GetValue<double>("intersectionTolerance", IntersectionTolerance);
             ColinearTolerance = setup.GetValue<double>("colinearTolerance", ColinearTolerance);
 
             MaxBlisterPossitionDeviation = setup.GetValue<double>("maxBlisterPossitionDeviation", MaxBlisterPossitionDeviation);
-            #endregion
-            #region SIMPLIFY/SMOOTH TOLERANCES
+#endregion
+#region SIMPLIFY/SMOOTH TOLERANCES
             // SIMPLIFY PATH TOLERANCES
             CurveReduceTolerance = setup.GetValue<double>("contourReduceTolerance", CurveReduceTolerance);
             CurveSmoothTolerance = setup.GetValue<double>("contourSmoothTolerance", CurveSmoothTolerance);
@@ -126,8 +126,8 @@ namespace Blistructor
             // if path segment is shorter then this, it will be collapsed
             CollapseTolerance = setup.GetValue<double>("simplyfyCollapseTolerance", CollapseTolerance);
             SnapDistance = setup.GetValue<double>("simplyfySnapDistance", SnapDistance);
-            #endregion
-            #region BLADE STUFF
+#endregion
+#region BLADE STUFF
             BladeLength = setup.GetValue<double>("bladeCutLength", BladeLength);
             BladeTol = setup.GetValue<double>("bladeCutTol", BladeTol);
 
@@ -138,8 +138,8 @@ namespace Blistructor
 
             BladeRotationAxis = setup.GetValue<string>("bladeRotationAxis", BladeRotationAxis);
             BladeRotationCalibration = ExtraMath.ToRadians(setup.GetValue<double>("bladeRotationCalibration", BladeRotationCalibration));
-            #endregion
-            #region CARTESIAN
+#endregion
+#region CARTESIAN
             CartesianPickModeAngle = ExtraMath.ToRadians(setup.GetValue<double>("cartesianPickModeAngle", CartesianPickModeAngle));
             JawWidth = setup.GetValue<double>("cartesianJawWidth", JawWidth);
             JawDepth = setup.GetValue<double>("cartesianJawDepth", JawDepth);
@@ -151,8 +151,8 @@ namespace Blistructor
             CartesianPivotJawVector = new Vector3d(CartesianPivotJawVectorValues[0], CartesianPivotJawVectorValues[1], 0);
             JawKnifeAdditionalSafeDistance = setup.GetValue<double>("jawKnifeAdditionalSafeDistance", JawKnifeAdditionalSafeDistance);
             JawPillSafeDistance = setup.GetValue<double>("jawPillSafeDistance", JawPillSafeDistance);
-            #endregion
-            #region GLOBAL COORDINATE SYSTEM
+#endregion
+#region GLOBAL COORDINATE SYSTEM
             BlisterGlobalSystem = setup.GetValue<string>("blisterGlobalSystem", BlisterGlobalSystem);
 
             List<double> BlisterGlobalValues = setup.GetValue<List<double>>("blisterGlobalPosition", new List<double>() { BlisterGlobal.X, BlisterGlobal.Y });
@@ -160,14 +160,26 @@ namespace Blistructor
 
             List<double> BlisterGlobalPickValues = setup.GetValue<List<double>>("blisterGlobalPickPosition", new List<double>() { BlisterGlobalPick.X, BlisterGlobalPick.Y });
             BlisterGlobalPick = new Vector3d(BlisterGlobalPickValues[0], BlisterGlobalPickValues[1], 0);
-            #endregion
-            #region GENERAL CONTROL
+#endregion
+#region GENERAL CONTROL
             IsoRadius = setup.GetValue<double>("rayLength", IsoRadius);
             MinimumCutOutSize = setup.GetValue<double>("minimumCutOutSize", MinimumCutOutSize);
             TrimBlisterToXAxis = setup.GetValue<bool>("trimBlisterToXAxis", TrimBlisterToXAxis);
             SegmentationScoreTreshold = setup.GetValue<double>("segmentationScoreTreshold", SegmentationScoreTreshold);
-            #endregion
+#endregion
         }
+
+        static Setups()
+        {
+#if DEBUG
+
+            CreateChunkDebugFile = true;
+            CreateBlisterDebugFile = true;
+            CreatePillsDebugFiles = true;
+            CreateCutterDebugFiles = true;
+#endif
+        }
+
     }
                                                   
     public static class JTokenExtention
