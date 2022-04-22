@@ -111,8 +111,17 @@ namespace Blistructor
             }
             cuttingResult["cuttingData"] = allCuttingInstruction;
             cuttingResult["displayData"] = allDisplayInstruction;
- 
+            cuttingResult["version"] = GetVersion();
+
+
             return cuttingResult;
+        }
+
+        private string GetVersion()
+        {
+            System.Reflection.Assembly assembly = System.Reflection.Assembly.GetExecutingAssembly();
+            System.Diagnostics.FileVersionInfo fvi = System.Diagnostics.FileVersionInfo.GetVersionInfo(assembly.Location);
+            return fvi.FileVersion;
         }
 
         private JObject PrepareStatus(CuttingState stateCode, string message = "")
