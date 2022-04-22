@@ -25,6 +25,7 @@ namespace Blistructor
         public List<LineCurve> BladeFootPrint { private set; get; }
         public List<PolylineCurve> Path { private set; get; }
         public PolylineCurve Polygon { private set;  get; }
+        public Rectangle3d PolygonMAR { private set; get; }
         public List<Curve> Obstacles { set; private get; }
         //internal Guid UUID { private set;  get; }
 
@@ -39,6 +40,7 @@ namespace Blistructor
         {
             this.Path = path;
             this.Polygon = polygon;
+            this.PolygonMAR = Geometry.MinimumAreaRectangleBF(Polygon);
         }
 
         public CutData(PolylineCurve polygon, List<PolylineCurve> path, PolylineCurve blisterLeftover) : this(polygon, path)
