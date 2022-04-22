@@ -845,7 +845,7 @@ namespace Blistructor
             if (Jaws.Count > 1) jawPoints.Add("jaw_1", Jaws[1].Location.X);
             return jawPoints;
         }
-
+                                                             
        public JObject GetGlobalJSON()
         {
             Jaws = FindJawPoints();

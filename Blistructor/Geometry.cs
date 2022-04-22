@@ -602,7 +602,7 @@ namespace Blistructor
                 return null;
             }
 
-           // splittingCurve = splittingCurve.Extend(CurveEnd.Both, Setups.IntersectionTolerance);
+            splittingCurve = splittingCurve.Extend(CurveEnd.Both, Setups.IntersectionTolerance);
             List<IntersectionEvent> intersection = Intersection.CurveCurve(splittingCurve, region, Setups.IntersectionTolerance);
       
             if (intersection == null)

@@ -122,7 +122,6 @@ namespace Blistructor
             #region BLADE STUFF
             BladeLength = setup.GetValue<double>("bladeCutLength", BladeLength);
             BladeTol = setup.GetValue<double>("bladeCutTol", BladeTol);
-
             BladeWidth = setup.GetValue<double>("bladeCutWidth", BladeWidth);
 
             List<double> BladeGlobalValues = setup.GetValue<List<double>>("bladeGlobalPosition", new List<double>() { BladeGlobal.X, BladeGlobal.Y });
@@ -164,7 +163,7 @@ namespace Blistructor
 
         static Setups()
         {
-#if DEBUG
+#if DEBUG_FILE
             CreateChunkDebugFile = true;
             CreateBlisterDebugFile = true;
             CreatePillsDebugFiles = true;
