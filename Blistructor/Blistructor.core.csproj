@@ -9,6 +9,8 @@
     <AssemblyName>Blistructor</AssemblyName>
     <RootNamespace>Blistructor</RootNamespace>
     <Configurations>Debug;Release;DebugPlugin</Configurations>
+    <PackageId>Blistructor.Core</PackageId>
+    <Authors>S.Bialkowski</Authors>
   </PropertyGroup>
   
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">

@@ -1,12 +1,13 @@
 #See https://aka.ms/containerfastmode to understand how Visual Studio uses this Dockerfile to build your images for faster debugging.
 
 FROM mcr.microsoft.com/dotnet/core/runtime:3.1-buster-slim AS base
-WORKDIR /app
+#WORKDIR /app
 
 #FROM mcr.microsoft.com/dotnet/core/sdk:3.1-buster AS build
 #WORKDIR /src
-#COPY ["BlistructorWeb/BlistructorWeb.csproj", "BlistructorWeb/"]
-#RUN dotnet restore "BlistructorWeb/BlistructorWeb.csproj"
+#COPY ["BlistructorWeb.csproj", "BlistructorWeb/"]
+#COPY . .
+#RUN dotnet restore "BlistructorWeb.csproj"
 #COPY . .
 #WORKDIR "/src/BlistructorWeb"
 #RUN dotnet build "BlistructorWeb.csproj" -c Release -o /app/build

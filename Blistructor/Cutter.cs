@@ -88,7 +88,9 @@ namespace Blistructor
             ChunkId = chunkId;
             Blister = blisterTotCut;
             // LevelSetups = new List<LevelSetup>() { new LevelSetup(0, 0), new LevelSetup(4, 1), new LevelSetup(8, 2), new LevelSetup(16, 3), new LevelSetup(32, 4) };
-            LevelSetups = new List<LevelSetup>() { new LevelSetup(4, 2, 10, 0), new LevelSetup(4, 5, 10, 1), new LevelSetup(8, 1, 10, 2), new LevelSetup(16, 1, 10, 3), new LevelSetup(32, 1, 10, 4) };
+            //LevelSetups = new List<LevelSetup>() { new LevelSetup(4, 2, 10, 0), new LevelSetup(4, 5, 10, 1), new LevelSetup(8, 1, 10, 2), new LevelSetup(16, 1, 10, 3), new LevelSetup(32, 1, 10, 4) };
+            LevelSetups = new List<LevelSetup>() { new LevelSetup(4, 2, 10, 0), new LevelSetup(4, 5, 10, 1), new LevelSetup(16, 1, 10, 2) };
+
             PropositionsLevels = new List<List<CutProposal>>(LevelSetups.Count);
             AlreadyCutLevels = new List<List<CutProposal>>(LevelSetups.Count);
             //Init internal lists
@@ -678,7 +680,8 @@ namespace Blistructor
             // Check if smallest segment from cutout blister is smaller than some size.
             PolylineCurve pill_region_Crv = pill_region.ToPolylineCurve();
             Rectangle3d bbox = Geometry.MinimumAreaRectangleBF(pill_region_Crv);
-            if (Math.Min(bbox.Width, bbox.Height) > Setups.MinimumCutOutSize) return null;
+            if (Setups.MinimumCutOutSize > 0.0 && Math.Min(bbox.Width, bbox.Height) > Setups.MinimumCutOutSize) return null;
+            // if (Math.Min(bbox.Width, bbox.Height) > Setups.MinimumCutOutSize) ;
             //Line[] pill_region_segments = pill_region.GetSegments().OrderBy(line => line.Length).ToArray();
             //if (pill_region_segments[0].Length > Setups.MinimumCutOutSize) return null;
             Geometry.UnifyCurve(pill_region_Crv);
